@@ -1,0 +1,140 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <algorithm>
+#include <iostream>
+#include <math.h>
+#include "gridcell.hpp"
+#include <map>
+
+using namespace std;
+
+GridJoin::GridJoin() {
+	lcell = NULL;
+	rcell = NULL;
+	inghost = NULL;
+	outghost = NULL;
+	next = NULL;
+	for(int i = 0; i < NU; i++)
+		F[i] = 0;
+	for (int i = 0; i < 3; i++)
+		xj[i] = 0;
+	area = 0;
+	s_total++;
+}
+GridJoin::~GridJoin() {
+	s_total--;
+}
+int GridJoin::s_total = 0;
+
+Boundary::Boundary(int nghosts) {
+	for(int i = 0; i < nghosts; i++)
+		ghosts.push_back(new GridCell());
+	gridcell = NULL;
+	next = NULL;
+	s_total++;
+	face = 0;
+	bc = FREE;
+	for(int i = 0; i < NU; i++)
+		F[i] = 0;
+	area = 0;
+}
+Boundary::~Boundary() {
+	int nghosts = ghosts.size();
+	for(int i = 0; i < nghosts; i++)
+		delete ghosts[i];
+	s_total--;
+}
+int Boundary::s_total = 0;
+
+void Boundary::applyBC(){
+	int dim = face%3;
+	int nghosts = ghosts.size();
+	GridCell* cptr = gridcell;
+	for(int i = 0; i < nghosts; i++){
+		if(bc == REFLECTING){
+			for(int j = 0; j < NU; j++)
+				ghosts[i]->Q[j] = cptr->Q[j];
+			ghosts[i]->Q[ivel+dim] = -cptr->Q[ivel+dim];
+		}
+		if(bc == OUTFLOW){
+			for(int j = 0; j < NU; j++)
+				ghosts[i]->Q[j] = cptr->Q[j];
+			if((cptr->Q[ivel+dim] > 0 && face < 3) || (cptr->Q[ivel+dim] < 0 && face >= 3))
+				ghosts[i]->Q[ivel+dim] = -1.0*cptr->Q[ivel+dim];
+		}
+		if(bc == INFLOW){
+			for(int j = 0; j < NU; j++)
+				ghosts[i]->Q[j] = cptr->Q[j];
+			if((cptr->Q[ivel+dim] < 0 && face < 3) || (cptr->Q[ivel+dim] > 0 && face >= 3))
+				ghosts[i]->Q[ivel+dim] = -1.0*cptr->Q[ivel+dim];
+		}
+		if(bc == FREE){
+			for(int j = 0; j < NU; j++)
+				ghosts[i]->Q[j] = cptr->Q[j];
+		}
+		//ghosts[i]->QfromU();
+		if(face < 3)
+			cptr = cptr->right[dim];
+		else
+			cptr = cptr->left[dim];
+		if(cptr == NULL && i+1 < nghosts){
+			cerr << "ERROR: No. of ghost GridCells exceeds no. of gridcells along a dimension." << endl;
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+GridCell::GridCell() {
+	for(int dim = 0; dim < 3; dim++){
+		bd[dim] = NULL;
+		left[dim] = NULL;
+		right[dim] = NULL;
+		ljoin[dim] = NULL;
+		rjoin[dim] = NULL;
+	}
+	next = NULL;
+	for(int id = 0; id < 3; id++){
+		for(int iu = 0; iu < NU; iu++){
+			UL[id][iu] = 0;
+			UR[id][iu] = 0;
+			QL[id][iu] = 0;
+			QR[id][iu] = 0;
+		}
+	}
+	for(int i = 0; i < NU; i++){
+		U[i] = 0;
+		Q[i] = 0;
+		W[i] = 0;
+	}
+	for(int i = 0; i < NR; i++){
+		R[i] = 0;
+	}
+	for(int dim = 0; dim < 3; dim++)
+		xc[dim] = 1;
+	vol = 0;
+	s_total++;
+}
+GridCell::~GridCell() {
+	s_total--;
+}
+int GridCell::s_total = 0;
+
+/* SETS */
+void GridCell::set_U(int index, double value) {U[index] = value;}
+void GridCell::set_xcs(int x, int y, int z) {
+	xc[0] = x;
+	xc[1] = y;
+	xc[2] = z;
+}
+/* GETS */
+int GridCell::get_xc(int index) {return xc[index];}
+double GridCell::get_U(int index) {return U[index];}
+/* FUNCTIONS */
+double GridCell::temperature() {
+	double pre, rho;
+	//molar_m = 1.0/(2.0*HIIfrac + (1.0-HIIfrac));
+	pre = Q[ipre];
+	rho = Q[iden];
+	return pre/(GAS_CONST*rho);
+}
+
