@@ -37,16 +37,12 @@ void HydroDynamics::reconstruct(Grid3D* gptr) const {
 			for(int iq = 0; iq < NU; iq++){
 				if(cptr->left[dim] != NULL)
 					dQdr1[iq] = (cptr->Q[iq] - cptr->left[dim]->Q[iq])/gptr->dx[dim];
-				else if(cptr->left[dim] == NULL){
-					dQdr1[iq] = cptr->Q[iq];
-					dQdr1[iq] = cptr->bd[dim]->ghosts[0]->Q[iq];
-					dQdr1[iq] = gptr->dx[dim];
-					dQdr1[iq] = (cptr->Q[iq] - cptr->bd[dim]->ghosts[0]->Q[iq])/gptr->dx[dim];
-				}
+				else
+					dQdr1[iq] = (cptr->Q[iq] - cptr->ljoin[dim]->lcell->Q[iq])/gptr->dx[dim];
 				if(cptr->right[dim] != NULL)
 					dQdr2[iq] = (cptr->right[dim]->Q[iq] - cptr->Q[iq])/gptr->dx[dim];
-				else if(cptr->right[dim] == NULL)
-					dQdr2[iq] = (cptr->bd[dim]->ghosts[0]->Q[iq] - cptr->Q[iq])/gptr->dx[dim];
+				else
+					dQdr2[iq] = (cptr->rjoin[dim]->rcell->Q[iq] - cptr->Q[iq])/gptr->dx[dim];
 				dQdr[iq] = av(dQdr1[iq], dQdr2[iq]);
 				if(iq == ihii && isnan(dQdr[iq])) {
 					cerr << "dQdr1 = " << dQdr1[iq] << endl;
@@ -59,22 +55,36 @@ void HydroDynamics::reconstruct(Grid3D* gptr) const {
 			UfromQ(cptr->UR[dim], cptr->QR[dim]);
 		}
 	}
-	for(Boundary* bptr = gptr->fboundary; bptr != NULL; bptr = bptr->next){
-		int dim = bptr->face%3;
-		for(int iq = 0; iq < NU; iq++){
-			dQdr1[iq] = (bptr->ghosts[0]->Q[iq] - bptr->ghosts[1]->Q[iq])/gptr->dx[dim];
-			dQdr2[iq] = (bptr->gridcell->Q[iq] - bptr->ghosts[0]->Q[iq])/gptr->dx[dim];
-			if(bptr->face > 2){
-				dQdr1[iq] = -dQdr1[iq];
-				dQdr2[iq] = -dQdr2[iq];
+	for (int ib = 0; ib < (int)gptr->boundaries.size(); ib++) {
+		int face = gptr->boundaries[ib]->face;
+		int dim = face%3;
+		for (int i = 0; i < (int)gptr->boundaries[ib]->ghostcells.size(); i++) {
+			for (int j = 0; j < (int)gptr->boundaries[ib]->ghostcells[i].size(); j++) {
+				GridCell* bcptr = gptr->boundaries[ib]->ghostcells[i][j];
+				GridCell* cptr = NULL;
+				if (face < 3) {
+					cptr = bcptr->rjoin[dim]->rcell;
+					for(int iq = 0; iq < NU; iq++){
+						dQdr1[iq] = (bcptr->Q[iq] - bcptr->left[dim]->Q[iq])/gptr->dx[dim];
+						dQdr2[iq] = (cptr->Q[iq] - bcptr->Q[iq])/gptr->dx[dim];
+					}
+				}
+				else {
+					cptr = bcptr->ljoin[dim]->lcell;
+					for (int iq = 0; iq < NU; iq++) {
+						dQdr1[iq] = (bcptr->Q[iq] - cptr->Q[iq])/gptr->dx[dim];
+						dQdr2[iq] = (bcptr->right[dim]->Q[iq] - bcptr->Q[iq])/gptr->dx[dim];
+					}
+				}
+				for (int iq = 0; iq < NU; iq++) {
+					dQdr[iq] = av(dQdr1[iq], dQdr2[iq]);
+					bcptr->QL[dim][iq] = bcptr->Q[iq] - 0.5*(gptr->dx[dim])*dQdr[iq];
+					bcptr->QR[dim][iq] = bcptr->Q[iq] + 0.5*(gptr->dx[dim])*dQdr[iq];
+				}
+
+				UfromQ(bcptr->UL[dim], bcptr->QL[dim]);
+				UfromQ(bcptr->UR[dim], bcptr->QR[dim]);
 			}
-			dQdr[iq] = av(dQdr1[iq], dQdr2[iq]);
-			bptr->ghosts[0]->QL[dim][iq] = bptr->ghosts[0]->Q[iq] - 0.5*(gptr->dx[dim])*dQdr[iq];
-			bptr->ghosts[0]->QR[dim][iq] = bptr->ghosts[0]->Q[iq] + 0.5*(gptr->dx[dim])*dQdr[iq];
-		}
-		for(int i = 0; i < 3; i++){
-			UfromQ(bptr->ghosts[0]->UL[i], bptr->ghosts[0]->QL[i]);
-			UfromQ(bptr->ghosts[0]->UR[i], bptr->ghosts[0]->QR[i]);
 		}
 	}
 }
@@ -144,7 +154,7 @@ void HydroDynamics::calcFluxes(Grid3D* gptr) const {
 	if(!SWEEPX){
 		for(int dim = 0; dim < ND; dim++){
 			for(GridJoin* jptr = gptr->fjoin[dim]; jptr != NULL; jptr = jptr->next){
-				if(ORDER > 0)
+				if(gptr->ORDER_S > 0)
 					HLLC(jptr->lcell->UR[dim], jptr->F, jptr->rcell->UL[dim], dim);
 				else
 					HLLC(jptr->lcell->U, jptr->F, jptr->rcell->U, dim);
@@ -155,7 +165,7 @@ void HydroDynamics::calcFluxes(Grid3D* gptr) const {
 	else{
 		for(int dim = ND-1; dim >= 0; dim--){
 			for(GridJoin* jptr = gptr->fjoin[dim]; jptr != NULL; jptr = jptr->next){
-				if(ORDER > 0)
+				if(gptr->ORDER_S > 0)
 					HLLC(jptr->lcell->UR[dim], jptr->F, jptr->rcell->UL[dim], dim);
 				else
 					HLLC(jptr->lcell->U, jptr->F, jptr->rcell->U, dim);
@@ -164,49 +174,18 @@ void HydroDynamics::calcFluxes(Grid3D* gptr) const {
 		SWEEPX = !SWEEPX;
 	}
 }
-void HydroDynamics::calcBoundaryFluxes(Grid3D* gptr) const {
-	for(Boundary* bptr = gptr->fboundary; bptr != NULL; bptr = bptr->next){
-		int dim = bptr->face%3;
-		if(bptr->face > 2){
-			if(ORDER > 0)
-				HLLC(bptr->gridcell->UR[dim], bptr->F, bptr->ghosts[0]->UL[dim], dim);
-			else
-				HLLC(bptr->gridcell->U, bptr->F, bptr->ghosts[0]->U, dim);
-		}
-		else{
-			if(ORDER > 0)
-				HLLC(bptr->ghosts[0]->UR[dim], bptr->F, bptr->gridcell->UL[dim], dim);
-			else
-				HLLC(bptr->ghosts[0]->U, bptr->F, bptr->gridcell->U, dim);
-		}
-	}
-}
 void HydroDynamics::advSolution(double dt, Grid3D* gptr) const {
 	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)){
 		//cptr->U[ihii] = cptr->Q[ihii]*cptr->Q[iden];
 		for (int dim = 0; dim < ND; dim++) {
 			for (int i = 0; i < NU; i++) {
 				if(cptr->ljoin[dim] != NULL && cptr->rjoin[dim] != NULL) {
-					if(isnan(cptr->ljoin[dim]->area))
-						cerr << "here1" << endl;
-					if(isnan(cptr->rjoin[dim]->area))
-						cerr << "here2" << endl;
-					if(isnan(cptr->vol))
-						cerr << "here3" << endl;
-					if(isnan(cptr->ljoin[dim]->F[i]))
-						cerr << "here4" << endl;
-					if(isnan(cptr->rjoin[dim]->F[i]))
-						cerr << "here5" << endl;
 					cptr->U[i] += (dt*cptr->ljoin[dim]->area/cptr->vol)*cptr->ljoin[dim]->F[i];
 					cptr->U[i] -= (dt*cptr->rjoin[dim]->area/cptr->vol)*cptr->rjoin[dim]->F[i];
 				}
-				else if(cptr->ljoin[dim] == NULL && cptr->rjoin[dim] != NULL) {
-					cptr->U[i] += (dt*cptr->bd[dim]->area/cptr->vol)*cptr->bd[dim]->F[i];
-					cptr->U[i] -= (dt*cptr->rjoin[dim]->area/cptr->vol)*cptr->rjoin[dim]->F[i];
-				}
-				else if(cptr->ljoin[dim] != NULL && cptr->rjoin[dim] == NULL) {
-					cptr->U[i] += (dt*cptr->ljoin[dim]->area/cptr->vol)*cptr->ljoin[dim]->F[i];
-					cptr->U[i] -= (dt*cptr->bd[dim]->area/cptr->vol)*cptr->bd[dim]->F[i];
+				else {
+					cerr << "ERROR: ljoin[dim] or rjoin[dim] is NULL in Hydrodynamics::advSolution()." << endl;
+					exit(EXIT_FAILURE);
 				}
 			}
 		}
@@ -215,8 +194,8 @@ void HydroDynamics::advSolution(double dt, Grid3D* gptr) const {
 }
 
 void HydroDynamics::updateBoundaries(Grid3D* gptr) const {
-	for(Boundary* bptr = gptr->fboundary; bptr != NULL; bptr = bptr->next)
-		bptr->applyBC();
+	for(int i = 0; i < (int)gptr->boundaries.size(); i++)
+		gptr->boundaries[i]->applyBC();
 }
 
 void HydroDynamics::HLLC(double U_l[], double F[], double U_r[], int dim) const {
@@ -275,6 +254,7 @@ void HydroDynamics::HLLC(double U_l[], double F[], double U_r[], int dim) const 
 			F[i] = F_r[i];
 	}
 	if(isnan(F[ihii])) {
+		cerr << endl;
 		for(int i = 0; i < NU; i++){
 			cerr << "Q_l[" << i << "] = " << Q_l[i] << endl;
 			cerr << "Q_r[" << i << "] = " << Q_r[i] << endl;
@@ -298,7 +278,6 @@ void HydroDynamics::HLLC(double U_l[], double F[], double U_r[], int dim) const 
 		cerr << "S_c = " << S_c << endl;
 		for(int iu = 0; iu < NU; iu++)
 			cerr << "F[" << iu << "] = " << F[iu] << endl;
-		exit(EXIT_FAILURE);
 	}
 }
 
@@ -310,19 +289,13 @@ void HydroDynamics::applySrcTerms(double dt, Grid3D* gptr, const Radiation& rad)
 	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)) {
 		/* Geometric source term (if any) */
 		if (rzp) {
-			double r = gptr->dx[0]*(cptr->xc[0] - 0.5);
+			double r = gptr->dx[0]*(cptr->xc[0] + 0.5);
 			cptr->U[ivel+0] += dt*cptr->Q[ipre]/r;
 		}
 		else if (rtp){
 			double r, area1, area2;
-			if(cptr->rjoin[0] == NULL)
-				area1 = cptr->bd[0]->area;
-			else
-				area1 = cptr->rjoin[0]->area;
-			if(cptr->ljoin[0] == NULL)
-				area2 = cptr->bd[0]->area;
-			else
-				area2 = cptr->ljoin[0]->area;
+			area1 = cptr->rjoin[0]->area;
+			area2 = cptr->ljoin[0]->area;
 			r = cptr->vol/(area1 - area2);
 			cptr->U[ivel+0] += dt*cptr->Q[ipre]/r;
 		}

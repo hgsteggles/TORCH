@@ -13,7 +13,7 @@ BINDIR = bin
 SRCEXT = cpp
 HDREXT = hpp
 OBJEXT = o
-SRCS = main.cpp io.cpp hydro.cpp grid3d.cpp gridcell.cpp parameters.cpp rtmodule.cpp
+SRCS = main.cpp io.cpp hydro.cpp grid3d.cpp gridcell.cpp parameters.cpp rtmodule.cpp boundary.cpp
 HDRS = $(SRCS:.$(SRCEXT)=.$(HDREXT))
 OBJ = $(SRCS:.$(SRCEXT)=.$(OBJEXT))
 

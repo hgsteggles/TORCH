@@ -56,20 +56,5 @@ class GridJoin{
 		double xj[NU];
 		double area;
 };
-class Boundary{
-	public:
-		Boundary(int nghosts);
-		~Boundary();
-		void applyBC();
-		static int s_total;
-		GridCell* gridcell;
-		std::vector<GridCell*> ghosts;
-		Boundary *next;
-		int face;
-		double F[NU];
-		double xj[3];
-		double area;
-		Condition bc;
-};
 
 #endif

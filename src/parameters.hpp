@@ -41,8 +41,6 @@ public:
 };
 
 const int ND = 1;
-const int ORDER = 1;
-const int ORDER_T = 2;
 const int NU = 6;
 const int iden = 0;
 const int ivel = 1;

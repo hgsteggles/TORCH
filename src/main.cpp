@@ -67,7 +67,7 @@ void setupParameters(GridParameters& gpar, RadiationParameters& rpar, HydroParam
 	gpar.NCELLS[1] = 1; // No. of cells along 2nd dimension.
 	gpar.NCELLS[2] = 1; // No. of cells along 3rd dimension.
 	gpar.GEOMETRY = CARTESIAN; // Geometry of grid {CARTESIAN, CYLINDRICAL, SPHERICAL}.
-	gpar.ORDER_S = 2; // Order of reconstruction in cell {0=CONSTANT, 1=LINEAR}.
+	gpar.ORDER_S = 1; // Order of reconstruction in cell {0=CONSTANT, 1=LINEAR}.
 	gpar.ORDER_T = 2; // Order of accuracy in a time step {1=FirstOrder, 2=SecondOrder}.
 	rpar.K1 = 0.2; // [Mackey 2012 (table 1)] timestep constant.
 	rpar.K2 = 0.0; // [Mackey 2012 (table 1)] timestep constant.
@@ -83,15 +83,15 @@ void setupParameters(GridParameters& gpar, RadiationParameters& rpar, HydroParam
 	rpar.SCHEME = IMPLICIT; // Ionization fraction integration scheme.
 	rpar.H_MASS = H_MASS_G / scale.M; // Mass of hydrogen.
 	hpar.GAMMA = 1.4; // Adiabatic gas constant.
-	hpar.DFLOOR = 0.00001; // Density floor to prevent negative density.
-	hpar.PFLOOR = 0.00001; // Pressure floor to prevent negative pressure.
+	hpar.DFLOOR = 0.00000001; // Density floor to prevent negative density.
+	hpar.PFLOOR = 0.00000001; // Pressure floor to prevent negative pressure.
 	hpar.DTMAX = 0.001; // Maximum timestep.
 	ppar.DIR_2D = "tmp/"; // Print directory for 2D grid data.
 	ppar.DIR_IF = "tmp/"; // Print directory for ionization front data.
 }
 
 void initialConditions(Grid3D* gptr, HydroDynamics hydro, Radiation rad, Scalings scale){
-	//gptr->addSource(1, 1, 1);
+	//gptr->addSource(0, 0, 0);
 	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
 		/* SPITZER
 		double rho = rad.NHI*H_MASS_G;
@@ -134,14 +134,14 @@ void march(double tmax, Grid3D* gptr, const Radiation& rad, const HydroDynamics&
 	double dt = 0, t = 0;
 	cout << "\tMARCH: Marching solution... 0%\r" << flush;
 	io.print2D(0, t, dt, gptr);
-	io.printIF(gptr->fsrc, gptr, rad, t);
+	if(gptr->fsrc != NULL)
+		io.printIF(gptr->fsrc, gptr, rad, t);
 	for(int step = 0, prc = 0; t < tmax; t += dt, step++){
 		int prcnow = (int)(100*t/tmax + 0.5);
-		if(prcnow - prc >= 1){
-			io.print2D(prc, t, dt, gptr);
-			io.printIF(gptr->fsrc, gptr, rad, t);
-		}
 		if(prcnow - prc >= 5){
+			io.print2D(prc, t, dt, gptr);
+			if(gptr->fsrc != NULL)
+				io.printIF(gptr->fsrc, gptr, rad, t);
 			cout << "\tMARCH: Marching solution... ";
 			cout << prcnow << "%         \r" << flush;
 			prc = prcnow;
@@ -159,10 +159,9 @@ double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro)
 	double dt, dth, IF = 0;
 	hydro.globalQfromU(gptr);
 	hydro.updateBoundaries(gptr);
-	if(ORDER == 1)
+	if(gptr->ORDER_S == 1)
 		hydro.reconstruct(gptr);
 	hydro.calcFluxes(gptr);
-	hydro.calcBoundaryFluxes(gptr);
 	dt = min(0.001, hydro.CFL(gptr));
 	GridCell* srcptr = gptr->fsrc;
 	if(gptr->fsrc != NULL){
@@ -170,7 +169,7 @@ double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro)
 		if(dt > dt_rad)
 			dt = dt_rad;
 	}
-	if(ORDER_T == 2){
+	if(gptr->ORDER_T == 2){
 		dth = dt/2.0;
 		hydro.globalWfromU(gptr);
 	}
@@ -181,20 +180,17 @@ double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro)
 	hydro.applySrcTerms(dth, gptr, rad);
 	hydro.advSolution(dth, gptr);
 	hydro.fixSolution(gptr);
-	if(ORDER_T == 2){
+	if(gptr->ORDER_T == 2){
 		hydro.globalQfromU(gptr);
 		hydro.updateBoundaries(gptr);
-		if(ORDER == 1)
+		if(gptr->ORDER_S == 1)
 			hydro.reconstruct(gptr);
 		hydro.calcFluxes(gptr);
-		hydro.calcBoundaryFluxes(gptr);
 		hydro.globalUfromW(gptr);
 		if(gptr->fsrc != NULL)
 			rad.transferRadiation(dt, IF, gptr);
 		hydro.applySrcTerms(dt, gptr, rad);
-		hydro.Qisnan(1, ihii, 28, 1, 1, gptr);
 		hydro.advSolution(dt, gptr);
-		hydro.Qisnan(2, ihii, 28, 1, 1, gptr);
 		hydro.fixSolution(gptr);
 	}
 	return dt;

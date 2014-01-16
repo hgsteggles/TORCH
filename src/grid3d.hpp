@@ -6,6 +6,7 @@
 #include <fstream>
 #include "parameters.hpp"
 #include "gridcell.hpp"
+#include "boundary.hpp"
 
 using namespace std;
 
@@ -20,12 +21,15 @@ public:
 	Geometry GEOMETRY;
 	int ND, NU, NR, NCELLS[3], ORDER_S, ORDER_T;
 	vector<vector<vector<GridCell*> > > gridcells;
+	vector<Boundary*> boundaries;
 
 	Grid3D();
 	Grid3D(const GridParameters& gp);
 	~Grid3D();
 
 	void link(int dim, GridCell* lcptr, GridCell* rcptr);
+	void weakLink(int dim, GridCell* lcptr, GridCell* rcptr);
+	void boundaryLink(Boundary* bptr);
 	void addSource(int x, int y, int z);
 	void addGridCell(GridCell* newcptr);
 	void addGhostCells(int dim, int nogcells, GridCell* cptr);

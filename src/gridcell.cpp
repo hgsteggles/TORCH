@@ -26,64 +26,6 @@ GridJoin::~GridJoin() {
 }
 int GridJoin::s_total = 0;
 
-Boundary::Boundary(int nghosts) {
-	for(int i = 0; i < nghosts; i++)
-		ghosts.push_back(new GridCell());
-	gridcell = NULL;
-	next = NULL;
-	s_total++;
-	face = 0;
-	bc = FREE;
-	for(int i = 0; i < NU; i++)
-		F[i] = 0;
-	area = 0;
-}
-Boundary::~Boundary() {
-	int nghosts = ghosts.size();
-	for(int i = 0; i < nghosts; i++)
-		delete ghosts[i];
-	s_total--;
-}
-int Boundary::s_total = 0;
-
-void Boundary::applyBC(){
-	int dim = face%3;
-	int nghosts = ghosts.size();
-	GridCell* cptr = gridcell;
-	for(int i = 0; i < nghosts; i++){
-		if(bc == REFLECTING){
-			for(int j = 0; j < NU; j++)
-				ghosts[i]->Q[j] = cptr->Q[j];
-			ghosts[i]->Q[ivel+dim] = -cptr->Q[ivel+dim];
-		}
-		if(bc == OUTFLOW){
-			for(int j = 0; j < NU; j++)
-				ghosts[i]->Q[j] = cptr->Q[j];
-			if((cptr->Q[ivel+dim] > 0 && face < 3) || (cptr->Q[ivel+dim] < 0 && face >= 3))
-				ghosts[i]->Q[ivel+dim] = -1.0*cptr->Q[ivel+dim];
-		}
-		if(bc == INFLOW){
-			for(int j = 0; j < NU; j++)
-				ghosts[i]->Q[j] = cptr->Q[j];
-			if((cptr->Q[ivel+dim] < 0 && face < 3) || (cptr->Q[ivel+dim] > 0 && face >= 3))
-				ghosts[i]->Q[ivel+dim] = -1.0*cptr->Q[ivel+dim];
-		}
-		if(bc == FREE){
-			for(int j = 0; j < NU; j++)
-				ghosts[i]->Q[j] = cptr->Q[j];
-		}
-		//ghosts[i]->QfromU();
-		if(face < 3)
-			cptr = cptr->right[dim];
-		else
-			cptr = cptr->left[dim];
-		if(cptr == NULL && i+1 < nghosts){
-			cerr << "ERROR: No. of ghost GridCells exceeds no. of gridcells along a dimension." << endl;
-			exit(EXIT_FAILURE);
-		}
-	}
-}
-
 GridCell::GridCell() {
 	for(int dim = 0; dim < 3; dim++){
 		bd[dim] = NULL;
@@ -110,7 +52,7 @@ GridCell::GridCell() {
 		R[i] = 0;
 	}
 	for(int dim = 0; dim < 3; dim++)
-		xc[dim] = 1;
+		xc[dim] = 0;
 	vol = 0;
 	s_total++;
 }
