@@ -16,43 +16,40 @@
 #include <limits>
 #include "main.hpp"
 void setupParameters(GridParameters& gpar, RadiationParameters& rpar, HydroParameters& hpar, PrintParameters& ppar, Scalings& spar);
-void initialConditions(Grid3D* gptr, HydroDynamics hydro, Radiation rad, Scalings scale);
-void march(double tmax, Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro, const InputOutput& io);
-double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro);
+void initialConditions(Grid3D* gptr, HydroDynamics& hydro, Radiation& rad, Scalings& scale, MPIHandler& mpih);
+void march(double tmax, Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro, const InputOutput& io, MPIHandler& mpihandler);
+double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro, MPIHandler& mpih);
 void deleteFileContents(string myString);
 //void printParams(double runtime, Parameters& p);
 bool SWEEPX = true;
 
-int main (void){
+int main (){
 	/* DECLARE VARIABLES AND SET UP PARAMETERS */
-	time_t t1, t2; // Time variables for calculating run-time of the program
-	double runTime;
-	time(&t1);
-	deleteFileContents("tmp/");
+	MPIHandler mpihandler;
+	if (mpihandler.getRank() == 0)
+		deleteFileContents("tmp/");
 	GridParameters gpar;
 	RadiationParameters rpar;
 	HydroParameters hpar;
 	PrintParameters ppar;
 	Scalings scale;
 	setupParameters(gpar, rpar, hpar, ppar, scale);
-	Grid3D *gptr = new Grid3D(gpar);
+	Grid3D *gptr = new Grid3D(gpar, mpihandler);
 	HydroDynamics hydro(hpar);
 	Radiation rad(rpar);
 	InputOutput io(ppar, scale);
-	initialConditions(gptr, hydro, rad, scale);
+	initialConditions(gptr, hydro, rad, scale, mpihandler);
 	cout << "MAIN: initial conditions set. Starting march... " << '\n';
 	double n_H = rpar.NHI / (1.0/(scale.L*scale.L*scale.L));
 	//double trec = 1.0/(ALPHA*n_H);
 	double RSinf = pow((3.0*rpar.SOURCE_S)/(4.0*PI*n_H*n_H*rpar.ALPHA_B), 1.0/3.0);
-	double cII = sqrt(GAS_CONST*2.0*rpar.TMAX) / scale.V;
+	double cII = sqrt(GAS_CONST*2.0*rpar.TMAX*(scale.P/scale.RHO)) / scale.V;
 	double t_s = RSinf/cII;
-	double tmax = 14.0*t_s;
+	double tmax = 2*0.0001*14.0*t_s;
 	tmax = 0.2;
-	march(tmax, gptr, rad, hydro, io);
+	mpihandler.barrier();
+	march(tmax, gptr, rad, hydro, io, mpihandler);
 	delete gptr;
-	time(&t2);
-	runTime = difftime(t2, t1);
-	cout << "MAIN: program took " << runTime << " seconds to complete." << '\n';
 	/* PRINT PARAMS */
 	//printParams(runTime, p);
 	return 0;
@@ -63,10 +60,10 @@ void setupParameters(GridParameters& gpar, RadiationParameters& rpar, HydroParam
 	gpar.ND = 1; // No. of spatial dimensions.
 	gpar.NU = 6; // No. of conserved variables involved in riemann solver.
 	gpar.NR = 5; // No. of radiation variables not involved in riemann solver.
-	gpar.NCELLS[0] = 100; // No. of cells along 1st dimension.
+	gpar.NCELLS[0] = 1280; // No. of cells along 1st dimension.
 	gpar.NCELLS[1] = 1; // No. of cells along 2nd dimension.
 	gpar.NCELLS[2] = 1; // No. of cells along 3rd dimension.
-	gpar.GEOMETRY = CARTESIAN; // Geometry of grid {CARTESIAN, CYLINDRICAL, SPHERICAL}.
+	gpar.GEOMETRY = SPHERICAL; // Geometry of grid {CARTESIAN, CYLINDRICAL, SPHERICAL}.
 	gpar.ORDER_S = 1; // Order of reconstruction in cell {0=CONSTANT, 1=LINEAR}.
 	gpar.ORDER_T = 2; // Order of accuracy in a time step {1=FirstOrder, 2=SecondOrder}.
 	rpar.K1 = 0.2; // [Mackey 2012 (table 1)] timestep constant.
@@ -88,26 +85,29 @@ void setupParameters(GridParameters& gpar, RadiationParameters& rpar, HydroParam
 	hpar.DTMAX = 0.001; // Maximum timestep.
 	ppar.DIR_2D = "tmp/"; // Print directory for 2D grid data.
 	ppar.DIR_IF = "tmp/"; // Print directory for ionization front data.
+	ppar.PRINT2D_ON = true;
+	ppar.PRINTIF_ON = false;
 }
 
-void initialConditions(Grid3D* gptr, HydroDynamics hydro, Radiation rad, Scalings scale){
-	//gptr->addSource(0, 0, 0);
+void initialConditions(Grid3D* gptr, HydroDynamics& hydro, Radiation& rad, Scalings& scale, MPIHandler& mpih){
+	//Star star(0, 0, 0);
+	//rad.addStar(star, gptr, mpih);
 	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
-		/* SPITZER
+		/** SPITZER
 		double rho = rad.NHI*H_MASS_G;
-		double pre = (GAS_CONST/1.0)*rho*rad.TMIN;
+		double pre = (GAS_CONST/1.0)*rho*rad.TMIN*(scale.P/scale.RHO);
 		cptr->Q[ihii] = 0.0;
 		if ((cptr->xc[0]-1)*gptr->dx[0]*scale.L*CM2PC <  1.24989) {
 			cptr->Q[ihii] = 1.0;
-			pre = (GAS_CONST/0.5)*rho*rad.TMAX;
+			pre = (GAS_CONST/0.5)*rho*rad.TMAX*(scale.P/scale.RHO);
 		}
-		cptr->Q[iden] = rho/RHO_SCALE;
-		cptr->Q[ipre] = pre/P_SCALE;
+		cptr->Q[iden] = rho/scale.RHO;
+		cptr->Q[ipre] = pre/scale.P;
 		if(cptr == gptr->fsrc)
 			cptr->Q[ihii] = 1.0;
 		*/
-		/* SOD */
-		if (cptr->xc[0] < gptr->NCELLS[0]/2) {
+		/** SOD */
+		if (cptr->xc[0] < gptr->TOTNCELLS[0]/2) {
 			cptr->Q[iden] = 1.0;
 			cptr->Q[ipre] = 1.0;
 		}
@@ -115,68 +115,76 @@ void initialConditions(Grid3D* gptr, HydroDynamics hydro, Radiation rad, Scaling
 			cptr->Q[iden] = 0.125;
 			cptr->Q[ipre] = 0.1;
 		}
-
 		hydro.UfromQ(cptr->U, cptr->Q);
 	}
-	if(gptr->fsrc != NULL)
+	if(rad.nstars > 0)
 		rad.rayTrace(gptr);
 	else
-		cerr << "NO SOURCES" << endl;
+		cout << "NO SOURCES" << endl;
 }
-////// march marches the numerical solution through p.steps.
-////// The data are printed first and the grid is ray traced
-////// via a member function of Grid3D. The timestep is calculated
-////// and the ionization state is updated.
-void march(double tmax, Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro, const InputOutput& io){
+/**
+ * Solves the state of radiation and hydrodynamic variables until the time tmax.
+ * Marches the conserved variables, Grid3D::U, in a Grid3D object.
+ * @param tmax The time (unitless) that march stops marching.
+ * @param gptr A pointer to a Grid3D object, the object which is to be marched.
+ * @param rad A reference to a Radiation object for solving the radiation field.
+ * @param hydro A reference to a HydroDynamics object for solving the Riemann problem.
+ * @param io A reference to an InputOutput object for printing.
+ * @param mpih A reference to a HydroDynamics object.
+ */
+void march(double tmax, Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro, const InputOutput& io, MPIHandler& mpih){
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	std::chrono::duration<double> elapsed;
-	start = std::chrono::system_clock::now();
 	double dt = 0, t = 0;
-	cout << "\tMARCH: Marching solution... 0%\r" << flush;
-	io.print2D(0, t, dt, gptr);
-	if(gptr->fsrc != NULL)
-		io.printIF(gptr->fsrc, gptr, rad, t);
+	start = std::chrono::system_clock::now();
+	cout << mpih.cname() << "MARCH: Marching solution...   0%" << endl;
+	io.print2D(0, t, dt, gptr, mpih);
+	if(rad.nstars > 0)
+		io.printIF(t, rad, gptr, mpih);
 	for(int step = 0, prc = 0; t < tmax; t += dt, step++){
-		int prcnow = (int)(100*t/tmax + 0.5);
-		if(prcnow - prc >= 5){
-			io.print2D(prc, t, dt, gptr);
-			if(gptr->fsrc != NULL)
-				io.printIF(gptr->fsrc, gptr, rad, t);
-			cout << "\tMARCH: Marching solution... ";
-			cout << prcnow << "%         \r" << flush;
+		int prcnow = (int) (100*t/tmax);
+		if (prcnow - prc >= 5){
+			io.print2D(prcnow, t, dt, gptr, mpih);
+			if(rad.nstars > 0)
+				io.printIF(t, rad, gptr, mpih);
+			cout << mpih.cname() << "MARCH: Marching solution...  ";
+			if (prcnow == 5)
+				cout << " ";
+			cout << prcnow << "% " << dt << endl;
 			prc = prcnow;
 		}
-		dt = fluidStep(gptr, rad, hydro);
-		//cerr << "t/trec = " << (t+dt)/trec << endl;
+		dt = fluidStep(gptr, rad, hydro, mpih);
+		//cerr << "percent_done = " << t/tmax << endl;
 	}
-	//print2DToFile(j, t, dt, gptr, p);
-
+	io.print2D(100, t, dt, gptr, mpih);
+	cout << mpih.cname() << "MARCH: Marching solution... " << 100 << "% " << dt << endl;
 	end = std::chrono::system_clock::now();
 	elapsed = end-start;
-	cout << "\tMARCH: Marching solution... 100% complete. Took " << elapsed.count() << " seconds." << '\n';
+	mpih.barrier();
+	cout << "MARCH: Took " << elapsed.count() << " seconds." << endl;
 }
-double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro){
-	double dt, dth, IF = 0;
+double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro, MPIHandler& mpih){
+	double dt_hydro, dt_rad, dt, dth, IF = 0;
 	hydro.globalQfromU(gptr);
 	hydro.updateBoundaries(gptr);
 	if(gptr->ORDER_S == 1)
 		hydro.reconstruct(gptr);
 	hydro.calcFluxes(gptr);
-	dt = min(0.001, hydro.CFL(gptr));
-	GridCell* srcptr = gptr->fsrc;
-	if(gptr->fsrc != NULL){
-		double dt_rad = rad.getTimeStep(dt, srcptr, gptr);
-		if(dt > dt_rad)
-			dt = dt_rad;
-	}
+	dt_hydro = hydro.CFL(gptr);
+	dt_rad = rad.getTimeStep(dt_hydro, gptr);
+	dt = min(dt_hydro, dt_rad);
+	if (mpih.nProcessors() > 1)
+		mpih.minimum(dt);
 	if(gptr->ORDER_T == 2){
 		dth = dt/2.0;
 		hydro.globalWfromU(gptr);
 	}
 	else
 		dth = dt;
-	if(gptr->fsrc != NULL)
+	if (mpih.nProcessors() == 1)
 		rad.transferRadiation(dth, IF, gptr);
+	else
+		rad.transferRadiation(dth, IF, gptr, mpih);
 	hydro.applySrcTerms(dth, gptr, rad);
 	hydro.advSolution(dth, gptr);
 	hydro.fixSolution(gptr);
@@ -187,8 +195,10 @@ double fluidStep(Grid3D* gptr, const Radiation& rad, const HydroDynamics& hydro)
 			hydro.reconstruct(gptr);
 		hydro.calcFluxes(gptr);
 		hydro.globalUfromW(gptr);
-		if(gptr->fsrc != NULL)
+		if (mpih.nProcessors() == 1)
 			rad.transferRadiation(dt, IF, gptr);
+		else
+			rad.transferRadiation(dt, IF, gptr, mpih);
 		hydro.applySrcTerms(dt, gptr, rad);
 		hydro.advSolution(dt, gptr);
 		hydro.fixSolution(gptr);

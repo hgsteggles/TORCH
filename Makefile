@@ -1,11 +1,14 @@
 # MAKEFILE FOR simple C++ programming
 
-CFLAGS = -O3 -g -pedantic -Wall -std=c++11
-INCLUDE = -I/home/harry/c++ -I/usr/local/include/
+CFLAGS = -O3 -g -pedantic -Wall -std=c++11 -pg
+#INCLUDE = -I/home/harry/c++ -I/usr/local/include/
+INCLUDE =
 #LIBS =  -lreadline -lncurses
 #LIBS = -lhdf5
 #LIBS = /home/harry/Documents/libraries/cavlib/cavlib.a -lgsl -lgslcblas -lfftw3
-CXX = g++
+MPILIBS = -lboost_mpi -lboost_serialization -lboost_system -lboost_filesystem -lboost_graph_parallel -lboost_iostreams
+CXX = mpic++
+MPICXX = mpic++
 SRCDIR = src
 HDRDIR = src
 OBJDIR = obj
@@ -13,16 +16,22 @@ BINDIR = bin
 SRCEXT = cpp
 HDREXT = hpp
 OBJEXT = o
-SRCS = main.cpp io.cpp hydro.cpp grid3d.cpp gridcell.cpp parameters.cpp rtmodule.cpp boundary.cpp
+SRCS = main.cpp io.cpp hydro.cpp grid3d.cpp gridcell.cpp parameters.cpp rtmodule.cpp boundary.cpp external.cpp mpihandler.cpp partition.cpp
 HDRS = $(SRCS:.$(SRCEXT)=.$(HDREXT))
-OBJ = $(SRCS:.$(SRCEXT)=.$(OBJEXT))
+OBJS = $(SRCS:.$(SRCEXT)=.$(OBJEXT))
+FULLPATHOBJ = $(addprefix $(OBJDIR)/, $(OBJS))
+FULLPATHSRC = $(addprefix $(SRCDIR)/, $(SRCS))
+FULLPATHHDR = $(addprefix $(HDRDIR)/, $(HDRS))
 
-%.o : $(SRCDIR)/%.$(SRCEXT) $(HDRDIR)/%.$(HDREXT)
-	$(CXX) -c $(CFLAGS) $(INCLUDE) $< -o $(OBJDIR)/$@
+$(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT) $(HDRDIR)/%.$(HDREXT)
+	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE)
+	
+$(OBJDIR)/mpihandler.o : $(SRCDIR)/mpihandler.cpp $(HDRDIR)/mpihandler.hpp
+	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(MPILIBS)
 
-main : $(OBJ)
-	$(CXX) $(CFLAGS) $(INCLUDE) -o $(BINDIR)/$@ $(addprefix $(OBJDIR)/, $^)
+main : $(FULLPATHOBJ)
+	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(MPILIBS)
 
 .PHONY: clean
 clean:
-	rm obj/*.o bin/main
+	rm obj/*.o main

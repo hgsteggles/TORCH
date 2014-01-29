@@ -11,6 +11,7 @@ using namespace std;
 enum Geometry {CARTESIAN, CYLINDRICAL, SPHERICAL};
 enum Condition {FREE, REFLECTING, OUTFLOW, INFLOW};
 enum Scheme {IMPLICIT, EXPLICIT};
+enum SendID {PARTITION_MSG, PRINT2D_MSG, CFL_COLLECT, CFL_BROADCAST, PRINTIF_NEXT_MSG, PRINTIF_FOUND_MSG, PRINTIF_IF_MSG};
 
 class GridParameters{
 public:
@@ -32,6 +33,7 @@ class PrintParameters{
 public:
 	PrintParameters();
 	string DIR_2D, DIR_IF;
+	bool PRINT2D_ON, PRINTIF_ON;
 };
 class Scalings{
 public:
