@@ -37,6 +37,8 @@ HydroParameters::HydroParameters(){
 PrintParameters::PrintParameters(){
 	DIR_2D = "tmp/";
 	DIR_IF = "tmp/";
+	PRINT2D_ON = false;
+	PRINTIF_ON = false;
 }
 Scalings::Scalings(){
 	L = 14.6*PC2CM; // cm

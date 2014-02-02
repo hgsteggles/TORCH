@@ -14,5 +14,6 @@
 #include "hydro.hpp"
 #include "io.hpp"
 #include "rtmodule.hpp"
+#include "mpihandler.hpp"
 
 #endif

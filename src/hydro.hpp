@@ -1,15 +1,30 @@
 /* hydro.cpp */
 
+/**
+ * Provides the GridCell and GridJoin classes.
+ * @file gridcell.hpp
+ *
+ * @author Harrison Steggles
+ * @date 13/01/2014, the first version.
+ * @date 16/01/2014, modified code to accomodate new Boundary class.
+ */
+
 #ifndef HYDRO_H
 #define HYDRO_H
 
 #include <stdlib.h>
 #include <math.h>
 #include <limits>
+#include "boundary.hpp"
 #include "grid3d.hpp"
 #include "parameters.hpp"
 #include "rtmodule.hpp"
 
+/**
+ * @class HydroDynamics
+ * @brief Contains parameters and methods for integrating the hydrodynamic fluid variables.
+ * @version 0.3, 29/01/2014
+ */
 class HydroDynamics{
 public:
 	double GAMMA, DFLOOR, PFLOOR, DTMAX;

@@ -11,8 +11,6 @@ using namespace std;
 GridJoin::GridJoin() {
 	lcell = NULL;
 	rcell = NULL;
-	inghost = NULL;
-	outghost = NULL;
 	next = NULL;
 	for(int i = 0; i < NU; i++)
 		F[i] = 0;
@@ -28,7 +26,6 @@ int GridJoin::s_total = 0;
 
 GridCell::GridCell() {
 	for(int dim = 0; dim < 3; dim++){
-		bd[dim] = NULL;
 		left[dim] = NULL;
 		right[dim] = NULL;
 		ljoin[dim] = NULL;

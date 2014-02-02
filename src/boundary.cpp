@@ -1,14 +1,6 @@
-/*
- * boundary.cpp
- *
- *  Created on: 14 Jan 2014
- *      Author: harry
- */
-
 #include "boundary.hpp"
 
-Boundary::Boundary(int face, Condition bc, Grid3D* gptr) {
-	this->bc = bc;
+Boundary::Boundary(int face, Grid3D* gptr) {
 	this->face = face;
 	this->nghosts = gptr->ORDER_S + 1;
 
@@ -45,6 +37,7 @@ Boundary::Boundary(int face, Condition bc, Grid3D* gptr) {
 			}
 		}
 	}
+	isPartition = false;
 }
 
 Boundary::~Boundary() {
@@ -61,51 +54,6 @@ Boundary::~Boundary() {
 				delete cptr;
 			}
 			ghostcells[i][j] = NULL;
-		}
-	}
-}
-
-void Boundary::applyBC(){
-	int dim = face%3;
-	for (int i = 0; i < (int)ghostcells.size(); i++) {
-		for (int j = 0; j < (int)ghostcells[i].size(); j++) {
-			GridCell* ghost = ghostcells[i][j];
-			GridCell* cptr = NULL;
-			if (face < 3)
-				cptr = ghostcells[i][j]->rjoin[face%3]->rcell;
-			else
-				cptr = ghostcells[i][j]->ljoin[face%3]->lcell;
-			while (ghost != NULL && cptr != NULL) {
-				if(bc == REFLECTING){
-					for(int iu = 0; iu < NU; iu++)
-						ghost->Q[iu] = cptr->Q[iu];
-					ghost->Q[ivel+dim] = -cptr->Q[ivel+dim];
-				}
-				if(bc == OUTFLOW){
-					for(int iu = 0; iu < NU; iu++)
-						ghost->Q[iu] = cptr->Q[iu];
-					if((cptr->Q[ivel+dim] > 0 && face < 3) || (cptr->Q[ivel+dim] < 0 && face >= 3))
-						ghost->Q[ivel+dim] = -1.0*cptr->Q[ivel+dim];
-				}
-				if(bc == INFLOW){
-					for(int iu = 0; iu < NU; iu++)
-						ghost->Q[j] = cptr->Q[j];
-					if((cptr->Q[ivel+dim] < 0 && face < 3) || (cptr->Q[ivel+dim] > 0 && face >= 3))
-						ghost->Q[ivel+dim] = -1.0*cptr->Q[ivel+dim];
-				}
-				if(bc == FREE){
-					for(int iu = 0; iu < NU; iu++)
-						ghost->Q[j] = cptr->Q[j];
-				}
-				if(face < 3) {
-					cptr = cptr->rjoin[face%3]->rcell;
-					ghost = ghost->left[face%3];
-				}
-				else {
-					cptr = cptr->ljoin[face%3]->lcell;
-					ghost = ghost->right[face%3];
-				}
-			}
 		}
 	}
 }
