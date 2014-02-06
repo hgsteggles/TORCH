@@ -96,7 +96,7 @@ def main():
 		#plt.xlim([0,128])
 		#plt.ylim([307411,450000]) #pg
 		#plt.yscale('log')
-		plt.plot(x,den)
+		plt.plot(x,hii)
 		#sod_x = [0] * 6000
 		#sod_rho = [0] * 6000
 		#sod_x, sod_rho = sod.sod()

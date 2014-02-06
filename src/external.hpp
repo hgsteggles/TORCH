@@ -5,12 +5,18 @@
  * @author Harrison Steggles
  *
  * @date 29/01/2014, the first version.
+ * @date 04/01/2014, arguments now passed by const reference when appropriate.
+ * @date 05/02/2014, solved buffer overflow problem for non-reflecting boundary conditions - replaced 'j' variable in Q array with 'iu'.
  */
 
 #ifndef EXTERNAL_HPP_
 #define EXTERNAL_HPP_
 
 #include "boundary.hpp"
+#include "constants.hpp"
+
+class Grid3D;
+
 /**
  * @class ExternalBoundary
  * @brief Holds a Grid3D face ExternalBoundary to apply boundary conditions during integration.
@@ -21,7 +27,7 @@
  * @see Grid3D
  * @see GridCell
  *
- * @version 0.3, 29/01/2014
+ * @version 0.4, 04/02/2014
  */
 class ExternalBoundary : public Boundary {
 public:
@@ -35,7 +41,7 @@ public:
 	 * @param gptr
 	 * A pointer to the Grid3D object that the Boundary should be linked to with Grid3D::boundaryLink(Boundary*).
 	 */
-	ExternalBoundary(int face, Condition bcond, Grid3D* gptr);
+	ExternalBoundary(const int face, const Condition& bcond, Grid3D* gptr);
 	/**
 	 * @brief Applies the boundary condition that was passed to this object through its constructor.
 	 */
