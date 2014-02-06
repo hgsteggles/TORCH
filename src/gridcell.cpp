@@ -1,20 +1,17 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <algorithm>
-#include <iostream>
-#include <math.h>
-#include "gridcell.hpp"
-#include <map>
+/* gridcell.cpp */
 
-using namespace std;
+#include "gridcell.hpp"
+
+#include <stddef.h>
+#include <iostream>
 
 GridJoin::GridJoin() {
 	lcell = NULL;
 	rcell = NULL;
 	next = NULL;
-	for(int i = 0; i < NU; i++)
+	for(int i = 0; i < NU; ++i)
 		F[i] = 0;
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 3; ++i)
 		xj[i] = 0;
 	area = 0;
 	s_total++;
@@ -24,50 +21,63 @@ GridJoin::~GridJoin() {
 }
 int GridJoin::s_total = 0;
 
-GridCell::GridCell() {
-	for(int dim = 0; dim < 3; dim++){
+GridCell::GridCell() : next(NULL), nextcausal(NULL), vol(0) {
+	for(int dim = 0; dim < 3; ++dim){
 		left[dim] = NULL;
 		right[dim] = NULL;
 		ljoin[dim] = NULL;
 		rjoin[dim] = NULL;
 	}
-	next = NULL;
-	for(int id = 0; id < 3; id++){
-		for(int iu = 0; iu < NU; iu++){
-			UL[id][iu] = 0;
-			UR[id][iu] = 0;
+	for(int id = 0; id < 3; ++id){
+		for(int iu = 0; iu < NU; ++iu){
 			QL[id][iu] = 0;
 			QR[id][iu] = 0;
 		}
 	}
-	for(int i = 0; i < NU; i++){
+	for(int i = 0; i < NU; ++i){
 		U[i] = 0;
 		Q[i] = 0;
 		W[i] = 0;
 	}
-	for(int i = 0; i < NR; i++){
+	for(int i = 0; i < NR; ++i){
 		R[i] = 0;
 	}
-	for(int dim = 0; dim < 3; dim++)
+	for(int dim = 0; dim < 3; ++dim)
 		xc[dim] = 0;
-	vol = 0;
 	s_total++;
 }
 GridCell::~GridCell() {
 	s_total--;
 }
+void GridCell::printInfo() {
+	std::cout << "xc[0] = " << xc[0] << '\n';
+	std::cout << "xc[1] = " << xc[1] << '\n';
+	std::cout << "xc[2] = " << xc[2] << '\n';
+	std::cout << "ljoin[0] = " << ljoin[0] << '\n';
+	std::cout << "ljoin[1] = " << ljoin[1] << '\n';
+	std::cout << "ljoin[2] = " << ljoin[2] << '\n';
+	std::cout << "rjoin[0] = " << rjoin[0] << '\n';
+	std::cout << "rjoin[1] = " << rjoin[1] << '\n';
+	std::cout << "rjoin[2] = " << rjoin[2] << '\n';
+	std::cout << "left[0] = " << left[0] << '\n';
+	std::cout << "left[1] = " << left[1] << '\n';
+	std::cout << "left[2] = " << left[2] << '\n';
+	std::cout << "right[0] = " << right[0] << '\n';
+	std::cout << "right[1] = " << right[1] << '\n';
+	std::cout << "right[2] = " << right[2] << '\n';
+}
 int GridCell::s_total = 0;
 
 /* SETS */
-void GridCell::set_U(int index, double value) {U[index] = value;}
-void GridCell::set_xcs(int x, int y, int z) {
+void GridCell::set_U(const int& index, const double& value) {U[index] = value;}
+void GridCell::set_xcs(const int& x, const int& y, const int& z) {
 	xc[0] = x;
 	xc[1] = y;
 	xc[2] = z;
 }
 /* GETS */
-int GridCell::get_xc(int index) {return xc[index];}
-double GridCell::get_U(int index) {return U[index];}
+int GridCell::get_xc(const int& index) {return xc[index];}
+double GridCell::get_U(const int& index) {return U[index];}
 /* FUNCTIONS */
 double GridCell::temperature() {
 	double pre, rho;

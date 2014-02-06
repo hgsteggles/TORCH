@@ -5,17 +5,15 @@
  * @author Harrison Steggles
  * @date 13/01/2014, the first version.
  * @date 16/01/2014, removed old Boundary class.
+ * @date 04/01/2014, GridCell now has pointer to next GridCell in causal iteration (nextcausal). UL & UR unused states removed.
+ * @date 04/01/2014, arguments now passed by const reference when appropriate.
  */
 
 #ifndef GRIDCELL_H
 #define GRIDCELL_H
 
-#include <stdio.h>
-#include <map>
-#include <vector>
-#include "parameters.hpp"
-using namespace std;
-class Cell;
+#include "constants.hpp"
+
 class GridJoin;
 class GhostCell;
 /**
@@ -38,37 +36,38 @@ public:
 	 * @param j The jth cooordinate of the GridCell in a Grid3D.
 	 * @param k The kth cooordinate of the GridCell in a Grid3D.
 	 */
-	GridCell(int i, int j, int k);
+	GridCell(const int& i, const int& j, const int& k);
 	/**
 	 * @brief GridCell destructor.
 	 * Does NOT delete objects that this GridCell object points to.
 	 */
 	~GridCell();
+	void printInfo();
 	/**
 	 * @brief Setter for GridCell::U.
 	 * @param index
 	 * @param value
 	 */
-	void set_U(int index, double value);
+	void set_U(const int& index, const double& value);
 	/**
 	 * @brief Setter for GridCell:xc.
 	 * @param x The x grid coordinate.
 	 * @param y The y grid coordinate.
 	 * @param z The z grid coordinate.
 	 */
-	void set_xcs(int x, int y, int z);
+	void set_xcs(const int& x, const int& y, const int& z);
 	/**
 	 * @brief Getter for GridCell::xc.
 	 * @param i The grid coordinate to be returned.
 	 * @return The location of this GridCell object on grid coordinate i.
 	 */
-	int get_xc(int i);
+	int get_xc(const int& i);
 	/**
 	 * @brief Getter for GridCell::U.
 	 * @param index The index for the fluid variable to be returned.
 	 * @return The value of the fluid variable.
 	 */
-	double get_U(int index);
+	double get_U(const int& index);
 	/**
 	 * @brief Returns the temperature of this GridCell object.
 	 * @return Temperature.
@@ -80,14 +79,13 @@ public:
 	GridJoin* ljoin[3]; //!< Contains pointers to GridJoin objects that lie on the left side of this GridCell.
 	GridCell* right[3]; //!< Contains pointers to GridCell objects that lie on the right side of this GridCell.
 	GridCell* left[3]; //!< Contains pointers to GridCell objects that lie on the left side of this GridCell.
-	GridCell *next; //!< Points to the next GridCell object in a list that Grid3D uses to clean up GridCell objects.
+	GridCell* next; //!< Points to the next GridCell object in a list that Grid3D uses to clean up GridCell objects.
+	GridCell* nextcausal; //!< Points to the next GridCell object in a causal list that starts at a source of radiation.
 	double U[NU]; //!< Contains conservative fluid variable values.
 	double Q[NU]; //!< Contains primitive fluid variable values.
 	double W[NU]; //!< Contains a copy of GridCell::U for 2nd order time-stepping.
 	double R[NR]; //!< Contains radiation variable values: optical depth in cell and along path of the ray from source.
 	int xc[3]; //!< Grid coordinates for this GridCell.
-	double UL[3][NU]; //!< Reconstructed states on left faces.
-	double UR[3][NU]; //!< Reconstructed states on right faces.
 	double QL[3][NU]; //!< Reconstructed states on left faces.
 	double QR[3][NU]; //!< Reconstructed states on right faces.
 	double vol; //!< Volume of GridCell.

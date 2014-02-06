@@ -1,6 +1,12 @@
-#include "boundary.hpp"
+/* boundary.cpp */
 
-Boundary::Boundary(int face, Grid3D* gptr) {
+#include "boundary.hpp"
+#include "grid3d.hpp"
+#include "gridcell.hpp"
+
+#include <stddef.h>
+
+Boundary::Boundary(const int face, Grid3D* gptr) {
 	this->face = face;
 	this->nghosts = gptr->ORDER_S + 1;
 
@@ -18,12 +24,12 @@ Boundary::Boundary(int face, Grid3D* gptr) {
 		xlength = gptr->NCELLS[0];
 		ylength = gptr->NCELLS[1];
 	}
-	for (int i = 0; i < xlength; i++) {
+	for (int i = 0; i < xlength; ++i) {
 		ghostcells.push_back(std::vector<GridCell*>());
-		for (int j = 0; j < ylength; j++) {
+		for (int j = 0; j < ylength; ++j) {
 			ghostcells[i].push_back(new GridCell());
 			GridCell* newghost = ghostcells[i][j];
-			for (int ig = 0; ig < nghosts-1; ig++) {
+			for (int ig = 0; ig < nghosts-1; ++ig) {
 				GridCell* oldghost = newghost;
 				newghost = new GridCell();
 				if (face < 3) {
@@ -41,8 +47,8 @@ Boundary::Boundary(int face, Grid3D* gptr) {
 }
 
 Boundary::~Boundary() {
-	for (int i = 0; i < (int)ghostcells.size(); i++) {
-		for (int j = 0; j < (int)ghostcells[i].size(); j++) {
+	for (int i = 0; i < (int)ghostcells.size(); ++i) {
+		for (int j = 0; j < (int)ghostcells[i].size(); ++j) {
 			GridCell* nextcptr = ghostcells[i][j];
 			GridCell* cptr = nextcptr;
 			while(nextcptr != NULL) {

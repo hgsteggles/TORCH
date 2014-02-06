@@ -1,7 +1,8 @@
 /* parameters.cpp */
 
-#include <stdio.h>
 #include "parameters.hpp"
+
+#include <stdio.h>
 
 GridParameters::GridParameters(){
 	ND = 1; // No. of spatial dimensions.

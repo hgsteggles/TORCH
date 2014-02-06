@@ -1,40 +1,49 @@
 /* hydro.cpp */
 
 #include "hydro.hpp"
-#include <typeinfo>
+#include "grid3d.hpp"
+#include "gridcell.hpp"
+#include "boundary.hpp"
+#include "rtmodule.hpp"
+#include "parameters.hpp"
 
-HydroDynamics::HydroDynamics(const HydroParameters& hp) {
+#include <stddef.h> // NULL
+#include <limits> // numeric_limits
+#include <cmath> // sqrt, etc
+#include <iostream> // cout, cerr
+
+HydroDynamics::HydroDynamics(const HydroParameters& hp, Grid3D* grid) : gptr(grid) {
 	GAMMA = hp.GAMMA;
 	DFLOOR = hp.DFLOOR;
 	PFLOOR = hp.PFLOOR;
 	DTMAX = hp.DTMAX;
 }
 
-void HydroDynamics::globalWfromU(Grid3D* gptr) const {
-	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)){
-		for(int iu = 0; iu < NU; iu++)
+void HydroDynamics::globalWfromU() const {
+	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
+		for(int iu = 0; iu < NU; ++iu)
 			cptr->W[iu] = cptr->U[iu];
 	}
 }
-void HydroDynamics::globalUfromW(Grid3D* gptr) const {
-	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)){
-		for(int iu = 0; iu < NU; iu++)
+void HydroDynamics::globalUfromW() const {
+	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
+		for(int iu = 0; iu < NU; ++iu)
 			cptr->U[iu] = cptr->W[iu];
 	}
 }
-void HydroDynamics::globalQfromU(Grid3D* gptr) const {
-	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr))
+void HydroDynamics::globalQfromU() const {
+	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next)
 		QfromU(cptr->Q, cptr->U);
 }
-void HydroDynamics::globalUfromQ(Grid3D* gptr) const {
-	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr))
+void HydroDynamics::globalUfromQ() const {
+	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next)
 		UfromQ(cptr->U, cptr->Q);
 }
-void HydroDynamics::reconstruct(Grid3D* gptr) const {
+void HydroDynamics::reconstruct() const {
 	double dQdr1[NU], dQdr2[NU], dQdr[NU];
-	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)){
-		for(int dim = 0; dim < ND; dim++){
-			for(int iq = 0; iq < NU; iq++){
+	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
+		for(int dim = 0; dim < gptr->ND; ++dim){
+			for(int iq = 0; iq < NU; ++iq){
 				if(cptr->left[dim] != NULL)
 					dQdr1[iq] = (cptr->Q[iq] - cptr->left[dim]->Q[iq])/gptr->dx[dim];
 				else
@@ -44,10 +53,6 @@ void HydroDynamics::reconstruct(Grid3D* gptr) const {
 				else
 					dQdr2[iq] = (cptr->rjoin[dim]->rcell->Q[iq] - cptr->Q[iq])/gptr->dx[dim];
 				dQdr[iq] = av(dQdr1[iq], dQdr2[iq]);
-				if(iq == ihii && std::isnan(dQdr[iq])) {
-					cerr << "dQdr1 = " << dQdr1[iq] << endl;
-					cerr << "dQdr2 = " << dQdr2[iq] << endl;
-				}
 				cptr->QL[dim][iq] = cptr->Q[iq] - 0.5*(gptr->dx[dim])*dQdr[iq];
 				cptr->QR[dim][iq] = cptr->Q[iq] + 0.5*(gptr->dx[dim])*dQdr[iq];
 			}
@@ -55,28 +60,28 @@ void HydroDynamics::reconstruct(Grid3D* gptr) const {
 			//UfromQ(cptr->UR[dim], cptr->QR[dim]);
 		}
 	}
-	for (int ib = 0; ib < (int)gptr->boundaries.size(); ib++) {
+	for (int ib = 0; ib < (int)gptr->boundaries.size(); ++ib) {
 		int face = gptr->boundaries[ib]->face;
 		int dim = face%3;
-		for (int i = 0; i < (int)gptr->boundaries[ib]->ghostcells.size(); i++) {
-			for (int j = 0; j < (int)gptr->boundaries[ib]->ghostcells[i].size(); j++) {
+		for (int i = 0; i < (int)gptr->boundaries[ib]->ghostcells.size(); ++i) {
+			for (int j = 0; j < (int)gptr->boundaries[ib]->ghostcells[i].size(); ++j) {
 				GridCell* bcptr = gptr->boundaries[ib]->ghostcells[i][j];
 				GridCell* cptr = NULL;
 				if (face < 3) {
 					cptr = bcptr->rjoin[dim]->rcell;
-					for(int iq = 0; iq < NU; iq++){
+					for(int iq = 0; iq < NU; ++iq){
 						dQdr1[iq] = (bcptr->Q[iq] - bcptr->left[dim]->Q[iq])/gptr->dx[dim];
 						dQdr2[iq] = (cptr->Q[iq] - bcptr->Q[iq])/gptr->dx[dim];
 					}
 				}
 				else {
 					cptr = bcptr->ljoin[dim]->lcell;
-					for (int iq = 0; iq < NU; iq++) {
+					for (int iq = 0; iq < NU; ++iq) {
 						dQdr1[iq] = (bcptr->Q[iq] - cptr->Q[iq])/gptr->dx[dim];
 						dQdr2[iq] = (bcptr->right[dim]->Q[iq] - bcptr->Q[iq])/gptr->dx[dim];
 					}
 				}
-				for (int iq = 0; iq < NU; iq++) {
+				for (int iq = 0; iq < NU; ++iq) {
 					dQdr[iq] = av(dQdr1[iq], dQdr2[iq]);
 					bcptr->QL[dim][iq] = bcptr->Q[iq] - 0.5*(gptr->dx[dim])*dQdr[iq];
 					bcptr->QR[dim][iq] = bcptr->Q[iq] + 0.5*(gptr->dx[dim])*dQdr[iq];
@@ -88,42 +93,42 @@ void HydroDynamics::reconstruct(Grid3D* gptr) const {
 		}
 	}
 }
-double HydroDynamics::av(double a, double b) const {
+double HydroDynamics::av(const double& a, const double& b) const {
 	double result = 0;
 	double nom = a*a*b + a*b*b;
 	double denom = a*a + b*b;
-	if(denom > numeric_limits<double>::min())
+	if(denom > std::numeric_limits<double>::min())
 		result = nom/denom;
 	return result;
 }
 
 void HydroDynamics::UfromQ(double u[], double q[]) const {
 	double ke = 0;
-	u[iden] = q[iden] = max(q[iden], DFLOOR);
-	for(int dim = 0; dim < ND; dim++){
+	u[iden] = q[iden] = std::max(q[iden], DFLOOR);
+	for(int dim = 0; dim < gptr->ND; ++dim){
 		u[ivel+dim] = q[ivel+dim]*q[iden];
 		ke += 0.5*q[iden]*q[ivel+dim]*q[ivel+dim];
 	}
-	q[ipre] = max(q[ipre], PFLOOR);
+	q[ipre] = std::max(q[ipre], PFLOOR);
 	u[ipre] = q[ipre]/(GAMMA - 1.0) + ke;
-	q[ihii] = max(min(q[ihii], 1.0), 0.0);
+	q[ihii] = std::max(std::min(q[ihii], 1.0), 0.0);
 	u[ihii] = q[ihii]*q[iden];
 }
 void HydroDynamics::QfromU(double q[], double u[]) const {
-	q[iden] = u[iden] = max(u[iden], DFLOOR);
+	q[iden] = u[iden] = std::max(u[iden], DFLOOR);
 	double ke = 0;
-	for(int dim = 0; dim < ND; dim++){
+	for(int dim = 0; dim < gptr->ND; ++dim){
 		q[ivel+dim] = u[ivel+dim]/u[iden];
 		ke += 0.5*u[ivel+dim]*u[ivel+dim]/u[iden];
 	}
-	u[ipre] = max(u[ipre], PFLOOR/(GAMMA - 1.0) + ke);
+	u[ipre] = std::max(u[ipre], PFLOOR/(GAMMA - 1.0) + ke);
 	q[ipre] = (u[ipre] - ke)*(GAMMA - 1.0);
-	u[ihii] = max(min(u[ihii], u[iden]), 0.0);
+	u[ihii] = std::max(std::min(u[ihii], u[iden]), 0.0);
 	q[ihii] = u[ihii]/u[iden];
 }
-void HydroDynamics::FfromU(double f[], double u[], int dim) const {
+void HydroDynamics::FfromU(double f[], double u[], const int& dim) const {
 	double ke = 0, pressure;
-	for(int id = 0; id < ND; id++)
+	for(int id = 0; id < gptr->ND; ++id)
 		ke += 0.5*u[ivel+id]*u[ivel+id]/u[iden];
 	pressure = (u[ipre] - ke)*(GAMMA - 1.0);
 	f[iden] = u[ivel+dim];
@@ -133,26 +138,26 @@ void HydroDynamics::FfromU(double f[], double u[], int dim) const {
 	f[ipre] = u[ivel+dim]*(u[ipre] + pressure)/u[iden];
 	f[ihii] = u[ivel+dim]*u[ihii]/u[iden];
 }
-double HydroDynamics::soundSpeed(double pre, double den) const {
+double HydroDynamics::soundSpeed(const double& pre, const double& den) const {
 	return sqrt(GAMMA*pre/den);
 }
-double HydroDynamics::CFL(Grid3D* gptr) const {
+double HydroDynamics::CFL() const {
 	double tmin = DTMAX;
-	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)){
+	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
 		double inv_t = 0;
 		double ss = soundSpeed(cptr->Q[ipre], cptr->Q[iden]);
-		for(int dim = 0; dim < ND; dim++)
+		for(int dim = 0; dim < gptr->ND; dim++)
 			inv_t += (fabs(cptr->Q[ivel+dim]) + ss)/gptr->dx[dim];
 		if(inv_t == 0)
 			inv_t = 1.0/DTMAX;
-		tmin = min(tmin, 0.5/inv_t);
+		tmin = std::min(tmin, 0.5/inv_t);
 	}
-	return min(tmin, DTMAX);
+	return std::min(tmin, DTMAX);
 }
 
-void HydroDynamics::calcFluxes(Grid3D* gptr) const {
+void HydroDynamics::calcFluxes() const {
 	if(!SWEEPX){
-		for(int dim = 0; dim < ND; dim++){
+		for(int dim = 0; dim < gptr->ND; ++dim){
 			for(GridJoin* jptr = gptr->fjoin[dim]; jptr != NULL; jptr = jptr->next){
 				if(gptr->ORDER_S > 0)
 					HLLC(jptr->lcell->QR[dim], jptr->F, jptr->rcell->QL[dim], dim);
@@ -163,7 +168,7 @@ void HydroDynamics::calcFluxes(Grid3D* gptr) const {
 		SWEEPX = !SWEEPX;
 	}
 	else{
-		for(int dim = ND-1; dim >= 0; dim--){
+		for(int dim = gptr->ND-1; dim >= 0; --dim){
 			for(GridJoin* jptr = gptr->fjoin[dim]; jptr != NULL; jptr = jptr->next){
 				if(gptr->ORDER_S > 0)
 					HLLC(jptr->lcell->QR[dim], jptr->F, jptr->rcell->QL[dim], dim);
@@ -174,17 +179,17 @@ void HydroDynamics::calcFluxes(Grid3D* gptr) const {
 		SWEEPX = !SWEEPX;
 	}
 }
-void HydroDynamics::advSolution(double dt, Grid3D* gptr) const {
-	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)){
+void HydroDynamics::advSolution(const double& dt) const {
+	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
 		//cptr->U[ihii] = cptr->Q[ihii]*cptr->Q[iden];
-		for (int dim = 0; dim < ND; dim++) {
-			for (int i = 0; i < NU; i++) {
+		for (int dim = 0; dim < gptr->ND; ++dim) {
+			for (int i = 0; i < NU; ++i) {
 				if(cptr->ljoin[dim] != NULL && cptr->rjoin[dim] != NULL) {
 					cptr->U[i] += (dt*cptr->ljoin[dim]->area/cptr->vol)*cptr->ljoin[dim]->F[i];
 					cptr->U[i] -= (dt*cptr->rjoin[dim]->area/cptr->vol)*cptr->rjoin[dim]->F[i];
 				}
 				else {
-					cerr << "ERROR: ljoin[dim] or rjoin[dim] is NULL in Hydrodynamics::advSolution()." << endl;
+					std::cerr << "ERROR: ljoin[dim] or rjoin[dim] is NULL in Hydrodynamics::advSolution()." << '\n';
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -193,100 +198,95 @@ void HydroDynamics::advSolution(double dt, Grid3D* gptr) const {
 	}
 }
 
-void HydroDynamics::updateBoundaries(Grid3D* gptr) const {
-	for(int i = 0; i < (int)gptr->boundaries.size(); i++)
+void HydroDynamics::updateBoundaries() const {
+	for(int i = 0; i < (int)gptr->boundaries.size(); ++i)
 		gptr->boundaries[i]->applyBC();
 }
 
-void HydroDynamics::HLLC(double Q_l[], double F[], double Q_r[], int dim) const {
-	double a_l = 0, a_r = 0, S_l = 0, S_c = 0, S_r = 0, A_l = 0, A_r = 0;
-	double U_cl[NU], U_cr[NU], U_l[NU], U_r[NU];//, Q_l[NU], Q_r[NU];
-	double F_l[NU], F_r[NU], F_cl[NU], F_cr[NU];
-	for(int i = 0; i < NU; i++)
-		U_cl[i] = U_cr[i] = Q_l[i] = Q_r[i] = F_l[i] = F_r[i] = F_cl[i] = F_cr[i] = 0;
+void HydroDynamics::HLLC(double Q_l[], double F[], double Q_r[], const int& dim) const {
+	double U_cl[NU], U_cr[NU], U_l[NU], U_r[NU], F_l[NU], F_r[NU], F_cl[NU], F_cr[NU];
+	for(int i = 0; i < NU; ++i)
+		U_cl[i] = U_cr[i] = U_l[i] = U_r[i] = F_l[i] = F_r[i] = F_cl[i] = F_cr[i] = 0;
 	UfromQ(U_l, Q_l);
 	UfromQ(U_r, Q_r);
 	FfromU(F_l, U_l, dim);
 	FfromU(F_r, U_r, dim);
 
-	a_l = soundSpeed(Q_l[ipre], Q_l[iden]);
-	a_r = soundSpeed(Q_r[ipre], Q_r[iden]);
-	S_l = Q_l[ivel+dim] - a_l;
-	S_r = Q_r[ivel+dim] + a_r;
+	double S_l = Q_l[ivel+dim] - soundSpeed(Q_l[ipre], Q_l[iden]);
+	double S_r = Q_r[ivel+dim] + soundSpeed(Q_r[ipre], Q_r[iden]);
 
-	double nom1 = Q_r[ipre]-Q_l[ipre]+Q_l[iden]*Q_l[ivel+dim]*(S_l-Q_l[ivel+dim]);
-	double nom2 = -Q_r[iden]*Q_r[ivel+dim]*(S_r-Q_r[ivel+dim]);
-	double denom = Q_l[iden]*(S_l-Q_l[ivel+dim])-Q_r[iden]*(S_r-Q_r[ivel+dim]);
-	S_c = (nom1+nom2)/denom;
-	A_r = Q_r[iden]*(S_r-Q_r[ivel+dim])/(S_r-S_c);
+	// S_c = (P_r-P_l+D_l*u_l*(S_l-u_l) - D_r*u_r*(S_r-u_r))/(D_l*(S_l-u_l) - D_r*(S_r-u_r));
+	double S_c = (Q_r[ipre]-Q_l[ipre]+Q_l[iden]*Q_l[ivel+dim]*(S_l-Q_l[ivel+dim])-Q_r[iden]*Q_r[ivel+dim]*(S_r-Q_r[ivel+dim]))
+			/ (Q_l[iden]*(S_l-Q_l[ivel+dim])-Q_r[iden]*(S_r-Q_r[ivel+dim]));
+	double A_r = Q_r[iden]*(S_r-Q_r[ivel+dim])/(S_r-S_c);
 	U_cr[iden] = A_r;
-	for(int id = 0; id < ND; id++)
+	for(int id = 0; id < gptr->ND; ++id)
 		U_cr[ivel+id] = A_r*Q_r[ivel+id];
 	U_cr[ivel+dim] = A_r*S_c;
 	U_cr[ipre] = A_r*((U_r[ipre]/Q_r[iden]) + (S_c-Q_r[ivel+dim])*(S_c + Q_r[ipre]/(Q_r[iden]*(S_r-Q_r[ivel+dim]))));
 	U_cr[ihii] = A_r*Q_r[ihii];
 
-	A_l = Q_l[iden]*(S_l-Q_l[ivel+dim])/(S_l-S_c);
+	double A_l = Q_l[iden]*(S_l-Q_l[ivel+dim])/(S_l-S_c);
 	U_cl[iden] = A_l;
-	for(int id = 0; id < ND; id++)
+	for(int id = 0; id < gptr->ND; ++id)
 		U_cl[ivel+id] = A_l*Q_l[ivel+id];
 	U_cl[ivel+dim] = A_l*S_c;
 	U_cl[ipre] = A_l*((U_l[ipre]/Q_l[iden]) + (S_c-Q_l[ivel+dim])*(S_c+Q_l[ipre]/(Q_l[iden]*(S_l-Q_l[ivel+dim]))));
 	U_cl[ihii] = A_l*Q_l[ihii];
-	for(int i = 0; i < NU; i++){
+	for(int i = 0; i < NU; ++i){
 		F_cl[i] = F_l[i]+S_l*(U_cl[i]-U_l[i]);
 		F_cr[i] = F_r[i]+S_r*(U_cr[i]-U_r[i]);
 	}
 	if(S_l >= 0){
-		for(int i = 0; i < NU; i++)
+		for(int i = 0; i < NU; ++i)
 			F[i] = F_l[i];
 	}
 	else if(S_l <= 0 && S_c >= 0){
-		for(int i = 0; i < NU; i++)
+		for(int i = 0; i < NU; ++i)
 			F[i] = F_cl[i];
 	}
 	else if (S_c <= 0 && S_r >= 0){
-		for(int i = 0; i < NU; i++)
+		for(int i = 0; i < NU; ++i)
 			F[i] = F_cr[i];
 	}
 	else if(S_r <= 0){
-		for(int i = 0; i < NU; i++)
+		for(int i = 0; i < NU; ++i)
 			F[i] = F_r[i];
 	}
 	if(std::isnan(F[ihii])) {
-		cerr << endl;
-		for(int i = 0; i < NU; i++){
-			cerr << "Q_l[" << i << "] = " << Q_l[i] << endl;
-			cerr << "Q_r[" << i << "] = " << Q_r[i] << endl;
+		std::cerr << '\n';
+		for(int i = 0; i < NU; ++i){
+			std::cerr << "Q_l[" << i << "] = " << Q_l[i] << '\n';
+			std::cerr << "Q_r[" << i << "] = " << Q_r[i] << '\n';
 		}
-		for(int i = 0; i < NU; i++){
-			cerr << "U_l[" << i << "] = " << U_l[i] << endl;
-			cerr << "U_r[" << i << "] = " << U_r[i] << endl;
+		for(int i = 0; i < NU; ++i){
+			std::cerr << "U_l[" << i << "] = " << U_l[i] << '\n';
+			std::cerr << "U_r[" << i << "] = " << U_r[i] << '\n';
 		}
-		for(int i = 0; i < NU; i++){
-			cerr << "F_l[" << i << "] = " << F_l[i] << endl;
-			cerr << "F_r[" << i << "] = " << F_r[i] << endl;
+		for(int i = 0; i < NU; ++i){
+			std::cerr << "F_l[" << i << "] = " << F_l[i] << '\n';
+			std::cerr << "F_r[" << i << "] = " << F_r[i] << '\n';
 		}
-		for(int i = 0; i < NU; i++){
-			cerr << "U_cl[" << i << "] = " << U_cl[i] << endl;
-			cerr << "U_cr[" << i << "] = " << U_cr[i] << endl;
+		for(int i = 0; i < NU; ++i){
+			std::cerr << "U_cl[" << i << "] = " << U_cl[i] << '\n';
+			std::cerr << "U_cr[" << i << "] = " << U_cr[i] << '\n';
 		}
-		cerr << "a_l = " << a_l << endl;
-		cerr << "a_r = " << a_r << endl;
-		cerr << "S_l = " << S_l << endl;
-		cerr << "S_r = " << S_r << endl;
-		cerr << "S_c = " << S_c << endl;
-		for(int iu = 0; iu < NU; iu++)
-			cerr << "F[" << iu << "] = " << F[iu] << endl;
+		std::cerr << "a_l = " << soundSpeed(Q_l[ipre], Q_l[iden]) << '\n';
+		std::cerr << "a_r = " << soundSpeed(Q_r[ipre], Q_r[iden]) << '\n';
+		std::cerr << "S_l = " << S_l << '\n';
+		std::cerr << "S_r = " << S_r << '\n';
+		std::cerr << "S_c = " << S_c << '\n';
+		for(int iu = 0; iu < NU; ++iu)
+			std::cerr << "F[" << iu << "] = " << F[iu] << '\n';
 	}
 }
 
-void HydroDynamics::applySrcTerms(double dt, Grid3D* gptr, const Radiation& rad) const {
+void HydroDynamics::applySrcTerms(const double& dt, const Radiation* rad) const {
 	/* Geometry */
 	bool rtp = (gptr->GEOMETRY == SPHERICAL);
 	bool rzp = (gptr->GEOMETRY== CYLINDRICAL);
 	//bool xyz = (gptr->GEOMETRY == CARTESIAN);
-	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)) {
+	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next) {
 		/* Geometric source term (if any) */
 		if (rzp) {
 			double r = gptr->dx[0]*(cptr->xc[0] + 0.5);
@@ -301,7 +301,7 @@ void HydroDynamics::applySrcTerms(double dt, Grid3D* gptr, const Radiation& rad)
 		}
 		//====================//
 		/* Radiative Transfer */
-		if(gptr->fsrc != NULL){
+		if(rad->nstars > 0){
 			//double HII_old, mu_old, T_old;
 			double HII_new, mu_new, E_old, E_new, T_new;
 			//HII_old = cptr->U[ihii]/cptr->U[iden];
@@ -310,10 +310,10 @@ void HydroDynamics::applySrcTerms(double dt, Grid3D* gptr, const Radiation& rad)
 			mu_new = 1.0/(HII_new + 1.0);
 			//T_old = (TMIN + (TMAX-TMIN)*HII_old) / (P_SCALE/RHO_SCALE);
 			double ke = 0.0;
-			for (int dim = 0; dim < ND; dim++)
+			for (int dim = 0; dim < gptr->ND; ++dim)
 		 	   ke += 0.5*cptr->U[ivel+dim]*cptr->U[ivel+dim]/cptr->U[iden];
 			E_old = cptr->U[ipre];
-			T_new = (rad.TMIN + (rad.TMAX-rad.TMIN)*HII_new);
+			T_new = (rad->TMIN + (rad->TMAX-rad->TMIN)*HII_new);
 			E_new = GAS_CONST*cptr->U[iden]*T_new/(mu_new*(GAMMA - 1.0)) + ke;
 			//if(t_hgs > 5*TREC / T_SCALE && rtcoupling)
 			if(RTCOUPLING)
@@ -325,18 +325,18 @@ void HydroDynamics::applySrcTerms(double dt, Grid3D* gptr, const Radiation& rad)
 		//====================//
 	}
 }
-void HydroDynamics::fixSolution(Grid3D* gptr) const {
-	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = gptr->nextCell3D(cptr)) {
-		cptr->U[iden] = max(cptr->U[iden], DFLOOR);
+void HydroDynamics::fixSolution() const {
+	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next) {
+		cptr->U[iden] = std::max(cptr->U[iden], DFLOOR);
 		double ke = 0.0;
-		for(int dim = 0; dim < ND; dim++)
+		for(int dim = 0; dim < gptr->ND; ++dim)
 			ke += 0.5*cptr->U[ivel+dim]*cptr->U[ivel+dim]/cptr->U[iden];
-		cptr->U[ipre] = max(cptr->U[ipre], PFLOOR/(GAMMA - 1.0) + ke);
-		cptr->U[ihii] = max(min(cptr->U[ihii], cptr->U[iden]), 0.0);
+		cptr->U[ipre] = std::max(cptr->U[ipre], PFLOOR/(GAMMA - 1.0) + ke);
+		cptr->U[ihii] = std::max(std::min(cptr->U[ihii], cptr->U[iden]), 0.0);
 	}
 }
-void HydroDynamics::Qisnan(int id, int i, int xc, int yc, int zc, Grid3D* gptr) const {
+void HydroDynamics::Qisnan(const int& id, const int& i, const int& xc, const int& yc, const int& zc) const {
 	GridCell* cptr = gptr->locate(xc, yc, zc);
 	if(std::isnan(cptr->Q[i]))
-		cerr << id << endl;
+		std::cerr << id << '\n';
 }

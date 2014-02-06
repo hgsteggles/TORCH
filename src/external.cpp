@@ -1,17 +1,30 @@
 #include "external.hpp"
+#include "grid3d.hpp"
+#include "gridcell.hpp"
 
-ExternalBoundary::ExternalBoundary(int face, Condition bcond, Grid3D* gptr) : Boundary(face, gptr), bc(bcond) { }
+
+#include <stddef.h> // NULL
+#include <stdlib.h> // exit
+#include <iostream>
+
+ExternalBoundary::ExternalBoundary(const int face, const Condition& bcond, Grid3D* gptr) : Boundary(face, gptr), bc(bcond) { }
 
 void ExternalBoundary::applyBC() {
 	int dim = face%3;
-	for (int i = 0; i < (int)ghostcells.size(); i++) {
-		for (int j = 0; j < (int)ghostcells[i].size(); j++) {
+	for (int i = 0; i < (int)ghostcells.size(); ++i) {
+		for (int j = 0; j < (int)ghostcells[i].size(); ++j) {
 			GridCell* ghost = ghostcells[i][j];
 			GridCell* cptr = NULL;
 			if (face < 3)
 				cptr = ghostcells[i][j]->rjoin[dim]->rcell;
-			else
-				cptr = ghostcells[i][j]->ljoin[dim]->lcell;
+			else{
+				if (ghostcells[i][j]->ljoin[dim] == NULL) {
+					ghostcells[i][j]->printInfo();
+					exit(EXIT_FAILURE);
+				}
+				else
+					cptr = ghostcells[i][j]->ljoin[dim]->lcell;
+			}
 			while (ghost != NULL && cptr != NULL) {
 				if(bc == REFLECTING){
 					for(int iu = 0; iu < NU; iu++)
@@ -26,13 +39,13 @@ void ExternalBoundary::applyBC() {
 				}
 				if(bc == INFLOW){
 					for(int iu = 0; iu < NU; iu++)
-						ghost->Q[j] = cptr->Q[j];
+						ghost->Q[iu] = cptr->Q[iu];
 					if((cptr->Q[ivel+dim] < 0 && face < 3) || (cptr->Q[ivel+dim] > 0 && face >= 3))
 						ghost->Q[ivel+dim] = -1.0*cptr->Q[ivel+dim];
 				}
 				if(bc == FREE){
 					for(int iu = 0; iu < NU; iu++)
-						ghost->Q[j] = cptr->Q[j];
+						ghost->Q[iu] = cptr->Q[iu];
 				}
 				if(face < 3) {
 					cptr = cptr->rjoin[dim]->rcell;

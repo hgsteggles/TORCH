@@ -22,11 +22,6 @@
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/assume_abstract.hpp>
 
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <math.h>
-
 /**
  * @class MPIHandler
  * @brief A handler for MPI communication.

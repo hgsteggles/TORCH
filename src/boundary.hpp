@@ -5,16 +5,17 @@
  * @author Harrison Steggles
  *
  * @date 16/01/2014, the first version.
+ * @date 04/01/2014, arguments now passed by const reference when appropriate.
  */
 
 #ifndef BOUNDARY_HPP_
 #define BOUNDARY_HPP_
 
 #include <vector>
-#include "parameters.hpp"
-#include "grid3d.hpp"
 
 class Grid3D;
+class GridCell;
+
 /**
  * @class Boundary
  * @brief Holds a Grid3D face boundary to apply boundary conditions during integration.
@@ -28,7 +29,7 @@ class Grid3D;
  * @see Grid3D
  * @see GridCell
  *
- * @version 0.3, 29/01/2014
+ * @version 0.4, 04/02/2014
  */
 class Boundary {
 public:
@@ -42,7 +43,7 @@ public:
 	 * @param face The face this Boundary is attached to.
 	 * @param gptr Pointer to Grid3D instance that this Boundary is to be attached to.
 	 */
-	Boundary(int face, Grid3D* gptr);
+	Boundary(const int face, Grid3D* gptr);
 	/**
 	 * @brief Boundary destructor.
 	 */

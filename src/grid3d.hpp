@@ -7,23 +7,26 @@
  * @date 13/01/2014, the first version.
  * @date 16/01/2014, removed old Boundary class. New one now holds all ghostcells associated with a grid face. Two types of Boundary can be
  * attached to a simulation grid: ExternalBoundary and Partition.
- * @date 29/01/2014, Multiple processor capabilities added.
+ * @date 29/01/2014, multiple processor capabilities added.
+ * @date 04/02/2014, added pointer to first GridCell in causal iteration and a method (buildCausal) for setting up this loop.
+ * @date 04/02/2014, added pointers to last GridJoins and GridCells in "next" lists so that adding GridCells to end of list is a LOT faster.
+ * This has removed a major pre-simulation bottleneck.
+ * @date 04/01/2014, arguments now passed by const reference when appropriate.
+ * @date 05/02/2014, fixed nextSnake bug causing infinite loop in 3D buildCausal.
  */
 
 #ifndef GRID3D_H
 #define GRID3D_H
 
-#include <stdio.h>
-#include <iostream>
-#include <fstream>
-#include "parameters.hpp"
-#include "gridcell.hpp"
-#include "boundary.hpp"
-#include "mpihandler.hpp"
+#include "constants.hpp"
 
-using namespace std;
+#include <vector>
 
+class GridCell;
+class GridJoin;
 class Boundary;
+class GridParameters;
+class MPIHandler;
 /** @class Grid3D
  * @brief The Grid3D class holds the state information of the fluid and provides methods for traversing and locating {@link GridCell}s.
  *
@@ -34,12 +37,7 @@ class Boundary;
  * The grid coordinates are integers that start at 0. The coordinate in simulation units is given by (xc[dim] + 0.5)*dx[dim].
  *
  * @author      Harrison Steggles
- * @version     0.3, 29/01/2014
- *
- * @date 13/01/2014, the first version.
- * @date 16/01/2014, accomodates new {@link Boundary} class.
- * @date 28/01/2014, accomodates new {@link ExternalBoundary} and {@link Partition} classes which are derived from the {@link Boundary}
- * class, which is now abstract for polymorphic behaviour (@link Boundary#applyBC).
+ * @version     0.4, 04/01/2014
  */
 class Grid3D
 {
@@ -47,12 +45,14 @@ public:
 	static int s_total; //!< Number of Grid3D objects in program.
 	GridCell* fcell; //!< Pointer to first GridCell object in simulation grid.
 	GridCell* lcell; //!< Pointer to last GridCell object in simulation grid.
-	GridJoin *fjoin[3]; //!< Pointers to first GridJoin object in linked list in each dimension.
+	GridJoin* fjoin[3]; //!< Pointers to first GridJoin object in linked list in each dimension.
+	GridJoin* ljoin[3];
 	double dx[3]; //!< Cell width in each dimension.
 	Geometry GEOMETRY; //!< Enum which notes what coordinate system is in use.
 	int ND, NU, NR, TOTNCELLS[3], NCELLS[3], ORDER_S, ORDER_T;
-	vector<vector<vector<GridCell*> > > gridcells;
-	vector<Boundary*> boundaries;
+	std::vector<Boundary*> boundaries;
+	double currentTime;
+	double deltatime;
 	/**
 	 * @brief Grid3D constructor.
 	 * Sets Grid3D parameters equal to parameters owned by GridParameters. Uses parameters to construct
@@ -77,7 +77,7 @@ public:
 	 * @param lcptr Pointer to left GridCell object.
 	 * @param rcptr Pointer to right GridCell object.
 	 */
-	void link(int dim, GridCell* lcptr, GridCell* rcptr);
+	void link(const int& dim, GridCell* lcptr, GridCell* rcptr);
 	/**
 	 * @brief Double-links the passed GridCell objects to a GridJoin object.
 	 * Links two GridCell objects to a common GridJoin object via GridCell::rjoin and GridCell::ljoin.
@@ -87,7 +87,7 @@ public:
 	 * @param lcptr Pointer to left GridCell object.
 	 * @param rcptr Pointer to right GridCell object.
 	 */
-	void weakLink(int dim, GridCell* lcptr, GridCell* rcptr);
+	void weakLink(const int& dim, GridCell* lcptr, GridCell* rcptr);
 	/**
 	 * @brief Links GridCell objects on a grid face with GridCell objects in a Boundary object via a
 	 * GridJoin object. Each GridCell object on a grid face is linked via a GridJoin to a GridCell object
@@ -107,7 +107,7 @@ public:
 	 * @param jptr Pointer to GridJoin object to add.
 	 * @param dim Coordinate axis that is normal to the GridJoin object.
 	 */
-	void addJoinToList(GridJoin* jptr, int dim);
+	void addJoinToList(GridJoin* jptr, const int& dim);
 	/**
 	 * @brief Adds a GridCell object to a linked list owned by Grid3D.
 	 * Useful for iterating over the objects and cleaning them up in the Grid3D destructor.
@@ -121,7 +121,7 @@ public:
 	 * @param cptr Pointer to the GridCell object to start from.
 	 * @return The GridCell object traversed to. Will return <code> NULL </code> if it doesn't exist.
 	 */
-	GridCell* traverse1D(int dim, int dc, GridCell* cptr);
+	GridCell* traverse1D(const int& dim, const int& dc, GridCell* cptr);
 	/**
 	 * @brief Traverses over GridCell objects via GridCell::right and GridCell::left in 3D.
 	 * @param d1 Direction 1.
@@ -133,7 +133,7 @@ public:
 	 * @param cptr Pointer to the GridCell object to start from.
 	 * @return The GridCell object traverse to. Will return <code> NULL </code> if it doesn't exist.
 	 */
-	GridCell* traverse3D(int d1, int d2, int d3, int dc1, int dc2, int dc3, GridCell* cptr);
+	GridCell* traverse3D(const int& d1, const int& d2, const int& d3, const int& dc1, const int& dc2, const int& dc3, GridCell* cptr);
 	/**
 	 * @brief Traverses over GridCell objects via GridCell::rjoin and GridCell::ljoin in 1D.
 	 * @param dim The direction to traverse (0, 1, 2).
@@ -141,7 +141,7 @@ public:
 	 * @param cptr Pointer to the GridCell object to start from.
 	 * @return The GridCell object traversed to. Will return <code> NULL </code> if it doesn't exist.
 	 */
-	GridCell* traverseOverJoins1D(int dim, int dc, GridCell* cptr);
+	GridCell* traverseOverJoins1D(const int& dim, const int& dc, GridCell* cptr);
 	/**
 	 * @brief Traverses over GridCell objects via GridCell::rjoin and GridCell::ljoin in 1D.
 	 * @param d1 Direction 1.
@@ -153,7 +153,7 @@ public:
 	 * @param cptr Pointer to the GridCell object to start from.
 	 * @return The GridCell object traverse to. Will return <code> NULL </code> if it doesn't exist.
 	 */
-	GridCell* traverseOverJoins3D(int d1, int d2, int d3, int dc1, int dc2, int dc3, GridCell* cptr);
+	GridCell* traverseOverJoins3D(const int& d1, const int& d2, const int& d3, const int& dc1, const int& dc2, const int& dc3, GridCell* cptr);
 	/**
 	 * @brief Locates GridCell object at the specified grid coordinates.
 	 * @param x x grid coordinate.
@@ -161,14 +161,14 @@ public:
 	 * @param z z grid coordinate.
 	 * @return The located GridCell object if it exists. If not then <code> NULL </code>.
 	 */
-	GridCell* locate(int x, int y, int z);
+	GridCell* locate(const int& x, const int& y, const int& z);
 	/**
 	 * @brief Provides the next GridCell object along a path that traverses a 2D plane which includes the passed GridCell object.
 	 * @param plane The 2D plane normal.
 	 * @param cptr Pointer to previous GridCell object
 	 * @return Pointer to next GridCell object. If there are no more GridCell objects on this path then <code> NULL </code> is returned.
 	 */
-	GridCell* nextCell2D(int plane, GridCell* cptr);
+	GridCell* nextCell2D(const int& plane, GridCell* cptr);
 	/**
 	 * @brief Provides the next GridCell object along a path that traverses the entire grid.
 	 * @param cptr Pointer to previous GridCell object
@@ -192,7 +192,7 @@ public:
 	 * @param dyz GridCell objects to traverse in the z direction at every step.
 	 * @return Pointer to next GridCell object. If there are no more GridCell objects on this path then <code> NULL </code> is returned.
 	 */
-	GridCell* nextSnake(GridCell* srcptr, GridCell* cptr, int dxc, int dyc, int dyz);
+	GridCell* nextSnake(GridCell* cptr, GridCell* srcptr, const int& dxc, const int& dyc, const int& dyz);
 	/**
 	 * @brief Provides next GridCell object along a causal path from a specified GridCell object.
 	 * @param cptr Pointer to previous GridCell object.
@@ -200,13 +200,14 @@ public:
 	 * @return Pointer to next GridCell object. If there are no more GridCell objects on this path then <code> NULL </code> is returned.
 	 */
 	GridCell* nextCausal(GridCell* cptr, GridCell* srcptr);
+	void buildCausal(GridCell* fcausal);
 	/**
 	 * @brief Calculates the area between 2 GridCell objects given its location and the geometry of Grid3D.
 	 * @param xj Coordinates of the GridJoin between the 2 GridCell objects.
 	 * @param dim Direction normal to the face of the GridJoin.
 	 * @return The area.
 	 */
-	double area_join(double xj[], int dim);
+	double area_join(double xj[], const int& dim);
 	/**
 	 * @brief Calculates GridCell::vol given its location and  the geometry of Grid3D.
 	 * @param cptr The GridCell object for which the volume will be calculated.
