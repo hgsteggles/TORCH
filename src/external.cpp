@@ -58,6 +58,18 @@ void ExternalBoundary::applyBC() {
 			}
 		}
 	}
+	for (int i = 0; i < (int)ghostcells.size(); ++i) {
+		for (int j = 0; j < (int)ghostcells[i].size(); ++j) {
+			GridCell* ghost = ghostcells[i][j];
+			GridCell* cptr = NULL;
+			if (face < 3)
+				cptr = ghostcells[i][j]->rjoin[dim]->rcell;
+			else
+				cptr = ghostcells[i][j]->ljoin[dim]->lcell;
+			for (int ir = 0; ir < NR; ++ir)
+				ghost->R[ir] = cptr->R[ir];
+		}
+	}
 }
 
 

@@ -1,5 +1,5 @@
 /**
- * 
+ * Provides global constants and enums.
  * @file constants.hpp
  *
  *  @author "Harrison Steggles"
@@ -12,7 +12,7 @@
 enum Geometry {CARTESIAN, CYLINDRICAL, SPHERICAL};
 enum Condition {FREE, REFLECTING, OUTFLOW, INFLOW};
 enum Scheme {IMPLICIT, EXPLICIT};
-enum SendID {PARTITION_MSG, PRINT2D_MSG, CFL_COLLECT, CFL_BROADCAST, PRINTIF_NEXT_MSG, PRINTIF_FOUND_MSG, PRINTIF_IF_MSG, PRINTSTARBENCH_MSG};
+enum SendID {PARTITION_MSG, RADIATION_MSG, PRINT2D_MSG, CFL_COLLECT, CFL_BROADCAST, PRINTIF_NEXT_MSG, PRINTIF_FOUND_MSG, PRINTIF_IF_MSG, PRINTSTARBENCH_MSG};
 const int NU = 6;
 const int iden = 0;
 const int ivel = 1;

@@ -4,9 +4,11 @@
  *
  * @author Harrison Steggles
  *
- * @date 29/01/2014, the first version.
- * @date 04/01/2014, arguments now passed by const reference when appropriate.
- * @date 05/02/2014, solved buffer overflow problem for non-reflecting boundary conditions - replaced 'j' variable in Q array with 'iu'.
+ * @date 29/01/2014 - the first version.
+ * @date 04/01/2014 - arguments now passed by const reference when appropriate.
+ * @date 05/02/2014 - solved buffer overflow problem for non-reflecting boundary conditions - replaced 'j' variable in Q array with 'iu'.
+ * @date 21/02/2014 - applyBC now copies grid face radiation properties (cell and path optical depths) onto first layer of ghost cells for
+ * raytracing from a star that has snapped to vertex that lies on edge of grid.
  */
 
 #ifndef EXTERNAL_HPP_
@@ -27,7 +29,7 @@ class Grid3D;
  * @see Grid3D
  * @see GridCell
  *
- * @version 0.4, 04/02/2014
+ * @version 0.5, 24/02/2014
  */
 class ExternalBoundary : public Boundary {
 public:

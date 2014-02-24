@@ -3,8 +3,10 @@
  * @file io.hpp
  *
  * @author Harrison Steggles
- * @date 13/01/2014, the first version.
- * @date 04/01/2014, arguments now passed by const reference when appropriate.
+ * @date 13/01/2014 - the first version.
+ * @date 04/01/2014 - arguments now passed by const reference when appropriate.
+ * @date 12/02/2014 - progress bar added which outputs progress to command line and sets the frequency for
+ * printing data, initProgressBar needs to be called first and progressBar() needs to be called at the end.
  */
 
 #ifndef IO_H
@@ -13,7 +15,9 @@
 #include "parameters.hpp"
 #include "grid3d.hpp"
 #include "rtmodule.hpp"
-#include "mpihandler.hpp"
+#include "mpihandler2.hpp"
+
+#include <map>
 
 class PrintParameters;
 class Scalings;
@@ -24,7 +28,7 @@ class Radiation;
 /**
  * @class InputOutput
  * @brief Handler for all input/output operations.
- * @version 0.4, 04/02/2014
+ * @version 0.5, 24/02/2014
  */
 class InputOutput{
 public:
@@ -40,18 +44,19 @@ public:
 	double RHO_SCALE; //!< Density scale.
 	double P_SCALE; //!< Pressure scale.
 	double E_SCALE; //!< Energy scale.
-	int percent;
-	bool freqPrinting;
-	bool debugging;
-	std::string progressMessage;
+	static bool debugging;
+	static bool freqPrinting;
+	static int percent;
+	static std::string progressMessage;
 	/**
 	 * @brief InputOutput constructor.
 	 * @param rp Parameters to pass in.
 	 * @param sc Scalings to pass in for printing physical units.
 	 */
 	InputOutput(const PrintParameters& rp, const Scalings& sc);
-	void initProgressBar(std::string msg);
-	void progressBar(const int& prcnow, const int& every, MPIHandler& mpihandler);
+	static void initProgressBar(std::string msg, MPIHandler& mpihandler);
+	static void progressBar(const int& prcnow, const int& every, MPIHandler& mpihandler);
+	static void endProgressBar(MPIHandler& mpihandler);
 	void freqPrint(const Radiation* rad, Grid3D* gptr, MPIHandler& mpihandler);
 	void addPrintTime(const double& t) {
 		printTimes.push_back(t);

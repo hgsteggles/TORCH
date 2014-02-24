@@ -21,7 +21,7 @@ GridJoin::~GridJoin() {
 }
 int GridJoin::s_total = 0;
 
-GridCell::GridCell() : next(NULL), nextcausal(NULL), vol(0) {
+GridCell::GridCell() : next(NULL), nextcausal(NULL), vol(0), ds(0), shellVol(0) {
 	for(int dim = 0; dim < 3; ++dim){
 		left[dim] = NULL;
 		right[dim] = NULL;
@@ -44,6 +44,10 @@ GridCell::GridCell() : next(NULL), nextcausal(NULL), vol(0) {
 	}
 	for(int dim = 0; dim < 3; ++dim)
 		xc[dim] = 0;
+	for (int i = 0; i < 4; ++i) {
+		NN[i] = NULL;
+		NN_weights[i] = 0;
+	}
 	s_total++;
 }
 GridCell::~GridCell() {
@@ -53,6 +57,24 @@ void GridCell::printInfo() {
 	std::cout << "xc[0] = " << xc[0] << '\n';
 	std::cout << "xc[1] = " << xc[1] << '\n';
 	std::cout << "xc[2] = " << xc[2] << '\n';
+	std::cout << "Q[iden] = " << Q[iden] << '\n';
+	std::cout << "Q[ipre] = " << Q[ipre] << '\n';
+	std::cout << "Q[ivel+0] = " << Q[ivel+0] << '\n';
+	std::cout << "Q[ivel+1] = " << Q[ivel+1] << '\n';
+	std::cout << "Q[ivel+2] = " << Q[ivel+2] << '\n';
+	std::cout << "Q[ihii] = " << Q[ihii] << '\n';
+	std::cout << "R[itau] = " << R[itau] << '\n';
+	std::cout << "R[itauta] = " << R[itauta] << '\n';
+	std::cout << "R[idtau] = " << R[idtau] << '\n';
+	std::cout << "R[idtauta] = " << R[idtauta] << '\n';
+	std::cout << "NN[0] = " << NN[0] << '\n';
+	std::cout << "NN[1] = " << NN[1] << '\n';
+	std::cout << "NN[2] = " << NN[2] << '\n';
+	std::cout << "NN[3] = " << NN[3] << '\n';
+	std::cout << "NN_weights[0] = " << NN_weights[0] << '\n';
+	std::cout << "NN_weights[1] = " << NN_weights[1] << '\n';
+	std::cout << "NN_weights[2] = " << NN_weights[2] << '\n';
+	std::cout << "NN_weights[3] = " << NN_weights[3] << '\n';
 	std::cout << "ljoin[0] = " << ljoin[0] << '\n';
 	std::cout << "ljoin[1] = " << ljoin[1] << '\n';
 	std::cout << "ljoin[2] = " << ljoin[2] << '\n';

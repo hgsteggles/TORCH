@@ -4,7 +4,7 @@
 #include "grid3d.hpp"
 #include "gridcell.hpp"
 #include "partition.hpp"
-#include "mpihandler.hpp"
+#include "mpihandler2.hpp"
 #include "parameters.hpp"
 #include "star.hpp"
 
@@ -13,7 +13,7 @@
 #include <fstream>
 #include <cstring>
 
-Radiation::Radiation(const RadiationParameters& rp, Grid3D* grid) : gptr(grid), nstars(0) {
+Radiation::Radiation(const RadiationParameters& rp, Grid3D* grid) : gptr(grid), nstars(0), snapToVertex(false), snapMod(0) {
 	K1 = rp.K1;
 	K2 = rp.K2;
 	K3 = rp.K3;
@@ -27,12 +27,13 @@ Radiation::Radiation(const RadiationParameters& rp, Grid3D* grid) : gptr(grid), 
 	TMAX = rp.TMAX;
 	SCHEME = rp.SCHEME;
 	H_MASS = rp.H_MASS;
-
 }
 
-void Radiation::addStar(Star src, MPIHandler& mpih) {
+void Radiation::addStar(Star src, MPIHandler& mpih, bool snapToVertex) {
+	this->snapToVertex = snapToVertex;
+	this->snapMod = snapToVertex ? 0.5 : 0.0;
 	int dec[3] = {0, 0, 0};
-	for (int i = 0; i < gptr->ND; ++i) {
+	for (int i = 0; i < gptr->ND && snapToVertex; ++i) {
 		if (src.x[i] == gptr->lcell->xc[i]+1)
 			dec[i] = -1;
 	}
@@ -54,43 +55,37 @@ void Radiation::addStar(Star src, MPIHandler& mpih) {
 }
 
 int Radiation::getRayPlane(GridCell* cptr, const int& starID) const {
-	int plane = 0, xc[3], xs[3], dxcs[3], dxcs_max;
-	for(int i = 0; i < 3; ++i){
-		xc[i] = cptr->xc[i];
-		xs[i] = stars[starID].x[i];
-		dxcs[i] = fabs(xc[i]-xs[i]);
+	int plane = 0;
+	double dxcs_max = 0;
+	for(int i = 0; i < gptr->ND; ++i) {
+		double dxcs = fabs(cptr->xc[i]+snapMod-stars[starID].x[i]);
+		if (dxcs > dxcs_max) {
+			dxcs_max = dxcs;
+			plane = i;
+		}
 	}
-	dxcs_max = std::max(dxcs[0], std::max(dxcs[1], dxcs[2]));
-	while(dxcs[plane] != dxcs_max)
-		plane++;
 	return plane;
 }
+
 void Radiation::updateTauSC(bool average, GridCell* cptr, const int& starID) const {
 	double dist2 = 0;
 	for (int i = 0; i < gptr->ND; ++i)
-		dist2 += (cptr->xc[i] + 0.5 - stars[starID].x[i])*(cptr->xc[i] + 0.5 - stars[starID].x[i]);
-	if(dist2 > 1){
+		dist2 += (cptr->xc[i] + snapMod - stars[starID].x[i])*(cptr->xc[i] + snapMod - stars[starID].x[i]);
+	if(dist2 > 0.95){
+		bool test = false;
 		int plane = getRayPlane(cptr, starID);
 		int irot[3] = {(plane+1)%3, (plane+2)%3, (plane%3)};
-		int	dxcs[3] = {cptr->xc[irot[0]]-stars[starID].x[irot[0]],
-				cptr->xc[irot[1]]-stars[starID].x[irot[1]],
-				cptr->xc[irot[2]]-stars[starID].x[irot[2]]};
-		int sigma[3] = {abs(dxcs[0]), abs(dxcs[1]), abs(dxcs[2])};
-		int LR[3] = {abs(dxcs[0]), abs(dxcs[1]), abs(dxcs[2])};
-		
-		for(int i = 0; i < 3; ++i){
-			if(sigma[i] != 0){
-				sigma[i] = sigma[i]/dxcs[i];
-				LR[i] = LR[i]/dxcs[i];
-			}
-			else{
-				sigma[i] = 1;
-				LR[i] = 0;
-			}
+		double d[3] = {0.0, 0.0, 0.0};
+		for(int i = 0; i < 3; i++) {
+			d[i] = cptr->xc[irot[i]]-stars[starID].x[irot[i]];
+			if (irot[i] > gptr->ND - 1) d[i] += snapMod;
 		}
-		double ic[3] = {cptr->xc[irot[0]]-0.5*(sigma[2]*dxcs[0]/(double)dxcs[2]),
-				cptr->xc[irot[1]]-0.5*(sigma[2]*dxcs[1]/(double)dxcs[2]),
-				cptr->xc[irot[2]]-0.5*((double)sigma[2])};
+		int s[3] = {d[0] < -gptr->dx[0]/10.0 ? -1 : 1, d[1] < -gptr->dx[1]/10.0 ? -1 : 1, d[2] < -gptr->dx[2]/10.0 ? -1 : 1};
+		int LR[3] = {abs(d[0]) < gptr->dx[0]/10.0 ? 0 : s[0], abs(d[1]) < gptr->dx[1]/10.0 ? 0 : s[1], abs(d[2]) < gptr->dx[2]/10.0 ? 0 : s[2]};
+
+		double ic[3] = {cptr->xc[irot[0]]-0.5*(s[2]*d[0]/d[2]),
+				cptr->xc[irot[1]]-0.5*(s[2]*d[1]/d[2]),
+				cptr->xc[irot[2]]-0.5*(s[2])};
 		GridCell* e[4] = {gptr->traverse3D(irot[0], irot[1], irot[2], 0, 0, -LR[2], cptr),
 				gptr->traverse3D(irot[0], irot[1], irot[2], 0, -LR[1], -LR[2], cptr),
 				gptr->traverse3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], cptr),
@@ -101,50 +96,98 @@ void Radiation::updateTauSC(bool average, GridCell* cptr, const int& starID) con
 			e[2] = gptr->traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], cptr);
 			e[3] = gptr->traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], -LR[1], -LR[2], cptr);
 		}
-		double delta[2] = {fabs(2.0*ic[0]-2.0*cptr->xc[irot[0]]+sigma[0]), fabs(2.0*ic[1]-2.0*cptr->xc[irot[1]]+sigma[1])};
-		double w[4] = {0.0, 0.0, 0.0, 0.0};
-		if((dxcs[0] != 0) || (dxcs[1] != 0) || (dxcs[2] != 0))
-			w[0] = delta[0]*delta[1];
-		if(dxcs[1] != 0)
-			w[1] = delta[0]*(1.0-delta[1]);
-		if(dxcs[0] != 0)
-			w[2] = (1.0-delta[0])*delta[1];
-		if((dxcs[0] != 0) && (dxcs[1] != 0))
-			w[3] = (1.0-delta[0])*(1.0-delta[1]);
+		double delta[2] = {fabs(2.0*ic[0]-2.0*cptr->xc[irot[0]]+s[0]), fabs(2.0*ic[1]-2.0*cptr->xc[irot[1]]+s[1])};
+		double w[4];
+		w[0] = (d[0] != 0) || (d[1] != 0) || (d[2] != 0) ? delta[0]*delta[1] : 0;
+		w[1] = (d[1] != 0) ? delta[0]*(1.0-delta[1]) : 0;
+		w[2] = (d[0] != 0) ? (1.0-delta[0])*delta[1] : 0;
+		w[3] = ((d[0] != 0) && (d[1] != 0)) ? (1.0-delta[0])*(1.0-delta[1]) : 0;
 		double tau[4] = {0.0, 0.0, 0.0, 0.0};
 		double w_raga[4];
 		for(int i = 0; i < 4; ++i){
-			if(e[i] != NULL){
-				if(!average){
-					tau[i] = e[i]->R[itau]+e[i]->R[idtau];
-					w_raga[i] = w[i]/std::max(TAU_0, tau[i]);
-				}
-				else{
-					tau[i] = e[i]->R[itauta]+e[i]->R[idtauta];
-					w_raga[i] = w[i]/std::max(TAU_0, tau[i]);
-				}
-			}
+			if (e[i] != NULL)
+				tau[i] = e[i]->R[average ? itauta : itau]+e[i]->R[average ? idtauta : idtau];
+			w_raga[i] = w[i]/std::max(TAU_0, tau[i]);
 		}
 		double sum_w = w_raga[0]+w_raga[1]+w_raga[2]+w_raga[3];
 		double newtau = 0.0;
 		for(int i = 0; i < 4; ++i){
-			if(e[i] != NULL){
-				w_raga[i] = w_raga[i]/sum_w;
-				newtau += w_raga[i]*tau[i];
-			}
+			w_raga[i] = w_raga[i]/sum_w;
+			newtau += w_raga[i]*tau[i];
 		}
-		if(!average)
-			cptr->R[itau] = newtau;
-		else
-			cptr->R[itauta] = newtau;
+		cptr->R[average ? itauta : itau] = newtau;
+		if(test) {
+			std::cerr << "d[0] = " << d[0] << std::endl;
+			std::cerr << "d[1] = " << d[1] << std::endl;
+			std::cerr << "d[2] = " << d[2] << std::endl;
+			std::cerr << "ic[0] = " << ic[0] << std::endl;
+			std::cerr << "ic[1] = " << ic[1] << std::endl;
+			std::cerr << "ic[2] = " << ic[2] << std::endl;
+			std::cerr << "delta[0] = " << delta[0] << std::endl;
+			std::cerr << "delta[1] = " << delta[1] << std::endl;
+		}
 	}
-	else{
-		if(!average)
-			cptr->R[itau] = 0;
-		else
-			cptr->R[itauta] = 0;		
+	else
+		cptr->R[average ? itauta : itau] = 0;
+}
+
+
+void Radiation::calculateNearestNeighbours(const int& starID) const {
+	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->nextcausal) {
+		int plane = getRayPlane(cptr, starID);
+		int irot[3] = {(plane+1)%3, (plane+2)%3, (plane%3)};
+		double d[3] = {0.0, 0.0, 0.0};
+		for(int i = 0; i < 3; i++) {
+			d[i] = cptr->xc[irot[i]]-stars[starID].x[irot[i]];
+			if (irot[i] > gptr->ND - 1) d[i] += snapMod;
+		}
+		int s[3] = {d[0] < -gptr->dx[0]/10.0 ? -1 : 1, d[1] < -gptr->dx[1]/10.0 ? -1 : 1, d[2] < -gptr->dx[2]/10.0 ? -1 : 1};
+		int LR[3] = {std::abs(d[0]) < gptr->dx[0]/10.0 ? 0 : s[0], std::abs(d[1]) < gptr->dx[1]/10.0 ? 0 : s[1], std::abs(d[2]) < gptr->dx[2]/10.0 ? 0 : s[2]};
+		cptr->NN[0] = gptr->traverse3D(irot[0], irot[1], irot[2], 0, 0, -LR[2], cptr);
+		cptr->NN[1] = gptr->traverse3D(irot[0], irot[1], irot[2], 0, -LR[1], -LR[2], cptr);
+		cptr->NN[2] = gptr->traverse3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], cptr);
+		cptr->NN[3] = gptr->traverse3D(irot[0], irot[1], irot[2], -LR[0], -LR[1], -LR[2], cptr);
+		if (cptr->NN[0] == NULL)
+			cptr->NN[0] = gptr->traverseOverJoins3D(irot[0], irot[1], irot[2], 0, 0, -LR[2], cptr);
+		if (cptr->NN[1] == NULL)
+			cptr->NN[1] = gptr->traverseOverJoins3D(irot[0], irot[1], irot[2], 0, -LR[1], -LR[2], cptr);
+		if (cptr->NN[2] == NULL)
+			cptr->NN[2] = gptr->traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], cptr);
+		if (cptr->NN[3] == NULL)
+			cptr->NN[3] = gptr->traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], -LR[1], -LR[2], cptr);
+		double ic[3] = {cptr->xc[irot[0]]-0.5*(s[2]*d[0]/d[2]),	cptr->xc[irot[1]]-0.5*(s[2]*d[1]/d[2]),	cptr->xc[irot[2]]-0.5*(s[2])};
+		double delta[2] = {std::abs(2.0*ic[0]-2.0*cptr->xc[irot[0]]+s[0]), std::abs(2.0*ic[1]-2.0*cptr->xc[irot[1]]+s[1])};
+		cptr->NN_weights[0] = (d[0] != 0) || (d[1] != 0) || (d[2] != 0) ? delta[0]*delta[1] : 0;
+		cptr->NN_weights[1] = (d[1] != 0) ? delta[0]*(1.0-delta[1]) : 0;
+		cptr->NN_weights[2] = (d[0] != 0) ? (1.0-delta[0])*delta[1] : 0;
+		cptr->NN_weights[3] = ((d[0] != 0) && (d[1] != 0)) ? (1.0-delta[0])*(1.0-delta[1]) : 0;
 	}
 }
+
+void Radiation::updateTauSC2(bool average, GridCell* cptr, const int& starID) const {
+	double dist2 = 0;
+	for (int i = 0; i < gptr->ND; ++i)
+		dist2 += (cptr->xc[i] + snapMod - stars[starID].x[i])*(cptr->xc[i] + snapMod - stars[starID].x[i]);
+	if(dist2 > 0.95){
+		double tau[4] = {0.0, 0.0, 0.0, 0.0};
+		double w_raga[4];
+		for(int i = 0; i < 4; ++i){
+			if (cptr->NN[i] != NULL)
+				tau[i] = cptr->NN[i]->R[average ? itauta : itau]+cptr->NN[i]->R[average ? idtauta : idtau];
+			w_raga[i] = cptr->NN_weights[i]/std::max(TAU_0, tau[i]);
+		}
+		double sum_w = w_raga[0]+w_raga[1]+w_raga[2]+w_raga[3];
+		double newtau = 0.0;
+		for(int i = 0; i < 4; ++i){
+			w_raga[i] = w_raga[i]/sum_w;
+			newtau += w_raga[i]*tau[i];
+		}
+		cptr->R[average ? itauta : itau] = newtau;
+	}
+	else
+		cptr->R[average ? itauta : itau] = 0;
+}
+
 double Radiation::temperature(GridCell* cptr) const {
 	return (cptr->Q[ipre]/cptr->Q[iden])*((1.0/(cptr->Q[ihii] + 1.0))/GAS_CONST);
 }
@@ -156,27 +199,24 @@ double Radiation::alphaB(GridCell* cptr) const {
 }
 double Radiation::cellPathLength(GridCell* cptr, const int& starID) const {
 	double denom;
-	int dxcs[3];
-	for(int i = 0; i < 3; ++i)
-		dxcs[i] = cptr->xc[i]-stars[starID].x[i];
-	if(dxcs[2]>=dxcs[1] && dxcs[2]>=dxcs[0])
-		denom = dxcs[2];
-	else if(dxcs[1]>dxcs[2] && dxcs[1]>=dxcs[0])
-		denom = dxcs[1];
+	double d[3] = {0.0, 0.0, 0.0};
+	for(int i = 0; i < gptr->ND; ++i)
+		d[i] = cptr->xc[i]+snapMod-stars[starID].x[i];
+	if(d[2] >= d[1] && d[2] >= d[0])
+		denom = d[2];
+	else if(d[1] > d[2] && d[1] >= d[0])
+		denom = d[1];
 	else
-		denom = dxcs[0];
+		denom = d[0];
 	if(denom != 0)
-		return sqrt(dxcs[0]*dxcs[0]*gptr->dx[0]*gptr->dx[0]+dxcs[1]*dxcs[1]*gptr->dx[1]*gptr->dx[1]+dxcs[2]*dxcs[2]*gptr->dx[2]*gptr->dx[2])/denom;
+		return sqrt(d[0]*d[0]*gptr->dx[0]*gptr->dx[0]+d[1]*d[1]*gptr->dx[1]*gptr->dx[1]+d[2]*d[2]*gptr->dx[2]*gptr->dx[2])/denom;
 	else
 		return 0.0;
 }
 double Radiation::shellVolume(GridCell* cptr, const int& starID) const {
 	double r_sqrd = 0;
-	double ds = cellPathLength(cptr, starID);
 	for(int i = 0; i < gptr->ND; ++i)
-		r_sqrd += (cptr->xc[i]-stars[starID].x[i])*(cptr->xc[i]-stars[starID].x[i])*gptr->dx[i]*gptr->dx[i];
-	double r_min = sqrt(r_sqrd) - 0.5*ds;
-	double r_max = sqrt(r_sqrd) + 0.5*ds;
+		r_sqrd += (cptr->xc[i]+snapMod-stars[starID].x[i])*(cptr->xc[i]+snapMod-stars[starID].x[i])*gptr->dx[i]*gptr->dx[i];
 	//r_min = sqrt(r_sqrd) - 0.5*ds;
 	//r_max = sqrt(r_sqrd) + 0.5*ds;
 	//if(ND == 1)
@@ -187,18 +227,21 @@ double Radiation::shellVolume(GridCell* cptr, const int& starID) const {
 	//	else
 	//		return 2.0*PI*sqrt(r_sqrd)*ds*dx;
 	//else if(ND == 3)
-	if(r_sqrd <= 0.1)
+	if(r_sqrd <= 0.1) {
+		double r_min = sqrt(r_sqrd) - 0.5*cptr->ds;
+		double r_max = sqrt(r_sqrd) + 0.5*cptr->ds;
 		return 4.0*PI*(r_max*r_max*r_max - r_min*r_min*r_min)/3.0;
+	}
 	else
-		return 4.0*PI*r_sqrd*ds;
+		return 4.0*PI*r_sqrd*cptr->ds;
 }
 double Radiation::PIrate(const double& frac, const double& T, const double& delT, GridCell* cptr, const int& starID) const {
-	double vol = shellVolume(cptr, starID);
 	double n_HI = (1.0-frac)*cptr->Q[iden] / H_MASS;
-	if(frac >= 1 || n_HI == 0 || vol == 0)
+	if(frac >= 1 || n_HI == 0 || cptr->shellVol == 0)
 		return 0.0;
-	else
-		return SOURCE_S*exp(-T)*(1.0-exp(-delT))/(n_HI*vol);
+	else {
+		return SOURCE_S*exp(-T)*(1.0-exp(-delT))/(n_HI*cptr->shellVol);
+	}
 }
 double Radiation::HIIfracDot(const double& A_pi, const double& frac, GridCell* cptr) const {
 	//if(COLLISIONS)
@@ -207,18 +250,9 @@ double Radiation::HIIfracDot(const double& A_pi, const double& frac, GridCell* c
 }
 void Radiation::update_dtau(GridCell* cptr, const int& starID) const {
 	if(!isStar(cptr)){
-		double ds = cellPathLength(cptr, starID);
 		double n_H = cptr->Q[iden] / H_MASS;
-		cptr->R[idtau] = (1.0-cptr->Q[ihii])*n_H*P_I_CROSS_SECTION*ds;
-		cptr->R[idtauta] = (1.0-cptr->R[ihiita])*n_H*P_I_CROSS_SECTION*ds;
-		bool test = false;
-		if (cptr->xc[0] == 2 && cptr->xc[1] == 1 && test) {
-			std::cerr << "ds = " << ds << '\n';
-			std::cerr << "n_H = " << n_H << '\n';
-			std::cerr << "piCrSc = " << P_I_CROSS_SECTION << '\n';
-			std::cerr << "HII = " << cptr->Q[ihii] << '\n';
-			std::cerr << "dtau = " << cptr->R[idtau] << '\n';
-		}
+		cptr->R[idtau] = (1.0-cptr->Q[ihii])*n_H*P_I_CROSS_SECTION*cptr->ds;
+		cptr->R[idtauta] = (1.0-cptr->R[ihiita])*n_H*P_I_CROSS_SECTION*cptr->ds;
 	}
 }
 /*
@@ -267,10 +301,9 @@ void Radiation::update_HIIfrac(const double& dt, GridCell* cptr, const int& star
 		if(scheme == 0){
 			double convergence2 = 1.0e-3;
 			double convergence_frac = 1.0e-5;
-			double HII_avg_old, ds, n_H;
+			double HII_avg_old, n_H;
 			int niter = 0;
 			bool converged = false;
-			ds = cellPathLength(cptr, starID);
 			n_H = cptr->Q[iden] / H_MASS;
 			double HII = cptr->Q[ihii];
 			//HII_avg = cptr->R[ihiita];
@@ -280,23 +313,14 @@ void Radiation::update_HIIfrac(const double& dt, GridCell* cptr, const int& star
 				niter++;
 				HII_avg_old = HII_avg;
 				HII = cptr->Q[ihii];
-				double dtau_avg = (1.0-HII_avg)*n_H*P_I_CROSS_SECTION*ds;
+				double dtau_avg = (1.0-HII_avg)*n_H*P_I_CROSS_SECTION*cptr->ds;
 				double A_pi = PIrate(HII_avg, cptr->R[itauta], dtau_avg, cptr, starID);
 				doric(dt, HII, HII_avg, A_pi, cptr);
 				if((fabs((HII_avg-HII_avg_old)/HII_avg) < convergence2 || (HII_avg < convergence_frac)))
 					converged = true;
-				if(niter > 100000){
+				if(niter > 5000 || HII != HII){
 					std::cout << "ERROR: implicit method not converging." << '\n';
-					std::cerr << "cptr->Q[iden] = " << cptr->Q[ihii] << '\n';
-					std::cerr << "cptr->Q[ipre] = " << cptr->Q[ihii] << '\n';
-					std::cerr << "cptr->Q[ivel+0] = " << cptr->Q[ihii] << '\n';
-					std::cerr << "cptr->Q[ihii] = " << cptr->Q[ihii] << '\n';
-					std::cerr << "HII_avg_old = " << HII_avg_old << '\n';
-					std::cerr << "dtau_avg = " << dtau_avg << '\n';
-					std::cerr << "A_pi = " << A_pi << '\n';
-					std::cerr << "HII = " << HII << '\n';
-					std::cerr << "HII_avg = " << HII_avg_old << '\n';
-					std::cerr << "xc[0] = " << cptr->xc[0] << '\n';
+					cptr->printInfo();
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -320,16 +344,20 @@ void Radiation::update_HIIfrac(const double& dt, GridCell* cptr, const int& star
 	}
 }
 double Radiation::getTimeStep(const double& dt_dyn) const {
+	static bool once = false;
 	double dt = dt_dyn, dt1, dt2, dt3, dt4;
 	if (nstars > 0) {
 		GridCell* srcptr = stars[0].fcausal;
 		for(GridCell* cptr = srcptr; cptr != NULL; cptr = cptr->nextcausal){
-			dt1 = dt_dyn;
-			dt2 = dt_dyn;
-			dt3 = dt_dyn;
-			dt4 = dt_dyn;
-			if(K1 != 0.0)
-				dt1 = K1*1.0/(cptr->Q[iden]*alphaB(cptr)/H_MASS);
+			dt1 = dt2 = dt3 = dt4 = dt_dyn;
+			if(K1 != 0.0) {
+				if (!once) {
+					dt1 = K1*1.0/(cptr->Q[iden]*alphaB(cptr)/H_MASS);
+					once = true;
+				}
+				else
+					dt1 = K1*1.0/(cptr->Q[iden]*cptr->Q[ihii]*alphaB(cptr)/H_MASS);
+			}
 			if(K2 != 0.0)
 				dt2 = dt_dyn;
 			if(K3 != 0.0) {
@@ -361,8 +389,8 @@ void Radiation::transferRadiation(const double& dt, double& IF) const {
 		 *
 		 */
 		for(GridCell* cptr = srcptr; cptr != NULL; cptr = cptr->nextcausal){
-			updateTauSC(average==false, cptr, 0);
-			updateTauSC(average==true, cptr, 0);
+			updateTauSC2(average==false, cptr, 0);
+			updateTauSC2(average==true, cptr, 0);
 			update_HIIfrac(dt, cptr, 0);
 			update_dtau(cptr, 0);
 		}
@@ -376,14 +404,13 @@ void Radiation::transferRadiation(const double& dt, double& IF, MPIHandler& mpih
 		if(stars[0].core != mpih.getRank()) {
 			Boundary* part = NULL;
 			if(stars[0].core < mpih.getRank()) {
-				mpih.receive(mpih.getRank()-1, PARTITION_MSG, msgArray, NELEMENTS);
+				mpih.receive(msgArray, NELEMENTS, mpih.getRank()-1, RADIATION_MSG);
 				part = gptr->boundaries[0];
 			}
 			else if (stars[0].core > mpih.getRank()) {
-				mpih.receive(mpih.getRank()+1, PARTITION_MSG, msgArray, NELEMENTS);
+				mpih.receive(msgArray, NELEMENTS, mpih.getRank()+1, RADIATION_MSG);
 				part = gptr->boundaries[3];
 			}
-			mpih.wait();
 			int id = 0;
 			for (int i = 0; i < (int)part->ghostcells.size(); ++i) {
 				for (int j = 0; j < (int)part->ghostcells[i].size(); ++j) {
@@ -394,9 +421,9 @@ void Radiation::transferRadiation(const double& dt, double& IF, MPIHandler& mpih
 		}
 		transferRadiation(dt, IF);
 		int face1 = 0, face2 = 3;
-		if(mpih.getRank() == 0 || stars[0].core > mpih.getRank())
+		if(mpih.getRank() == 0 || stars[0].core < mpih.getRank())
 			face1 = -1;
-		if(mpih.getRank() == mpih.nProcessors()-1 || stars[0].core < mpih.getRank())
+		if(mpih.getRank() == mpih.nProcessors()-1 || stars[0].core > mpih.getRank())
 			face2 = -1;
 		for(int i = 0; i < (int)gptr->boundaries.size(); ++i) {
 			if(gptr->boundaries[i]->face == face1 || gptr->boundaries[i]->face == face2) {
@@ -410,11 +437,11 @@ void Radiation::transferRadiation(const double& dt, double& IF, MPIHandler& mpih
 							cptr = part->ghostcells[i][j]->rjoin[dim]->rcell;
 						else
 							cptr = part->ghostcells[i][j]->ljoin[dim]->lcell;
-						for(int ir = 0; ir < NR; ir++)
+						for(int ir = 0; ir < NR; ++ir)
 							msgArray[id++] = cptr->R[ir];
 					}
 				}
-				mpih.send(part->destination, PARTITION_MSG, msgArray, NELEMENTS);
+				mpih.send(msgArray, NELEMENTS, part->destination, RADIATION_MSG);
 			}
 		}
 		delete[] msgArray;
@@ -423,18 +450,19 @@ void Radiation::transferRadiation(const double& dt, double& IF, MPIHandler& mpih
 
 void Radiation::rayTrace() const {
 	static bool time = 0;
+	calculateNearestNeighbours(0);
 	if(time == 0 && nstars > 0){
-		GridCell* srcptr = stars[0].fcausal;
-		for(GridCell* cptr = srcptr; cptr != NULL; cptr = cptr->nextcausal){
-			if(cptr != srcptr)
+		for(GridCell* cptr = stars[0].fcausal; cptr != NULL; cptr = cptr->nextcausal, ++time){
+			cptr->ds = cellPathLength(cptr, 0);
+			cptr->shellVol = shellVolume(cptr, 0);
+			if(!(!snapToVertex && cptr == stars[0].fcausal))
 				update_dtau(cptr, 0);
 		}
-		time++;
 	}
 }
 
 bool Radiation::isStar(GridCell* cptr) const {
-	for (int i = 0; i < nstars; ++i) {
+	for (int i = 0; i < nstars && !snapToVertex; ++i) {
 		if (cptr->xc[0] == stars[i].x[0] && cptr->xc[1] == stars[i].x[1] && cptr->xc[2] == stars[i].x[2])
 			return true;
 	}

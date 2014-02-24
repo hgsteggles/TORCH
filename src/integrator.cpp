@@ -27,8 +27,10 @@ Integrator::~Integrator() {
 
 void Integrator::init() {
 	Star star(0, 0, 0);
-	rad->addStar(star, mpihandler);
+	bool snapToVertex = true;
+	rad->addStar(star, mpihandler, snapToVertex);
 	for(GridCell* cptr = grid->fcell; cptr != NULL; cptr = cptr->next){
+		////////////
 		/** SPITZER
 		double rho = rad->NHI*H_MASS_G;
 		double pre = (GAS_CONST/1.0)*rho*rad->TMIN*(scale.P/scale.RHO);
@@ -41,8 +43,8 @@ void Integrator::init() {
 		cptr->Q[ipre] = pre/scale.P;
 		if(cptr == grid->fsrc)
 			cptr->Q[ihii] = 1.0;
-		////////////
 		*/
+		////////////
 		/** SOD
 		if (cptr->xc[0] < grid->TOTNCELLS[0]/2) {
 			cptr->Q[iden] = 1.0;
@@ -52,8 +54,8 @@ void Integrator::init() {
 			cptr->Q[iden] = 0.125;
 			cptr->Q[ipre] = 0.1;
 		}
-		////////////
 		*/
+		////////////
 		/** DTEST */
 		double rho = rad->NHI*H_MASS_G;
 		double pre = (GAS_CONST/1.0)*rho*rad->TMIN*(io->P_SCALE/io->RHO_SCALE);
@@ -73,8 +75,10 @@ void Integrator::init() {
 	}
 	if(rad->nstars > 0)
 		rad->rayTrace();
-	else
-		std::cout << "NO SOURCES" << '\n';
+	else {
+		if (mpihandler.getRank() == 0)
+			std::cout << "NO SOURCES" << '\n';
+	}
 }
 
 void Integrator::march(const double& tmax) {
@@ -82,34 +86,33 @@ void Integrator::march(const double& tmax) {
 	std::chrono::duration<double> elapsed;
 	double dt = 0, t = 0;
 	start = std::chrono::system_clock::now();
-	std::cout << mpihandler.cname() << "MARCH: Marching solution...   0%" << '\n';
 	io->print2D(0, t, dt, grid, mpihandler);
 	io->printIF(t, rad, grid, mpihandler);
-	io->initProgressBar("Marching solution");
-	for(int prc = 0; grid->currentTime < tmax; grid->currentTime += dt){
+	io->initProgressBar("Marching solution", mpihandler);
+	for (int prc = 0; grid->currentTime < tmax; grid->currentTime += dt) {
 		//io->freqOutput((int)(100.0*grid->currentTime/tmax), 5, rad, grid, mpihandler, "MARCH: marching solution...  ");
 		io->progressBar((int)(100.0*grid->currentTime/tmax), 5, mpihandler);
 		io->freqPrint(rad, grid, mpihandler);
 		dt = fluidStep();
 	}
-	io->progressBar(100, 5, mpihandler);
+	io->endProgressBar(mpihandler);
 	io->print2D(100, t, dt, grid, mpihandler);
 	end = std::chrono::system_clock::now();
 	elapsed = end-start;
 	mpihandler.barrier();
-	std::cout << "MARCH: Took " << elapsed.count() << " seconds." << '\n';
+	if (mpihandler.getRank() == 0)
+		std::cout << "MARCH: Took " << elapsed.count() << " seconds." << '\n';
 }
 void Integrator::march(const int& nsteps) {
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 	std::chrono::duration<double> elapsed;
 	double dt = 0, t = 0;
 	start = std::chrono::system_clock::now();
-	std::cout << mpihandler.cname() << "MARCH: Marching solution...   0%" << '\n';
 	io->print2D(0, t, dt, grid, mpihandler);
 	io->printIF(t, rad, grid, mpihandler);
-	io->initProgressBar("Marching solution");
-	for(int step = 0; step < nsteps; grid->currentTime += dt * io->T_SCALE, ++step){
-		io->progressBar(step/(double)nsteps, 5, mpihandler);
+	InputOutput::initProgressBar("Marching solution", mpihandler);
+	for(int step = 0; step < nsteps; grid->currentTime += dt * io->T_SCALE, ++step) {
+		InputOutput::progressBar(step/(double)nsteps, 5, mpihandler);
 		io->freqPrint(rad, grid, mpihandler);
 		dt = fluidStep();
 	}
@@ -118,12 +121,14 @@ void Integrator::march(const int& nsteps) {
 	end = std::chrono::system_clock::now();
 	elapsed = end-start;
 	mpihandler.barrier();
-	std::cout << "MARCH: Took " << elapsed.count() << " seconds." << '\n';
+	if (mpihandler.getRank() == 0)
+		std::cout << "MARCH: Took " << elapsed.count() << " seconds." << '\n';
 }
 double Integrator::fluidStep(){
 	double dt_hydro, dt_rad, dt, dth, IF = 0;
 	hydro->globalQfromU();
 	hydro->updateBoundaries();
+	//mpihandler.barrier();///////////////
 	if(grid->ORDER_S == 1)
 		hydro->reconstruct();
 	hydro->calcFluxes();
@@ -131,7 +136,7 @@ double Integrator::fluidStep(){
 	dt_rad = rad->getTimeStep(dt_hydro);
 	dt = std::min(dt_hydro, dt_rad);
 	if (mpihandler.nProcessors() > 1)
-		mpihandler.minimum(dt);
+		dt = mpihandler.minimum(dt);
 	io->reduceToPrint(grid->currentTime, dt);
 	grid->deltatime = dt;
 	if(grid->ORDER_T == 2){
@@ -144,12 +149,14 @@ double Integrator::fluidStep(){
 		rad->transferRadiation(dth, IF);
 	else
 		rad->transferRadiation(dth, IF, mpihandler);
+	//mpihandler.barrier();///////////////
 	hydro->applySrcTerms(dth, rad);
 	hydro->advSolution(dth);
 	hydro->fixSolution();
 	if(grid->ORDER_T == 2){
 		hydro->globalQfromU();
 		hydro->updateBoundaries();
+		//mpihandler.barrier();///////////////
 		if(grid->ORDER_S == 1)
 			hydro->reconstruct();
 		hydro->calcFluxes();
@@ -158,6 +165,7 @@ double Integrator::fluidStep(){
 			rad->transferRadiation(dt, IF);
 		else
 			rad->transferRadiation(dt, IF, mpihandler);
+		//mpihandler.barrier();///////////////
 		hydro->applySrcTerms(dt, rad);
 		hydro->advSolution(dt);
 		hydro->fixSolution();

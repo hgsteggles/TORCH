@@ -5,8 +5,12 @@
  * @author Harrison Steggles
  * @date 13/01/2014, the first version.
  * @date 16/01/2014, removed old Boundary class.
- * @date 04/01/2014, GridCell now has pointer to next GridCell in causal iteration (nextcausal). UL & UR unused states removed.
- * @date 04/01/2014, arguments now passed by const reference when appropriate.
+ * @date 04/02/2014, GridCell now has pointer to next GridCell in causal iteration (nextcausal). UL & UR unused states removed.
+ * @date 04/02/2014, arguments now passed by const reference when appropriate.
+ * @date 12/02/2014, printInfo method added for debugging.
+ * @date 13/02/2014 - GridCell now has pointers to nearest neighbouring GridCells, their associated weights for interpolating
+ * column density, the shell volume and cell crossing length used in radiative transfer methods. Get a speed-up of 27% by storing
+ * these rather than calculating them at each step.
  */
 
 #ifndef GRIDCELL_H
@@ -89,6 +93,10 @@ public:
 	double QL[3][NU]; //!< Reconstructed states on left faces.
 	double QR[3][NU]; //!< Reconstructed states on right faces.
 	double vol; //!< Volume of GridCell.
+	double ds;
+	double shellVol;
+	GridCell* NN[4];
+	double NN_weights[4];
 };
 
 /**

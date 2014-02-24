@@ -4,7 +4,7 @@
 clear
 i=0
 np=$(nproc)	
-for file in tmp/data_grid2D_*.txt
+for file in tmp/data2D_*.txt
 	do python plot.py "-i" "$file" &
 	i=`expr $i + 1`
 	if [ $i -eq $np ]

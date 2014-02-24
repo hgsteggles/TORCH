@@ -7,9 +7,11 @@
 
 #include "partition.hpp"
 #include "boundary.hpp"
-#include "mpihandler.hpp"
+#include "mpihandler2.hpp"
 #include "constants.hpp"
 #include "gridcell.hpp"
+
+#include <fstream>
 
 Partition::Partition(const int face, Grid3D* gptr, const int& dest,  MPIHandler& mpih) : Boundary(face, gptr), destination(dest), mpihandler(mpih) {
 	isPartition = true;
@@ -30,7 +32,7 @@ void Partition::applyBC() {
 			for (int k = 0; k < nghosts && cptr != NULL; ++k) {
 				for(int iu = 0; iu < NU; ++iu) {
 					msgArray[id] = cptr->Q[iu];
-					id++;
+					++id;
 				}
 				if(face < 3)
 					cptr = cptr->rjoin[dim]->rcell;
@@ -39,16 +41,18 @@ void Partition::applyBC() {
 			}
 		}
 	}
-	mpihandler.send(destination, PARTITION_MSG, msgArray, NELEMENTS);
-	mpihandler.receive(destination, PARTITION_MSG, msgArray, NELEMENTS);
-	mpihandler.wait();
+	
+	mpihandler.exchange(msgArray, NELEMENTS, destination, PARTITION_MSG);
+
 	id = 0;
 	for (int i = 0; i < (int)ghostcells.size(); ++i) {
 		for (int j = 0; j < (int)ghostcells[i].size(); ++j) {
 			GridCell* ghost = ghostcells[i][j];
 			for (int k = 0; k < nghosts; ++k) {
-				for(int iu = 0; iu < NU; ++iu)
-					ghost->Q[iu] = msgArray[id++];
+				for(int iu = 0; iu < NU; ++iu) {
+					ghost->Q[iu] = msgArray[id];
+					++id;
+				}
 				if(face < 3)
 					ghost = ghost->left[dim];
 				else

@@ -8,6 +8,7 @@
 #include "parameters.hpp"
 
 #include <stddef.h> // NULL
+#include <string.h>
 #include <limits> // numeric_limits
 #include <cmath> // sqrt, etc
 #include <iostream> // cout, cerr
@@ -21,14 +22,16 @@ HydroDynamics::HydroDynamics(const HydroParameters& hp, Grid3D* grid) : gptr(gri
 
 void HydroDynamics::globalWfromU() const {
 	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
-		for(int iu = 0; iu < NU; ++iu)
-			cptr->W[iu] = cptr->U[iu];
+		memcpy( (void*)cptr->W, (void*)cptr->U, NU * sizeof(double) );
+		//for(int iu = 0; iu < NU; ++iu)
+			//cptr->W[iu] = cptr->U[iu];
 	}
 }
 void HydroDynamics::globalUfromW() const {
 	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
-		for(int iu = 0; iu < NU; ++iu)
-			cptr->U[iu] = cptr->W[iu];
+		memcpy( (void*)cptr->U, (void*)cptr->W, NU * sizeof(double) );
+		//for(int iu = 0; iu < NU; ++iu)
+			//cptr->U[iu] = cptr->W[iu];
 	}
 }
 void HydroDynamics::globalQfromU() const {
@@ -146,7 +149,7 @@ double HydroDynamics::CFL() const {
 	for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
 		double inv_t = 0;
 		double ss = soundSpeed(cptr->Q[ipre], cptr->Q[iden]);
-		for(int dim = 0; dim < gptr->ND; dim++)
+		for(int dim = 0; dim < gptr->ND; ++dim)
 			inv_t += (fabs(cptr->Q[ivel+dim]) + ss)/gptr->dx[dim];
 		if(inv_t == 0)
 			inv_t = 1.0/DTMAX;

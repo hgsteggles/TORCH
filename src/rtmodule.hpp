@@ -10,7 +10,10 @@
  * be considered when comparing locations. GridCell::xc on Star x axis is = GridCell::xc + 0.5.
  * @date 31/01/2014 - Fixed bug in first if statement in Radiation::updateTauSC. Now escapes method if Star
  * is located in one of GridCells corners.
- * @date 04/01/2014, arguments now passed by const reference when appropriate.
+ * @date 04/02/2014 - arguments now passed by const reference when appropriate.
+ * @date 13/02/2014 - 28% speedup achieved by adding GridCell member variables that hold cell path length,
+ * pointers to nearest neighbours and the weights associated with them instead of calculating them at each
+ * time step.
  */
 
 #ifndef RTMODULE_H
@@ -37,10 +40,15 @@ public:
 	double K1, K2, K3, K4, P_I_CROSS_SECTION, ALPHA_B, TAU_0, SOURCE_S, NHI, TMIN, TMAX, SCHEME, H_MASS;
 	std::vector<Star> stars;
 	int nstars;
+	bool snapToVertex;
+	double snapMod;
+
 	Radiation(const RadiationParameters& rp, Grid3D* grid);
-	void addStar(Star src, MPIHandler& mpih);
+	void addStar(Star src, MPIHandler& mpih, bool snapToVertex);
 	int getRayPlane(GridCell* cptr, const int& starID) const;
 	void updateTauSC(bool average, GridCell* cptr, const int& starID) const;
+	void calculateNearestNeighbours(const int& starID) const;
+	void updateTauSC2(bool average, GridCell* cptr, const int& starID) const;
 	double temperature(GridCell* cptr) const;
 	double alphaB(GridCell* cptr) const;
 	double cellPathLength(GridCell* cptr, const int& starID) const;

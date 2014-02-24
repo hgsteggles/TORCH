@@ -79,13 +79,15 @@ def main():
 		#rho
 		#plt.imshow(zi, vmin=0.1, vmax=1.8, origin='lower', extent=[x.min(), x.max(), y.min(), y.max()])
 		#pg
-		plt.imshow(hiii,vmin=hii.min(),vmax=hii.max(),origin='lower',extent=[x.min(),x.max(),y.min(),y.max()])
+		vari = hiii
+		var = hii
+		plt.imshow(vari,vmin=var.min(),vmax=var.max(),origin='lower',extent=[x.min(),x.max(),y.min(),y.max()])
 		
 		#im = plt.pcolormesh(xi,yi,zi, cmap='hot', norm=LogNorm())	
 		#plt.colorbar(im,orientation='vertical',format=LogFormatterMathtext())
 
 		# Quiver Plot for vector field
-		plt.quiver(xi[::9,::9], yi[::9,::9], ui[::9,::9], vi[::9,::9], pivot='mid', units='inches', color='r', scale=20)
+		plt.quiver(xi[::9,::9], yi[::9,::9], ui[::9,::9], vi[::9,::9], pivot='mid', units='inches', color='r', scale=0.2)
 	
 	elif data.shape[1] == 5:
 		x = data[:,0]
@@ -96,7 +98,8 @@ def main():
 		#plt.xlim([0,128])
 		#plt.ylim([307411,450000]) #pg
 		#plt.yscale('log')
-		plt.plot(x,hii)
+		plt.ylim([0, 0.5]);
+		plt.plot(x,pre)
 		#sod_x = [0] * 6000
 		#sod_rho = [0] * 6000
 		#sod_x, sod_rho = sod.sod()

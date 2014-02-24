@@ -4,15 +4,19 @@
  *
  * @author Harrison Steggles
  *
- * @date 13/01/2014, the first version.
- * @date 16/01/2014, removed old Boundary class. New one now holds all ghostcells associated with a grid face. Two types of Boundary can be
+ * @date 13/01/2014 - the first version.
+ * @date 16/01/2014 - removed old Boundary class. New one now holds all ghostcells associated with a grid face. Two types of Boundary can be
  * attached to a simulation grid: ExternalBoundary and Partition.
- * @date 29/01/2014, multiple processor capabilities added.
- * @date 04/02/2014, added pointer to first GridCell in causal iteration and a method (buildCausal) for setting up this loop.
- * @date 04/02/2014, added pointers to last GridJoins and GridCells in "next" lists so that adding GridCells to end of list is a LOT faster.
+ * @date 29/01/2014 - multiple processor capabilities added.
+ * @date 04/02/2014 - added pointer to first GridCell in causal iteration and a method (buildCausal) for setting up this loop.
+ * @date 04/02/2014 - added pointers to last GridJoins and GridCells in "next" lists so that adding GridCells to end of list is a LOT faster.
  * This has removed a major pre-simulation bottleneck.
- * @date 04/01/2014, arguments now passed by const reference when appropriate.
- * @date 05/02/2014, fixed nextSnake bug causing infinite loop in 3D buildCausal.
+ * @date 04/01/2014 - arguments now passed by const reference when appropriate.
+ * @date 05/02/2014 - fixed nextSnake bug causing infinite loop in 3D buildCausal.
+ * @date 11/02/2014 - fixed bug in addGridCell causing 1D (instead of 3D) grids to be set up when using mpi with more than 1 core.
+ * @date 21/02/2014 - added InputOutput::progressBar to loop that builds grid and fixed bug in traverseOverJoins3D incorrectly returning
+ * null.
+ * @date 24/02/2014 - Grid3D now decides to override user specified boundary conditions when particular geometries are set up.
  */
 
 #ifndef GRID3D_H
@@ -37,7 +41,7 @@ class MPIHandler;
  * The grid coordinates are integers that start at 0. The coordinate in simulation units is given by (xc[dim] + 0.5)*dx[dim].
  *
  * @author      Harrison Steggles
- * @version     0.4, 04/01/2014
+ * @version     0.5, 24/01/2014
  */
 class Grid3D
 {

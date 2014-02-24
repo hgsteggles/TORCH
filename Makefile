@@ -2,7 +2,7 @@
 
 CFLAGS = -O3 -g -pedantic -Wall -std=c++11
 #INCLUDE = -I/home/harry/c++ -I/usr/local/include/
-INCLUDE =
+INCLUDE = -I./libs
 #LIBS =  -lreadline -lncurses
 #LIBS = -lhdf5
 #LIBS = /home/harry/Documents/libraries/cavlib/cavlib.a -lgsl -lgslcblas -lfftw3
@@ -26,7 +26,7 @@ FULLPATHHDR = $(addprefix $(HDRDIR)/, $(HDRS))
 $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT) $(HDRDIR)/%.$(HDREXT)
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE)
 	
-$(OBJDIR)/mpihandler.o : $(SRCDIR)/mpihandler.cpp $(HDRDIR)/mpihandler.hpp
+$(OBJDIR)/mpihandler2.o : $(SRCDIR)/mpihandler.cpp $(HDRDIR)/mpihandler.hpp
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(MPILIBS)
 
 main : $(FULLPATHOBJ)

@@ -14,6 +14,12 @@ GridParameters::GridParameters(){
 	GEOMETRY = CARTESIAN; // Geometry of grid {CARTESIAN, CYLINDRICAL, SPHERICAL}.
 	ORDER_S = 1; // Order of reconstruction in cell {CONSTANT, LINEAR, PARABOLIC, etc...}.
 	ORDER_T = 1; // Order of accuracy in a time step.
+	LBCondition[0] = FREE;
+	LBCondition[1] = FREE;
+	LBCondition[2] = FREE;
+	RBCondition[0] = FREE;
+	RBCondition[1] = FREE;
+	RBCondition[2] = FREE;
 }
 RadiationParameters::RadiationParameters(){
 	K1 = 0.2; // [Mackey 2012 (table 1)] timestep constant.

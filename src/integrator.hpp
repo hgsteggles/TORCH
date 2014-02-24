@@ -3,6 +3,7 @@
  *
  * @author Harrison Steggles
  * @date 04/02/2014 - initial verision. Encapsulating program into integrator class.
+ * @date 12/02/2014 - command line progress bar added to march method. Removed previous way to display progress.
  */
 
 #ifndef INTEGRATOR_HPP_

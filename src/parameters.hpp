@@ -19,6 +19,8 @@ class GridParameters{
 public:
 	GridParameters();
 	int ND, NU, NR, NCELLS[3], ORDER_S, ORDER_T;
+	Condition LBCondition[3];
+	Condition RBCondition[3];
 	Geometry GEOMETRY;
 };
 class RadiationParameters{

@@ -1,33 +1,26 @@
 #include "grid3d.hpp"
 #include "parameters.hpp"
-#include "mpihandler.hpp"
+#include "mpihandler2.hpp"
 #include "gridcell.hpp"
 #include "external.hpp"
 #include "partition.hpp"
+#include "io.hpp"
 
 Grid3D::Grid3D(const GridParameters& gp, MPIHandler& mpih) : fcell(NULL), lcell(NULL), currentTime(0.0), deltatime(0.0) {
 	ND = gp.ND;
-	NCELLS[0] = gp.NCELLS[0];
-	NCELLS[1] = gp.NCELLS[1];
-	NCELLS[2] = gp.NCELLS[2];
 	TOTNCELLS[0] = gp.NCELLS[0];
-	TOTNCELLS[1] = gp.NCELLS[1];
-	TOTNCELLS[2] = gp.NCELLS[2];
-	if (ND < 3)
-		NCELLS[2] = 1;
-	if (ND < 2)
-		NCELLS[1] = 1;
-	if (mpih.nProcessors() > 1) {
-		if (NCELLS[0]%mpih.nProcessors() == 0)
-			NCELLS[0] = NCELLS[0] / mpih.nProcessors();
-		else {
-			std::cerr << "ERROR: No. of GridCells in x dir not divisible by no. of processors." << '\n';
-			exit(EXIT_FAILURE);
-		}
-	}
+	TOTNCELLS[1] = ND > 1 ? gp.NCELLS[1] : 1;
+	TOTNCELLS[2] = ND > 2 ? gp.NCELLS[2] : 1;
+	std::memcpy( (void*)NCELLS, (void*)TOTNCELLS, 3 * sizeof(int) );
 	GEOMETRY = gp.GEOMETRY;
 	ORDER_S = gp.ORDER_S;
 	ORDER_T = gp.ORDER_T;
+	if (NCELLS[0]%mpih.nProcessors() == 0)
+		NCELLS[0] = NCELLS[0] / mpih.nProcessors();
+	else {
+		std::cout << "ERROR: No. of GridCells in x dir not divisible by no. of processors." << '\n';
+		exit(EXIT_FAILURE);
+	}
 	for(int i = 0; i < 3; ++i){
 		fjoin[i] = NULL;
 		ljoin[i] = NULL;
@@ -36,12 +29,9 @@ Grid3D::Grid3D(const GridParameters& gp, MPIHandler& mpih) : fcell(NULL), lcell(
 	dx[1] = 1.0/(double)gp.NCELLS[1];
 	dx[2] = 1.0/(double)gp.NCELLS[2];
 
-	for(int i = 0, prc = 0; i < (NCELLS[0]*NCELLS[1]*NCELLS[2]); ++i){
-		int prcnow = (int) (100*i/(double)(NCELLS[0]*NCELLS[1]*NCELLS[2]));
-		if(prcnow - prc >= 10) {
-			std::cout << "GRID3D: Adding GridCell objects... " << prcnow << "%" << '\n';
-			prc = prcnow;
-		}
+	InputOutput::initProgressBar("Building Grid", mpih);
+	for(int i = 0; i < (NCELLS[0]*NCELLS[1]*NCELLS[2]); ++i){
+		InputOutput::progressBar((100*i/(double)(NCELLS[0]*NCELLS[1]*NCELLS[2])), 5, mpih);
 		GridCell* newcptr = new GridCell();
 		if (i == 0) {
 			newcptr->set_xcs(mpih.getRank()*NCELLS[0], 0, 0);
@@ -49,46 +39,40 @@ Grid3D::Grid3D(const GridParameters& gp, MPIHandler& mpih) : fcell(NULL), lcell(
 		addGridCell(newcptr);
 		vol_cell(newcptr);
 	}
+	InputOutput::endProgressBar(mpih);
 	std::cout << mpih.cname() <<  "GRID3D: set up with " << NCELLS[0]*NCELLS[1]*NCELLS[2] << " cells." << '\n';
-
 	if(ND > 0) {
 		if (mpih.getRank() == 0) {
-			boundaries.push_back(new ExternalBoundary(0, REFLECTING, this));
-			std::cout << mpih.cname() << "EXTBOUNDARY: set up with " << boundaries[0]->nghosts << " ghostcells on face " << 0 << '\n';
+			if (GEOMETRY == SPHERICAL || GEOMETRY == CYLINDRICAL)
+				boundaries.push_back(new ExternalBoundary(0, REFLECTING, this));
+			else
+				boundaries.push_back(new ExternalBoundary(0, gp.LBCondition[0], this));
 		}
 		else {
 			int destination = mpih.getRank()-1;
 			boundaries.push_back(new Partition(0, this, destination, mpih));
-			std::cout << mpih.cname() << "PARTITION: set up with " << boundaries[0]->nghosts << " ghostcells on face " << 0 << '\n';
 		}
 		boundaryLink(boundaries[0]);
 		if (mpih.getRank() == mpih.nProcessors()-1) {
-			boundaries.push_back(new ExternalBoundary(3, FREE, this));
-			std::cout << mpih.cname() << "EXTBOUNDARY: set up with " << boundaries[1]->nghosts << " ghostcells on face " << 3 << '\n';
+			boundaries.push_back(new ExternalBoundary(3, gp.RBCondition[0], this));
 		}
 		else {
 			boundaries.push_back(new Partition(3, this, mpih.getRank()+1, mpih));
-			std::cout << mpih.cname() << "PARTITION: set up with " << boundaries[1]->nghosts << " ghostcells on face " << 3 << '\n';
 		}
 		boundaryLink(boundaries[1]);
 	}
 	if(ND > 1) {
-		boundaries.push_back(new ExternalBoundary(1, REFLECTING, this));
+		boundaries.push_back(new ExternalBoundary(1, gp.LBCondition[1], this));
 		boundaryLink(boundaries[2]);
-		std::cout << mpih.cname() << "EXTBOUNDARY: set up with " << boundaries[2]->nghosts << " ghostcells on face " << 1 << '\n';
-		boundaries.push_back(new ExternalBoundary(4, FREE, this));
+		boundaries.push_back(new ExternalBoundary(4, gp.RBCondition[1], this));
 		boundaryLink(boundaries[3]);
-		std::cout << mpih.cname() << "EXTBOUNDARY: set up with " << boundaries[3]->nghosts << " ghostcells on face " << 4 << '\n';
 	}
 	if(ND > 2) {
-		boundaries.push_back(new ExternalBoundary(2, REFLECTING, this));
+		boundaries.push_back(new ExternalBoundary(2, gp.LBCondition[2], this));
 		boundaryLink(boundaries[4]);
-		std::cout << mpih.cname() << "EXTBOUNDARY: set up with " << boundaries[4]->nghosts << " ghostcells on face " << 2 << '\n';
-		boundaries.push_back(new ExternalBoundary(5, FREE, this));
+		boundaries.push_back(new ExternalBoundary(5, gp.RBCondition[2], this));
 		boundaryLink(boundaries[5]);
-		std::cout << mpih.cname() << "EXTBOUNDARY: set up with " << boundaries[5]->nghosts << " ghostcells on face " << 5 << '\n';
 	}
-	std::cout << "printinfo 1\n";
 	//boundaries[1]->ghostcells[0][62]->printInfo();
 
 	s_total++;
@@ -146,16 +130,15 @@ void Grid3D::weakLink(const int& dim, GridCell* lcptr, GridCell* rcptr){
 }
 void Grid3D::boundaryLink(Boundary* bptr) {
 	int dim = bptr->face%3;
-	int ii = 0;
-	int jj = 2;
-	if (dim == 0)
-		ii = 1;
-	if (dim == 2)
-		jj = 1;
-
 	if (bptr->face < 3) {
 		for (GridCell* cptr = fcell; cptr != NULL; cptr = nextCell2D(dim, cptr)) {
-			GridCell* bcptr = bptr->ghostcells[cptr->xc[ii]][cptr->xc[jj]];
+			GridCell* bcptr = NULL;
+			if (dim == 0)
+				bcptr = bptr->ghostcells[cptr->xc[1]][cptr->xc[2]];
+			else if (dim == 1)
+				bcptr = bptr->ghostcells[cptr->xc[0]-fcell->xc[0]][cptr->xc[2]];
+			else
+				bcptr = bptr->ghostcells[cptr->xc[0]-fcell->xc[0]][cptr->xc[1]];
 			for (int i = 0; i < 3; ++i)
 				bcptr->xc[i] = cptr->xc[i];
 			bcptr->xc[dim] = cptr->xc[dim] - 1;
@@ -164,7 +147,13 @@ void Grid3D::boundaryLink(Boundary* bptr) {
 	}
 	else {
 		for (GridCell* cptr = traverse1D(dim, NCELLS[dim]-1, fcell); cptr != NULL; cptr = nextCell2D(dim, cptr)) {
-			GridCell* bcptr = bptr->ghostcells[cptr->xc[ii]][cptr->xc[jj]];
+			GridCell* bcptr = NULL;
+			if (dim == 0)
+				bcptr = bptr->ghostcells[cptr->xc[1]][cptr->xc[2]];
+			else if (dim == 1)
+				bcptr = bptr->ghostcells[cptr->xc[0]-fcell->xc[0]][cptr->xc[2]];
+			else
+				bcptr = bptr->ghostcells[cptr->xc[0]-fcell->xc[0]][cptr->xc[1]];
 			for (int i = 0; i < 3; ++i)
 				bcptr->xc[i] = cptr->xc[i];
 			bcptr->xc[dim] = cptr->xc[dim] + 1;
@@ -190,7 +179,7 @@ GridCell* Grid3D::traverseOverJoins1D(const int& dim, const int& dxc, GridCell* 
 	for(int i = 0; i < abs(dxc) && newcptr != NULL; ++i){
 		if (dxc > 0 && newcptr->rjoin[dim] != NULL)
 			newcptr = newcptr->rjoin[dim]->rcell;
-		else if (dxc <= 0 && newcptr->ljoin[dim] != NULL)
+		else if (dxc < 0 && newcptr->ljoin[dim] != NULL)
 			newcptr = newcptr->ljoin[dim]->lcell;
 		else
 			newcptr = NULL;
@@ -198,7 +187,18 @@ GridCell* Grid3D::traverseOverJoins1D(const int& dim, const int& dxc, GridCell* 
 	return newcptr;
 }
 GridCell* Grid3D::traverseOverJoins3D(const int& d1, const int& d2, const int& d3, const int& dc1, const int& dc2, const int& dc3, GridCell* cptr){
-	return traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d1, dc1, cptr)));
+	GridCell* newcptr = traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d1, dc1, cptr)));
+	if (newcptr == NULL)
+		newcptr = traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d3, dc3, cptr)));
+	if (newcptr == NULL)
+		newcptr = traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d2, dc2, cptr)));
+	if (newcptr == NULL)
+		newcptr = traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d3, dc3, cptr)));
+	if (newcptr == NULL)
+		newcptr = traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d1, dc1, cptr)));
+	if (newcptr == NULL)
+		newcptr = traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d2, dc2, cptr)));
+	return newcptr;
 }
 GridCell* Grid3D::locate(const int& x, const int& y, const int& z){
 	GridCell* cptr = fcell;
@@ -232,18 +232,18 @@ void Grid3D::addGridCellToList(GridCell* cptr){
 }
 void Grid3D::addGridCell(GridCell* newcptr){
 	if(fcell != NULL){
-		if(lcell->xc[0] != NCELLS[0] - 1){
+		if(lcell->xc[0] != fcell->xc[0] + NCELLS[0] - 1){
 			newcptr->set_xcs(lcell->xc[0] + 1, lcell->xc[1], lcell->xc[2]);
 			link(0, lcell, newcptr);
 			link(1, locate(newcptr->xc[0], newcptr->xc[1] - 1, newcptr->xc[2]), newcptr);
 			link(2, locate(newcptr->xc[0], newcptr->xc[1], newcptr->xc[2] - 1), newcptr);
 		}
-		else if(lcell->xc[0] == NCELLS[0] - 1 && lcell->xc[1] != NCELLS[1] - 1){
+		else if(lcell->xc[0] == fcell->xc[0] + NCELLS[0] - 1 && lcell->xc[1] != NCELLS[1] - 1){
 			newcptr->set_xcs(fcell->xc[0], lcell->xc[1] + 1, lcell->xc[2]);
 			link(1, locate(newcptr->xc[0], newcptr->xc[1] - 1, newcptr->xc[2]), newcptr);
 			link(2, locate(newcptr->xc[0], newcptr->xc[1], newcptr->xc[2] - 1), newcptr);
 		}
-		else if(lcell->xc[0] == NCELLS[0] - 1 && lcell->xc[1] == NCELLS[1] - 1){
+		else if(lcell->xc[0] == fcell->xc[0] + NCELLS[0] - 1 && lcell->xc[1] == NCELLS[1] - 1){
 			newcptr->set_xcs(fcell->xc[0], fcell->xc[1], lcell->xc[2] + 1);
 			link(2, locate(newcptr->xc[0], newcptr->xc[1], newcptr->xc[2]-1), newcptr);
 		}
@@ -303,10 +303,7 @@ GridCell* Grid3D::nextCausal(GridCell* cptr, GridCell* srcptr){
 		beginptr = srcptr->left[0]->left[1]->left[2];
 
 	GridCell* newcptr = nextSnake(cptr, beginptr, dir[0], dir[1], dir[2]);
-	if (cptr->xc[0] == 127 && cptr->xc[1] == 0 && cptr->xc[2] == 1) {
-		if (newcptr != NULL)
-			std::cout << newcptr->xc[0] << " " << newcptr->xc[1] << " " << newcptr->xc[2] << '\n';
-	}
+
 	if(newcptr == NULL && dir[0] == 1 && dir[1] == 1 && dir[2] == 1)
 		newcptr = traverse3D(0, 1, 2, -1, 0, 0, srcptr);
 	if(newcptr == NULL && dir[0] == -1 && dir[1] == 1 && dir[2] == 1 && ND > 1)

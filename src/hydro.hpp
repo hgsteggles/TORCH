@@ -9,6 +9,7 @@
  * @date 16/01/2014, modified code to accomodate new Boundary class.
  * @date 04/01/2014, arguments now passed by const reference when appropriate.
  * @date 04/01/2014, removed unnecessary variable declarations.
+ * @date 21/02/2014 - globalUfromW and globalWfromU now uses memcpy rather than copying each element in a for loop.
  */
 
 #ifndef HYDRO_H
@@ -20,7 +21,7 @@ class Radiation;
 /**
  * @class HydroDynamics
  * @brief Contains parameters and methods for integrating the hydrodynamic fluid variables.
- * @version 0.3, 29/01/2014
+ * @version 0.5, 24/02/2014
  */
 class HydroDynamics{
 public:
