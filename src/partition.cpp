@@ -1,19 +1,16 @@
-/*
- * partition.cpp
- *
- *  Created on: 17 Jan 2014
- *      Author: "Harrison Steggles"
+/**
+ * @file partition.cpp
  */
 
 #include "partition.hpp"
 #include "boundary.hpp"
-#include "mpihandler2.hpp"
+#include "mpihandler.hpp"
 #include "constants.hpp"
 #include "gridcell.hpp"
 
 #include <fstream>
 
-Partition::Partition(const int face, Grid3D* gptr, const int& dest,  MPIHandler& mpih) : Boundary(face, gptr), destination(dest), mpihandler(mpih) {
+Partition::Partition(const int face, const int nOfGhosts, Grid3D* gptr, const int& dest,  MPIHandler& mpih) : Boundary(face, nOfGhosts, gptr), destination(dest), mpihandler(mpih) {
 	isPartition = true;
 }
 

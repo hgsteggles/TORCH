@@ -1,4 +1,6 @@
-/* io.cpp */
+/**
+ * @file io.cpp
+ */
 
 #include "io.hpp"
 #include "gridcell.hpp"
@@ -8,11 +10,17 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <iomanip>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
 
+/**
+ * @brief InputOutput constructor.
+ * @param rp Parameters to pass in.
+ * @param sc Scalings to pass in for printing physical units.
+ */
 InputOutput::InputOutput(const PrintParameters& pp, const Scalings& sc) {
 	DIR_2D = pp.DIR_2D;
 	DIR_IF = pp.DIR_IF;
@@ -30,7 +38,7 @@ InputOutput::InputOutput(const PrintParameters& pp, const Scalings& sc) {
 int InputOutput::percent = 0;
 bool InputOutput::freqPrinting = false;
 std::string InputOutput::progressMessage = "Progress";
-bool InputOutput::debugging= false;
+bool InputOutput::debugging = false;
 
 void InputOutput::initProgressBar(std::string msg, MPIHandler& mpihandler) {
 	InputOutput::percent = 0;
@@ -94,11 +102,11 @@ void InputOutput::printSTARBENCH(const int& i, const Radiation* rad, Grid3D* gpt
 		out << std::setprecision(10) << std::fixed;
 		for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
 			double x1 = 0, x2 = 0, v1 = 0, v2 = 0;
-			if (gptr->ND > 1) {
+			if (gptr->gparams->ND > 1) {
 				x1 = (cptr->xc[1]+0.5)*gptr->dx[1]*L_SCALE*CM2PC;
 				v1 = cptr->Q[ivel+1]*V_SCALE*0.001;
 			}
-			else if (gptr->ND > 2) {
+			else if (gptr->gparams->ND > 2) {
 				x2 = (cptr->xc[2]+0.5)*gptr->dx[2]*L_SCALE*CM2PC;
 				v2 = cptr->Q[ivel+2]*V_SCALE*0.001;
 			}
@@ -109,7 +117,7 @@ void InputOutput::printSTARBENCH(const int& i, const Radiation* rad, Grid3D* gpt
 			out << fortranformat(v1, 16, 7, 3);
 			out << fortranformat(v2, 16, 7, 3);
 			out	<< fortranformat(cptr->Q[iden]*RHO_SCALE, 16, 7, 3);
-			out << fortranformat((rad->TMIN + cptr->Q[ihii]*(rad->TMAX - rad->TMIN))*(P_SCALE/RHO_SCALE), 16, 7, 3);
+			out << fortranformat((rad->rparams->THI + cptr->Q[ihii]*(rad->rparams->THII - rad->rparams->THI)), 16, 7, 3);
 			out << fortranformat(cptr->Q[ihii], 16, 7, 3);
 			out << '\n';
 		}
@@ -151,6 +159,47 @@ std::string InputOutput::fortranformat(double value, int w, int d, int e) {
 	os << std::abs(exponent);
 	return os.str();
 }
+
+void InputOutput::printBinary2D(const int& step, const double& t, const double& dt, Grid3D* gptr, MPIHandler& mpih) const {
+	if (PRINT2D_ON) {
+		std::ostringstream os;
+		os << DIR_2D << "data2D_";
+		os << step << ".hbin";
+		int ncols = 5;
+		if (gptr->gparams->ND > 1)
+			ncols += 2;
+		if (gptr->gparams->ND > 2)
+			ncols += 2;
+		const int nrows = gptr->gparams->NCELLS[0]*gptr->gparams->NCELLS[1]*gptr->gparams->NCELLS[2];
+		const int nbuff = gptr->gparams->CORECELLS[0]*gptr->gparams->CORECELLS[1]*gptr->gparams->CORECELLS[2]*ncols;
+		double* buff = new double[nbuff];
+		int i = 0;
+		for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next) {
+			for (int id = 0; id < gptr->gparams->ND; ++id)
+				buff[i++] = cptr->xc[id];
+			buff[i++] = cptr->Q[iden];
+			buff[i++] = cptr->Q[ipre];
+			buff[i++] = cptr->Q[ihii];
+			for (int id = 0; id < gptr->gparams->ND; ++id)
+				buff[i++] = cptr->Q[ivel+id];
+		}
+		if (i != nbuff) {
+			std::cout << "ERROR: buffer not filled in printBinary2D.\n";
+			exit(EXIT_FAILURE);
+		}
+		mpih.write((char*)os.str().c_str(), buff, ncols, nrows, nbuff, mpih.DOUBLE);
+		delete[] buff;
+	}
+}
+
+/**
+ * @brief Prints primitive variables for a 2D slice of the simulation grid in the Grid3D object pointed to by gptr.s
+ * @param step Number to append to the output filename.
+ * @param t Current simulation time.
+ * @param dt Current delta-time.
+ * @param gptr Pointer to Grid3D object to print.
+ * @param mpih Provides MPI information for printing with multiple cores.
+ */
 void InputOutput::print2D(const int& step, const double& t, const double& dt, Grid3D* gptr, MPIHandler& mpih) const {
 	if (PRINT2D_ON) {
 		if (mpih.getRank() != 0) {
@@ -174,17 +223,18 @@ void InputOutput::print2D(const int& step, const double& t, const double& dt, Gr
 			buff << std::setprecision(10) << std::fixed;
 			for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
 				buff << cptr->xc[0];
-				if(gptr->ND > 1)
+				if(gptr->gparams->ND > 1)
 					buff << '\t' << cptr->xc[1];
-				if(gptr->ND > 2)
+				if(gptr->gparams->ND > 2)
 					buff << '\t' << cptr->xc[2];
-				buff << '\t'	<< cptr->Q[iden];
+				buff << '\t' << cptr->Q[iden];
+				//buff << '\t' << std::sqrt(cptr->Q[iden]*cptr->Q[ivel+0]*cptr->Q[ivel+0]/(1.4*cptr->Q[ipre]));
 				buff << '\t' << cptr->Q[ipre];
 				buff << '\t' << cptr->Q[ihii];
 				buff << '\t' << cptr->Q[ivel+0];
-				if(gptr->ND > 1)
+				if(gptr->gparams->ND > 1)
 					buff << '\t' << cptr->Q[ivel+1];
-				if(gptr->ND > 2)
+				if(gptr->gparams->ND > 2)
 					buff << '\t' << cptr->Q[ivel+2];
 				buff << '\n';
 			}
@@ -195,6 +245,14 @@ void InputOutput::print2D(const int& step, const double& t, const double& dt, Gr
 		}
 	}
 }
+
+/**
+ * @brief Calculates and prints the location of the ionization front from a Star that is located at the origin.
+ * @param t Current simulation time.
+ * @param rad Radiation provides this method with radiation parameters.
+ * @param gptr The grid on which the Star is located.
+ * @param mpih Provides MPI information for calculating and printing with multiple cores.
+ */
 void InputOutput::printIF(const double& t, const Radiation* rad, Grid3D* gptr, MPIHandler& mpih) const {
 	if (PRINTIF_ON && rad->nstars > 0) {
 		/* IONIZATION FRONT DETECTION */
@@ -213,11 +271,11 @@ void InputOutput::printIF(const double& t, const Radiation* rad, Grid3D* gptr, M
 						if(cptr->left[0] != NULL) {
 							double fracLeft = cptr->left[0]->U[ihii]/cptr->left[0]->U[iden];
 							double interp = (0.5-fracLeft)/(frac-fracLeft);
-							IF = (cptr->left[0]->xc[0] + 0.5) - rad->stars[0].x[0] + interp;
+							IF = (cptr->left[0]->xc[0] + rad->stars[0].mod[0]) - rad->stars[0].x[0] + interp;
 						}
 						else
-							IF = (cptr->xc[0] + 0.5) - rad->stars[0].x[0];
-						IF = sqrt(IF*IF + 0.25);
+							IF = (cptr->xc[0] + rad->stars[0].mod[0]) - rad->stars[0].x[0];
+						//IF = sqrt(IF*IF + 0.25);
 					}
 					found = true;
 					break;
@@ -245,19 +303,17 @@ void InputOutput::printIF(const double& t, const Radiation* rad, Grid3D* gptr, M
 			}
 		}
 		if(mpih.getRank() == 0) {
-			IF /= gptr->NCELLS[0];
+			IF /= gptr->gparams->NCELLS[0];
 			std::ofstream outFile("tmp/IF.dat", std::ios::app);
 			double n_H, S, RSinf;
 			double cII, RI;
-			//double RS, t_rec;
-			n_H = rad->NHI / (1.0/(L_SCALE*L_SCALE*L_SCALE));
-			//t_rec = (1.0/(n_H*ALPHA));
-			double t1 = t;
-			S = rad->SOURCE_S;
-			RSinf = pow((3.0*S)/(4.0*PI*n_H*n_H*rad->ALPHA_B), 1.0/3.0);
-			//RS = pow((1.0-exp(-t1/t_rec)), 1.0/3.0)*RSinf;
-			cII = sqrt(GAS_CONST*2.0*rad->TMAX) / V_SCALE;
-			RI = RSinf*pow(1+(7*cII*t1)/(4*RSinf), 4.0/7.0);
+			n_H = rad->rparams->NHI / (1.0/(L_SCALE*L_SCALE*L_SCALE));
+			//t_rec = (1.0/(n_H*rad->rparams->ALPHA_B));
+			S = rad->rparams->SOURCE_S;
+			RSinf = pow((3.0*S)/(4.0*PI*n_H*n_H*rad->rparams->ALPHA_B), 1.0/3.0);
+			cII = sqrt(GAS_CONST*2.0*rad->rparams->THII) / V_SCALE;
+			//RI = pow((1.0-exp(-t/t_rec)), 1.0/3.0)*RSinf;
+			RI = RSinf*pow(1+(7*cII*t)/(4*RSinf), 4.0/7.0);
 			double t_s = RSinf/cII;
 			double error = 0;
 			if (RI != 0.0)
@@ -270,6 +326,82 @@ void InputOutput::printIF(const double& t, const Radiation* rad, Grid3D* gptr, M
 		}
 	}
 }
+void InputOutput::printWeights(Grid3D* gptr) {
+	std::ofstream ofile("tmp/weights.dat", std::ios::app);
+	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next) {
+		ofile << "{ ";
+		for (int i = 0; i < 3; ++i) {
+			if (cptr->xc[i] < 10)
+				ofile << " " << cptr->xc[i] << " ";
+			else
+				ofile << cptr->xc[i] << " ";
+		}
+		ofile << "}:   weights of { ";
+
+		ofile << std::fixed << std::setprecision(3);
+		for (int i = 0; i < 4; ++i) {
+			std::ostringstream os;
+			if (cptr->NN[i] != NULL) {
+				double diff = cptr->NN[i]->xc[0]-cptr->xc[0];
+				if (diff > 0)
+					os << "(+x)";
+				else if (diff < 0)
+					os << "(-x)";
+				diff = cptr->NN[i]->xc[1]-cptr->xc[1];
+				if (diff > 0)
+					os << "(+y)";
+				else if (diff < 0)
+					os << "(-y)";
+				diff = cptr->NN[i]->xc[2]-cptr->xc[2];
+				if (diff > 0)
+					os << "(+z)";
+				else if (diff < 0)
+					os << "(-z)";
+			}
+			else {
+				os << "(##)";
+				if (i > 0)
+					os << "(##)";
+				if (i > 2)
+					os << "(##)";
+			}
+			ofile << os.str() << " ";
+		}
+		ofile << "} = { ";
+		for (int i = 0; i < 4; ++i)
+			ofile << cptr->NN_weights[i] << " ";
+		ofile << "}\n";
+	}
+	ofile.close();
+}
+
+void InputOutput::printCellPathLength(Grid3D* gptr) {
+	std::ofstream ofile("tmp/ds.dat", std::ios::app);
+	for (GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next) {
+		ofile << "{ ";
+		for (int i = 0; i < 3; ++i) {
+			if (cptr->xc[i] < 10)
+				ofile << " " << cptr->xc[i] << " ";
+			else
+				ofile << cptr->xc[i] << " ";
+		}
+		ofile << "}:   ds = ";
+		ofile << std::fixed << std::setprecision(5);
+		ofile << cptr->ds << '\n';
+	}
+	ofile.close();
+}
+
+/**
+ * @brief Prints all parameters associated with this simulation.
+ * TO-DO: Write function that provides consistent parameter output.
+ * @param runtime Simulation time.
+ * @param gpar Grid3D parameters for printing.
+ * @param rpar Radiation parameters for printing.
+ * @param hpar Hydrodynamics parameters for printing.
+ * @param ppar I/O parameters for printing.
+ * @param scale Scales for printing.
+ */
 /*
 void printParams(double runtime, GridParameters& gpar, RadiationParameters& rpar, HydroParameters& hpar, PrintParameters& ppar, Scalings& scale){
 	ofstream outFile("tmp/params.txt");
@@ -299,11 +431,11 @@ void printParams(double runtime, GridParameters& gpar, RadiationParameters& rpar
 	outFile << setw(15) << left << "units" << '\t' << "cgs" << '\n';
 	outFile.close();
 }
-*/
+ */
 void InputOutput::fileToMap(const std::string& myString, std::map<double,double> myMap) const {
 	std::ifstream inFile(myString.c_str(), std::ios::in);
 	if(!inFile)
-	  std::cout << "ERROR: unable to open " << myString << '\n';
+		std::cout << "ERROR: unable to open " << myString << '\n';
 	else{
 		double a,b;
 		while(!inFile.eof() ){
@@ -311,5 +443,5 @@ void InputOutput::fileToMap(const std::string& myString, std::map<double,double>
 			myMap[a] = b;
 		}
 	}
-  inFile.close();
+	inFile.close();
 }

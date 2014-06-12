@@ -17,12 +17,12 @@ set style line 4 lt 1 lw 1 pt 1 ps 0.5 lc rgb "purple"
 
 set multiplot layout 1,2 rowsfirst title "Comparing Integration Schemes: 100 Timesteps"
 set ylabel 'IF / pc'
-plot "IF.dat" u 1:3 title "Analytical" w l ls 1 ,\
-	"IF.dat" u 1:2 title "Implicit" w l ls 2
+plot "tmp/IF.dat" u 1:3 title "Analytical" w l ls 1 ,\
+	"tmp/IF.dat" u 1:2 title "Implicit" w l ls 2
 set ylabel 'IF/Rs'
 set yrange [0:0.2]
 plot 1 title "Analytical" w l ls 1 ,\
-	"IF.dat" u 1:4 title "Implicit" w l ls 2
+	"tmp/IF.dat" u 1:4 title "Implicit" w l ls 2
 	
 unset multiplot
 set nologscale x

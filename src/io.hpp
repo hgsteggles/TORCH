@@ -14,8 +14,8 @@
 
 #include "parameters.hpp"
 #include "grid3d.hpp"
-#include "rtmodule.hpp"
-#include "mpihandler2.hpp"
+#include "radiation.hpp"
+#include "mpihandler.hpp"
 
 #include <map>
 
@@ -44,20 +44,35 @@ public:
 	double RHO_SCALE; //!< Density scale.
 	double P_SCALE; //!< Pressure scale.
 	double E_SCALE; //!< Energy scale.
-	static bool debugging;
-	static bool freqPrinting;
-	static int percent;
-	static std::string progressMessage;
-	/**
-	 * @brief InputOutput constructor.
-	 * @param rp Parameters to pass in.
-	 * @param sc Scalings to pass in for printing physical units.
-	 */
+	static bool debugging; //!< Switch for outputting debug information to console.
+	static bool freqPrinting; //!< Switch to printing data.
+	static int percent; //!< Percent complete.
+	static std::string progressMessage; //!< Prefix for progress bar.
+
 	InputOutput(const PrintParameters& rp, const Scalings& sc);
+
 	static void initProgressBar(std::string msg, MPIHandler& mpihandler);
 	static void progressBar(const int& prcnow, const int& every, MPIHandler& mpihandler);
 	static void endProgressBar(MPIHandler& mpihandler);
+
+	//Output.
 	void freqPrint(const Radiation* rad, Grid3D* gptr, MPIHandler& mpihandler);
+	void printSTARBENCH(const int& i, const Radiation* rad, Grid3D* gptr, MPIHandler& mpih);
+	void printBinary2D(const int& step, const double& t, const double& dt, Grid3D* gptr, MPIHandler& mpih) const;
+	void print2D(const int& step, const double& t, const double& dt, Grid3D* gptr, MPIHandler& mpih) const;
+	void printIF(const double& t, const Radiation* rad, Grid3D* gptr, MPIHandler& mpih) const;
+	void printWeights(Grid3D* gptr);
+	void printCellPathLength(Grid3D* gptr);
+	//void printParams(double runtime, const GridParameters& gpar, const RadiationParameters& rpar,
+		//const HydroParameters& hpar, const PrintParameters& ppar, const Scalings& scale) const;
+
+	//Input.
+	void fileToMap(const std::string& myString, std::map<double,double> myMap) const;
+
+	//Formatting.
+	std::string fortranformat(double value, int w, int d, int e);
+
+	//Simulation timestep affecting methods.
 	void addPrintTime(const double& t) {
 		printTimes.push_back(t);
 	}
@@ -68,36 +83,6 @@ public:
 			}
 		}
 	}
-	void printSTARBENCH(const int& i, const Radiation* rad, Grid3D* gptr, MPIHandler& mpih);
-	std::string fortranformat(double value, int w, int d, int e);
-	/**
-	 * @brief Prints primitive variables for a 2D slice of the simulation grid in the Grid3D object pointed to by gptr.s
-	 * @param step Number to append to the output filename.
-	 * @param t Current simulation time.
-	 * @param dt Current delta-time.
-	 * @param gptr Pointer to Grid3D object to print.
-	 * @param mpih Provides MPI information for printing with multiple cores.
-	 */
-	void print2D(const int& step, const double& t, const double& dt, Grid3D* gptr, MPIHandler& mpih) const;
-	/**
-	 * @brief Calculates and prints the location of the ionization front from a Star that is located at the origin.
-	 * @param t Current simulation time.
-	 * @param rad Radiation provides this method with radiation parameters.
-	 * @param gptr The grid on which the Star is located.
-	 * @param mpih Provides MPI information for calculating and printing with multiple cores.
-	 */
-	void printIF(const double& t, const Radiation* rad, Grid3D* gptr, MPIHandler& mpih) const;
-	/**
-	 * @brief Prints all parameters associated with this simulation. UNFINISHED.
-	 * @param runtime Simulation time.
-	 * @param gpar Grid3D parameters for printing.
-	 * @param rpar Radiation parameters for printing.
-	 * @param hpar Hydrodynamics parameters for printing.
-	 * @param ppar I/O parameters for printing.
-	 * @param scale Scales for printing.
-	 */
-	//void printParams(double runtime, const GridParameters& gpar, const RadiationParameters& rpar, const HydroParameters& hpar, const PrintParameters& ppar, const Scalings& scale) const;
-	void fileToMap(const std::string& myString, std::map<double,double> myMap) const;
 };
 
 

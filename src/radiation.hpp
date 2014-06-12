@@ -14,10 +14,18 @@
  * @date 13/02/2014 - 28% speedup achieved by adding GridCell member variables that hold cell path length,
  * pointers to nearest neighbours and the weights associated with them instead of calculating them at each
  * time step.
+ * @date 11/03/2014 - bug in transferRadiation(const double&, double&, MPIHandler&). Was accessing boundaries[3]
+ * instead of boundaries[1].
+ * @date 14/04/2014 - Radiation parameters now all held within a RadiationParameters object.
+ * @date 14/04/2014 - function updateColDen added that calculates column density for total hydrogen density
+ * (rather than ionized hydrogen as in updateTauSC).
+ * @date 14/04/2014 - function collIonRate added in anticipation of full support for collisional ionizations.
+ * @date 01/05/2014 - getTimeStep is now calcTimeStep. More accurate named after what it does.
+ * @date 28/05/2014 - new methods added to update source terms instead of directly modifying the conservative fluid variables.
  */
 
-#ifndef RTMODULE_H
-#define RTMODULE_H
+#ifndef RADIATION_H
+#define RADIATION_H
 
 #include <stdlib.h>
 #include <vector>
@@ -25,6 +33,8 @@
 class GridCell;
 class Grid3D;
 class RadiationParameters;
+class HydroParameters;
+class Scalings;
 class Star;
 class MPIHandler;
 class Partition;
@@ -36,37 +46,46 @@ class Partition;
  */
 class Radiation{
 public:
+	RadiationParameters* rparams;
+	Scalings* scale;
 	Grid3D* gptr;
-	double K1, K2, K3, K4, P_I_CROSS_SECTION, ALPHA_B, TAU_0, SOURCE_S, NHI, TMIN, TMAX, SCHEME, H_MASS;
 	std::vector<Star> stars;
 	int nstars;
-	bool snapToVertex;
-	double snapMod;
 
-	Radiation(const RadiationParameters& rp, Grid3D* grid);
-	void addStar(Star src, MPIHandler& mpih, bool snapToVertex);
+	Radiation(const RadiationParameters& rp, const Scalings& sc, Grid3D* grid);
+
+	//Initialization methods.
 	int getRayPlane(GridCell* cptr, const int& starID) const;
-	void updateTauSC(bool average, GridCell* cptr, const int& starID) const;
 	void calculateNearestNeighbours(const int& starID) const;
-	void updateTauSC2(bool average, GridCell* cptr, const int& starID) const;
-	double temperature(GridCell* cptr) const;
-	double alphaB(GridCell* cptr) const;
+	void rayTrace() const;
 	double cellPathLength(GridCell* cptr, const int& starID) const;
 	double shellVolume(GridCell* cptr, const int& starID) const;
+
+
+	//Calculation methods.
+	void doric(const double& dt, double& frac, double& frac_av, const double& A_pi, GridCell* cptr) const;
+	double temperature(GridCell* cptr) const;
+	double alphaB(const double& T) const;
+	double collIonRate(const double& Temperature);
 	double PIrate(const double& frac, const double& T, const double& dT, GridCell* cptr, const int& starID) const;
 	double HIIfracDot(const double& A_pi, const double& frac, GridCell* cptr) const;
+	double calcTimeStep(const double& dt_dyn) const;
+
+	//Update methods.
+	void updateTauSC(bool average, GridCell* cptr, const int& starID) const;
+	void updateTauSC2(bool average, GridCell* cptr, const double& dist2) const;
+	void updateColDen(GridCell* cptr, const double& dist2) const;
 	void update_dtau(GridCell* cptr, const int& starID) const;
-	double radHeatCool(const double& dt, GridCell* cptr) const;
-	void doric(const double& dt, double& frac, double& frac_av, const double& A_pi, GridCell* cptr) const;
 	void update_HIIfrac(const double& dt, GridCell* cptr, const int& starID) const;
-	double getTimeStep(const double& dt_dyn) const;
-	void transferRadiation(const double& dt, double& IF) const;
-	void transferRadiation(const double& dt, double& IF, MPIHandler& mpih) const;
-	void sendColumnDensities(MPIHandler& mpih) const;
-	void addSource(const double& x, const double& y, const double& z) const;
-	void printIF(const int& starID, const double& t) const;
-	void rayTrace() const;
-	GridCell* locateStar(Star star) const;
+
+	//Integration methods.
+	void transferRadiation(const double& dt) const;
+	void transferRadiation(const double& dt, MPIHandler& mpih) const;
+	void applySrcTerms(const double& dt, const HydroParameters* hparams);
+	void updateSrcTerms(const double& dt, const HydroParameters* hparams);
+
+	//Misc. methods.
+	void addStar(Star src, MPIHandler& mpih, bool snapToFace[6]);
 	bool isStar(GridCell* cptr) const;
 };
 

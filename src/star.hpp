@@ -23,16 +23,24 @@ class Star {
 public:
 	GridCell* fcausal;
 	int x[3];
+	double mod[3];
 	int core;
-	Star() : fcausal(NULL), core(0) {
+	double photEnergy;
+	Star() : fcausal(NULL), core(0), photEnergy(0) {
 		x[0] = 0;
 		x[1] = 0;
 		x[2] = 0;
+		mod[0] = 0;
+		mod[1] = 0;
+		mod[2] = 0;
 	}
-	Star(int x, int y, int z) : fcausal(NULL), core(0) {
+	Star(int x, int y, int z, double energy) : fcausal(NULL), core(0), photEnergy(energy) {
 		this->x[0] = x;
 		this->x[1] = y;
 		this->x[2] = z;
+		mod[0] = 0;
+		mod[1] = 0;
+		mod[2] = 0;
 	}
 	void setCore(int c) {
 		core = c;

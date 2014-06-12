@@ -1,8 +1,12 @@
 #!/bin/bash
+pad=3
+formatting="%0"$pad"d"
 for i in tmp/*.txt
 do {
-	num=`expr match "$i" '.*\+_\+\([0-9]\+\).*'`
-	paddednum=`printf "%03d" $((10#$num))`
-	mv $i ${i/$num/$paddednum}
+	[[ "$i" =~ ([0-9]+)\. ]]
+	num=${BASH_REMATCH[1]}
+	paddednum=`printf $formatting $((10#$num))`
+	echo ${i/$num/$paddednum}
+	#mv $i ${i/$num/$paddednum}
 }
 done

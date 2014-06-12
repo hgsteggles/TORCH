@@ -1,10 +1,16 @@
-/* gridcell.cpp */
+/**
+ * @file gridcell.cpp
+ */
 
 #include "gridcell.hpp"
 
 #include <stddef.h>
 #include <iostream>
 
+/**
+ * @brief The default GridJoin constructor.
+ * Provides all attributes with safe values.
+ */
 GridJoin::GridJoin() {
 	lcell = NULL;
 	rcell = NULL;
@@ -16,11 +22,20 @@ GridJoin::GridJoin() {
 	area = 0;
 	s_total++;
 }
+
+/**
+ * @brief The Gridjoin destructor.
+ */
 GridJoin::~GridJoin() {
 	s_total--;
 }
+
 int GridJoin::s_total = 0;
 
+/**
+ * @brief Default GridCell constructor.
+ * Provides all attributes with safe values.
+ */
 GridCell::GridCell() : next(NULL), nextcausal(NULL), vol(0), ds(0), shellVol(0) {
 	for(int dim = 0; dim < 3; ++dim){
 		left[dim] = NULL;
@@ -35,6 +50,7 @@ GridCell::GridCell() : next(NULL), nextcausal(NULL), vol(0), ds(0), shellVol(0) 
 		}
 	}
 	for(int i = 0; i < NU; ++i){
+		UDOT[i] = 0;
 		U[i] = 0;
 		Q[i] = 0;
 		W[i] = 0;
@@ -50,6 +66,11 @@ GridCell::GridCell() : next(NULL), nextcausal(NULL), vol(0), ds(0), shellVol(0) 
 	}
 	s_total++;
 }
+
+/**
+ * @brief GridCell destructor.
+ * Does NOT delete objects that this GridCell object points to.
+ */
 GridCell::~GridCell() {
 	s_total--;
 }
@@ -90,17 +111,43 @@ void GridCell::printInfo() {
 }
 int GridCell::s_total = 0;
 
-/* SETS */
+/**
+ * @brief Setter for GridCell::U.
+ * @param index
+ * @param value
+ */
 void GridCell::set_U(const int& index, const double& value) {U[index] = value;}
+
+/**
+ * @brief Setter for GridCell:xc.
+ * @param x The x grid coordinate.
+ * @param y The y grid coordinate.
+ * @param z The z grid coordinate.
+ */
 void GridCell::set_xcs(const int& x, const int& y, const int& z) {
 	xc[0] = x;
 	xc[1] = y;
 	xc[2] = z;
 }
-/* GETS */
+
+/**
+ * @brief Getter for GridCell::xc.
+ * @param i The grid coordinate to be returned.
+ * @return The location of this GridCell object on grid coordinate i.
+ */
 int GridCell::get_xc(const int& index) {return xc[index];}
+
+/**
+ * @brief Getter for GridCell::U.
+ * @param index The index for the fluid variable to be returned.
+ * @return The value of the fluid variable.
+ */
 double GridCell::get_U(const int& index) {return U[index];}
-/* FUNCTIONS */
+
+/**
+ * @brief Returns the temperature of this GridCell object.
+ * @return Temperature.
+ */
 double GridCell::temperature() {
 	double pre, rho;
 	//molar_m = 1.0/(2.0*HIIfrac + (1.0-HIIfrac));

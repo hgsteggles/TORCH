@@ -1,28 +1,38 @@
-/* boundary.cpp */
+/**
+ * @file boundary.cpp
+ */
 
 #include "boundary.hpp"
 #include "grid3d.hpp"
 #include "gridcell.hpp"
+#include "parameters.hpp"
 
 #include <stddef.h>
 
-Boundary::Boundary(const int face, Grid3D* gptr) {
+/**
+ * @brief Boundary constructor.
+ * Requires a face and pointer to Grid3D so that the size of the 2D GridCell vector to be built is known.
+ * @param face An integer specifying the face this Boundary is attached to (face%3 gives dimension, left
+ * boundaries have face<3 and right boundaries have face>=3).
+ * @param gptr Pointer to Grid3D instance that this Boundary is to be attached to.
+ */
+Boundary::Boundary(const int& face, const int nOfGhosts, Grid3D* gptr) {
 	this->face = face;
-	this->nghosts = gptr->ORDER_S + 1;
+	this->nghosts = nOfGhosts;
 
 	int dim = face%3;
-	int xlength=0, ylength=0;
+	int xlength = 0, ylength = 0;
 	if (dim == 0) {
-		xlength = gptr->NCELLS[1];
-		ylength = gptr->NCELLS[2];
+		xlength = gptr->gparams->CORECELLS[1];
+		ylength = gptr->gparams->CORECELLS[2];
 	}
 	if (dim == 1) {
-		xlength = gptr->NCELLS[0];
-		ylength = gptr->NCELLS[2];
+		xlength = gptr->gparams->CORECELLS[0];
+		ylength = gptr->gparams->CORECELLS[2];
 	}
 	if (dim == 2) {
-		xlength = gptr->NCELLS[0];
-		ylength = gptr->NCELLS[1];
+		xlength = gptr->gparams->CORECELLS[0];
+		ylength = gptr->gparams->CORECELLS[1];
 	}
 	for (int i = 0; i < xlength; ++i) {
 		ghostcells.push_back(std::vector<GridCell*>());
@@ -46,6 +56,10 @@ Boundary::Boundary(const int face, Grid3D* gptr) {
 	isPartition = false;
 }
 
+/**
+ * @brief Boundary destructor.
+ * Deletes all GridCell objects allocated
+ */
 Boundary::~Boundary() {
 	for (int i = 0; i < (int)ghostcells.size(); ++i) {
 		for (int j = 0; j < (int)ghostcells[i].size(); ++j) {

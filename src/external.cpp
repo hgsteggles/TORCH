@@ -1,3 +1,7 @@
+/**
+ * @file external.cpp
+ */
+
 #include "external.hpp"
 #include "grid3d.hpp"
 #include "gridcell.hpp"
@@ -7,8 +11,23 @@
 #include <stdlib.h> // exit
 #include <iostream>
 
-ExternalBoundary::ExternalBoundary(const int face, const Condition& bcond, Grid3D* gptr) : Boundary(face, gptr), bc(bcond) { }
+/**
+ * @brief ExternalBoundary constructor.
+ * @param face
+ * The face of the grid that the boundary is connected to (face < 3: left face, else: right face).
+ * @param bcond
+ * The boundary condition that must be applied to this boundary at the start of each hydro/radiation update step.
+ * @param gptr
+ * A pointer to the Grid3D object that the Boundary should be linked to with Grid3D::boundaryLink(Boundary*).
+ */
+ExternalBoundary::ExternalBoundary(const int face, const int nOfGhosts, const Condition& bcond, Grid3D* gptr) :
+	Boundary(face, nOfGhosts, gptr),
+	bc(bcond) {
+}
 
+/**
+ * @brief Applies the boundary condition that was passed to this object through its constructor.
+ */
 void ExternalBoundary::applyBC() {
 	int dim = face%3;
 	for (int i = 0; i < (int)ghostcells.size(); ++i) {

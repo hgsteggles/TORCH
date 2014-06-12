@@ -28,56 +28,6 @@ class GhostCell;
  */
 class GridCell{
 public:
-	/**
-	 * @brief Default GridCell constructor.
-	 * Provides all attributes with safe values.
-	 */
-	GridCell();
-	/**
-	 * @brief GridCell constructor.
-	 * Does the same as the default constructor except that the grid coordinates are passed.
-	 * @param i The ith cooordinate of the GridCell in a Grid3D.
-	 * @param j The jth cooordinate of the GridCell in a Grid3D.
-	 * @param k The kth cooordinate of the GridCell in a Grid3D.
-	 */
-	GridCell(const int& i, const int& j, const int& k);
-	/**
-	 * @brief GridCell destructor.
-	 * Does NOT delete objects that this GridCell object points to.
-	 */
-	~GridCell();
-	void printInfo();
-	/**
-	 * @brief Setter for GridCell::U.
-	 * @param index
-	 * @param value
-	 */
-	void set_U(const int& index, const double& value);
-	/**
-	 * @brief Setter for GridCell:xc.
-	 * @param x The x grid coordinate.
-	 * @param y The y grid coordinate.
-	 * @param z The z grid coordinate.
-	 */
-	void set_xcs(const int& x, const int& y, const int& z);
-	/**
-	 * @brief Getter for GridCell::xc.
-	 * @param i The grid coordinate to be returned.
-	 * @return The location of this GridCell object on grid coordinate i.
-	 */
-	int get_xc(const int& i);
-	/**
-	 * @brief Getter for GridCell::U.
-	 * @param index The index for the fluid variable to be returned.
-	 * @return The value of the fluid variable.
-	 */
-	double get_U(const int& index);
-	/**
-	 * @brief Returns the temperature of this GridCell object.
-	 * @return Temperature.
-	 */
-	double temperature();
-
 	static int s_total; //!< A count of all GridCell objects created in the program.
 	GridJoin* rjoin[3]; //!< Contains pointers to GridJoin objects that lie on the right side of this GridCell.
 	GridJoin* ljoin[3]; //!< Contains pointers to GridJoin objects that lie on the left side of this GridCell.
@@ -85,6 +35,7 @@ public:
 	GridCell* left[3]; //!< Contains pointers to GridCell objects that lie on the left side of this GridCell.
 	GridCell* next; //!< Points to the next GridCell object in a list that Grid3D uses to clean up GridCell objects.
 	GridCell* nextcausal; //!< Points to the next GridCell object in a causal list that starts at a source of radiation.
+	double UDOT[NU]; //!< Contains rate of change of conservative fluid variable values.
 	double U[NU]; //!< Contains conservative fluid variable values.
 	double Q[NU]; //!< Contains primitive fluid variable values.
 	double W[NU]; //!< Contains a copy of GridCell::U for 2nd order time-stepping.
@@ -97,6 +48,22 @@ public:
 	double shellVol;
 	GridCell* NN[4];
 	double NN_weights[4];
+
+	//Structors.
+	GridCell();
+	~GridCell();
+
+	//Debugging.
+	void printInfo();
+
+	//Setters and Getters.
+	void set_U(const int& index, const double& value);
+	void set_xcs(const int& x, const int& y, const int& z);
+	int get_xc(const int& i);
+	double get_U(const int& index);
+
+	//Misc. methods.
+	double temperature();
 };
 
 /**
@@ -109,15 +76,6 @@ public:
  */
 class GridJoin{
 public:
-	/**
-	 * @brief The default GridJoin constructor.
-	 * Provides all attributes with safe values.
-	 */
-	GridJoin();
-	/**
-	 * @brief The Gridjoin destructor.
-	 */
-	~GridJoin();
 	static int s_total; //!< A count of all GridJoin objects created in the program.
 	GridCell* lcell; //!< Pointer to GridCell object on the left.
 	GridCell* rcell; //!< Pointer to GridCell object on the right.
@@ -125,6 +83,9 @@ public:
 	double F[NU]; //!< Contains flux to be added to GridJoin::rcell and subtracted from GridJoin::lcell fluid variables (GridCell::U).
 	double xj[NU]; //!< The grid coordinates of the GridJoin object in a Grid3D object.
 	double area; //!< The area of the GridJoin.
+
+	GridJoin();
+	~GridJoin();
 };
 
 #endif

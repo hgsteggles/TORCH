@@ -1,8 +1,16 @@
-/* parameters.cpp */
+/**
+ * @file parameters.cpp
+ */
 
 #include "parameters.hpp"
 
 #include <stdio.h>
+
+IntegrationParameters::IntegrationParameters(){
+	ORDER_S = 1; // Order of reconstruction in cell {CONSTANT, LINEAR, PARABOLIC, etc...}.
+	ORDER_T = 1; // Order of accuracy in a time step.
+	DT_MAX = 0.001; // Maximum timestep.
+}
 
 GridParameters::GridParameters(){
 	ND = 1; // No. of spatial dimensions.
@@ -11,9 +19,10 @@ GridParameters::GridParameters(){
 	NCELLS[0] = 1; // No. of cells along 1st dimension.
 	NCELLS[1] = 1; // No. of cells along 2nd dimension.
 	NCELLS[2] = 1; // No. of cells along 3rd dimension.
+	CORECELLS[0] = 1; // No. of cells along 1st dimension.
+	CORECELLS[1] = 1; // No. of cells along 2nd dimension.
+	CORECELLS[2] = 1; // No. of cells along 3rd dimension.
 	GEOMETRY = CARTESIAN; // Geometry of grid {CARTESIAN, CYLINDRICAL, SPHERICAL}.
-	ORDER_S = 1; // Order of reconstruction in cell {CONSTANT, LINEAR, PARABOLIC, etc...}.
-	ORDER_T = 1; // Order of accuracy in a time step.
 	LBCondition[0] = FREE;
 	LBCondition[1] = FREE;
 	LBCondition[2] = FREE;
@@ -31,15 +40,15 @@ RadiationParameters::RadiationParameters(){
 	TAU_0 = 0.6; // Min. tau in nearest neighbour weights [Mellema et. al. 2006 (A.5)].
 	SOURCE_S = 1e51; // Source photon Luminosity (s^-1).
 	NHI = 4000; // Initial number density of neutral hydrogen (cm^-3).
-	TMIN = 100; // Temperature fix for fully neutral gas.
-	TMAX = 10000; // Temperature fix for fully ionized gas.
+	THI = 100; // Temperature fix for fully neutral gas.
+	THII = 10000; // Temperature fix for fully ionized gas.
 	SCHEME = IMPLICIT; // Ionization fraction integration scheme.
+	H_MASS = 1;
 }
 HydroParameters::HydroParameters(){
 	GAMMA = 1.00000001; // Adiabatic gas constant.
 	DFLOOR = 0.00001; // Density floor to prevent negative density.
 	PFLOOR = 0.00001; // Pressure floor to prevent negative pressure.
-	DTMAX = 0.001; // Maximum timestep.
 }
 PrintParameters::PrintParameters(){
 	DIR_2D = "tmp/";
@@ -63,6 +72,6 @@ void Scalings::set_LMT(double length, double mass, double time){
 	V = L/T;
 	RHO = M/(L*L*L);
 	P = RHO*V*V;
-	E = P*L*L*L;
+	E = P;
 }
 

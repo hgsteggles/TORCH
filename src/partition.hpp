@@ -28,7 +28,7 @@ public:
 	int destination;
 	MPIHandler& mpihandler;
 	Partition();
-	Partition(const int face, Grid3D* gptr, const int& dest, MPIHandler& mpih);
+	Partition(const int face, const int nOfGhosts, Grid3D* gptr, const int& dest, MPIHandler& mpih);
 	void applyBC();
 };
 

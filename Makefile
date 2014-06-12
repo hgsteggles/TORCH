@@ -16,20 +16,25 @@ BINDIR = bin
 SRCEXT = cpp
 HDREXT = hpp
 OBJEXT = o
-SRCS = main.cpp integrator.cpp io.cpp hydro.cpp grid3d.cpp gridcell.cpp parameters.cpp rtmodule.cpp boundary.cpp external.cpp mpihandler.cpp partition.cpp
-HDRS = $(SRCS:.$(SRCEXT)=.$(HDREXT))
-OBJS = $(SRCS:.$(SRCEXT)=.$(OBJEXT))
+FILES = main integrator mpihandler io parameters hydro radiation thermodynamics grid3d boundary external partition gridcell slopelimiter recipes
+SRCS = $(FILES:=.$(SRCEXT))
+HDRS = $(FILES:=.$(HDREXT))
+OBJS = $(FILES:=.$(OBJEXT))
+#HDRS = $(SRCS:.$(SRCEXT)=.$(HDREXT))
+#OBJS = $(SRCS:.$(SRCEXT)=.$(OBJEXT))
 FULLPATHOBJ = $(addprefix $(OBJDIR)/, $(OBJS))
 FULLPATHSRC = $(addprefix $(SRCDIR)/, $(SRCS))
 FULLPATHHDR = $(addprefix $(HDRDIR)/, $(HDRS))
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT) $(HDRDIR)/%.$(HDREXT)
+	@echo -n "Linking: "
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE)
 	
 $(OBJDIR)/mpihandler2.o : $(SRCDIR)/mpihandler.cpp $(HDRDIR)/mpihandler.hpp
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(MPILIBS)
 
 main : $(FULLPATHOBJ)
+	@echo -n "Compiling: "
 	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(MPILIBS)
 
 .PHONY: clean
