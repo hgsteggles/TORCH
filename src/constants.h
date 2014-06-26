@@ -1,6 +1,6 @@
 /**
  * Provides global constants and enums.
- * @file constants.hpp
+ * @file constants.h
  *
  *  @author "Harrison Steggles"
  *  @date 05/02/2014 - Constants and Enums all in their own file.
@@ -25,7 +25,7 @@ const int itauta = 2;
 const int idtau = 3;
 const int idtauta = 4;
 const int icolden = 5;
-const int icool = 6;
+const int iheat = 6;
 
 extern bool SWEEPX;
 /* MICROPHYSICS */

@@ -1,6 +1,6 @@
 /**
  * Provides the ExternalBoundary class.
- * @file externalboundary.hpp
+ * @file externalboundary.h
  *
  * @author Harrison Steggles
  *
@@ -19,22 +19,25 @@
 #ifndef EXTERNAL_HPP_
 #define EXTERNAL_HPP_
 
-#include "boundary.hpp"
-#include "constants.hpp"
+#include "boundary.h"
+#include "constants.h"
 
 class Grid3D;
 
 /**
  * @class ExternalBoundary
+ *
  * @brief Holds a Grid3D face ExternalBoundary to apply boundary conditions during integration.
+ *
  * The ExternalBoundary class inherits from the Boundary class. ExternalBoundary instances provide GridCell instances
  * that buffer a grid face from unsimulated regions. ExternalBoundary::applyBC applies boundary conditions to the
  * contained GridCell instances. Grid3D handles the binding of an ExternalBoundary to its grid of GridCell objects.
+ *
  * @see Boundary
  * @see Grid3D
  * @see GridCell
  *
- * @version 0.5, 24/02/2014
+ * @version 0.7, 13/06/2014
  */
 class ExternalBoundary : public Boundary {
 public:

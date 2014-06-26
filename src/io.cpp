@@ -2,9 +2,9 @@
  * @file io.cpp
  */
 
-#include "io.hpp"
-#include "gridcell.hpp"
-#include "star.hpp"
+#include "io.h"
+#include "gridcell.h"
+#include "star.h"
 
 #include <fstream>
 #include <sstream>
@@ -21,18 +21,11 @@
  * @param rp Parameters to pass in.
  * @param sc Scalings to pass in for printing physical units.
  */
-InputOutput::InputOutput(const PrintParameters& pp, const Scalings& sc) {
+InputOutput::InputOutput(PrintParameters& pp, Scalings& sc) : scale(sc) {
 	DIR_2D = pp.DIR_2D;
 	DIR_IF = pp.DIR_IF;
 	PRINT2D_ON = pp.PRINT2D_ON;
 	PRINTIF_ON = pp.PRINTIF_ON;
-	L_SCALE = sc.L;
-	M_SCALE = sc.M;
-	T_SCALE = sc.T;
-	V_SCALE = sc.V;
-	RHO_SCALE = sc.RHO;
-	P_SCALE = sc.P;
-	E_SCALE = sc.E;
 }
 
 int InputOutput::percent = 0;
@@ -103,21 +96,21 @@ void InputOutput::printSTARBENCH(const int& i, const Radiation* rad, Grid3D* gpt
 		for(GridCell* cptr = gptr->fcell; cptr != NULL; cptr = cptr->next){
 			double x1 = 0, x2 = 0, v1 = 0, v2 = 0;
 			if (gptr->gparams->ND > 1) {
-				x1 = (cptr->xc[1]+0.5)*gptr->dx[1]*L_SCALE*CM2PC;
-				v1 = cptr->Q[ivel+1]*V_SCALE*0.001;
+				x1 = scale.fromCodeUnits((cptr->xc[1]+0.5)*gptr->dx[1], 0, 1, 0)*CM2PC;
+				v1 = scale.fromCodeUnits(cptr->Q[ivel+1], 0, 1, -1)*0.001;
 			}
 			else if (gptr->gparams->ND > 2) {
-				x2 = (cptr->xc[2]+0.5)*gptr->dx[2]*L_SCALE*CM2PC;
-				v2 = cptr->Q[ivel+2]*V_SCALE*0.001;
+				x2 = scale.fromCodeUnits((cptr->xc[2]+0.5)*gptr->dx[2], 0, 1, 0)*CM2PC;
+				v2 = scale.fromCodeUnits(cptr->Q[ivel+2], 0, 1, -1)*0.001;
 			}
-			out << fortranformat((cptr->xc[0]+0.5)*gptr->dx[0]*L_SCALE*CM2PC, 16, 7, 3);
+			out << fortranformat(scale.fromCodeUnits((cptr->xc[0]+0.5)*gptr->dx[0], 0, 1, 0)*CM2PC, 16, 7, 3);
 			out << fortranformat(x1, 16, 7, 3);
 			out << fortranformat(x2, 16, 7, 3);
-			out << fortranformat(cptr->Q[ivel+0]*V_SCALE*0.001, 16, 7, 3);
+			out << fortranformat(scale.fromCodeUnits(cptr->Q[ivel+0], 0, 1, -1)*0.001, 16, 7, 3);
 			out << fortranformat(v1, 16, 7, 3);
 			out << fortranformat(v2, 16, 7, 3);
-			out	<< fortranformat(cptr->Q[iden]*RHO_SCALE, 16, 7, 3);
-			out << fortranformat((rad->rparams->THI + cptr->Q[ihii]*(rad->rparams->THII - rad->rparams->THI)), 16, 7, 3);
+			out	<< fortranformat(scale.fromCodeUnits(cptr->Q[iden], 1, -3, 0), 16, 7, 3);
+			out << fortranformat((rad->rparams.THI + cptr->Q[ihii]*(rad->rparams.THII - rad->rparams.THI)), 16, 7, 3);
 			out << fortranformat(cptr->Q[ihii], 16, 7, 3);
 			out << '\n';
 		}
@@ -305,13 +298,14 @@ void InputOutput::printIF(const double& t, const Radiation* rad, Grid3D* gptr, M
 		if(mpih.getRank() == 0) {
 			IF /= gptr->gparams->NCELLS[0];
 			std::ofstream outFile("tmp/IF.dat", std::ios::app);
-			double n_H, S, RSinf;
+			double n_H, S = 0, RSinf;
 			double cII, RI;
-			n_H = rad->rparams->NHI / (1.0/(L_SCALE*L_SCALE*L_SCALE));
-			//t_rec = (1.0/(n_H*rad->rparams->ALPHA_B));
-			S = rad->rparams->SOURCE_S;
-			RSinf = pow((3.0*S)/(4.0*PI*n_H*n_H*rad->rparams->ALPHA_B), 1.0/3.0);
-			cII = sqrt(GAS_CONST*2.0*rad->rparams->THII) / V_SCALE;
+			n_H = scale.toCodeUnits(rad->rparams.NHI, 0, -3, 0);
+			//t_rec = (1.0/(n_H*rad->rparams.ALPHA_B));
+			if (rad->stars.size() != 0)
+				S = rad->stars[0].photonRate;
+			RSinf = pow((3.0*S)/(4.0*PI*n_H*n_H*rad->rparams.ALPHA_B), 1.0/3.0);
+			cII = scale.toCodeUnits(sqrt(GAS_CONST*2.0*rad->rparams.THII), 0, 1, -1);
 			//RI = pow((1.0-exp(-t/t_rec)), 1.0/3.0)*RSinf;
 			RI = RSinf*pow(1+(7*cII*t)/(4*RSinf), 4.0/7.0);
 			double t_s = RSinf/cII;
@@ -319,8 +313,8 @@ void InputOutput::printIF(const double& t, const Radiation* rad, Grid3D* gptr, M
 			if (RI != 0.0)
 				error = fabs(IF-RI)/RI;
 			outFile << t/t_s << '\t';
-			outFile << IF*L_SCALE*CM2PC << '\t';
-			outFile << RI*L_SCALE*CM2PC << '\t';
+			outFile << scale.fromCodeUnits(IF, 0, 1, 0)*CM2PC << '\t';
+			outFile << scale.fromCodeUnits(RI, 0, 1, 0)*CM2PC << '\t';
 			outFile << error << '\n';
 			outFile.close();
 		}

@@ -2,26 +2,28 @@
  * @file integrator.cpp
  */
 
-#include "integrator.hpp"
-#include "grid3d.hpp"
-#include "radiation.hpp"
-#include "hydro.hpp"
-#include "io.hpp"
-#include "star.hpp"
-#include "gridcell.hpp"
-#include "boundary.hpp"
-#include "parameters.hpp"
+#include "integrator.h"
+#include "grid3d.h"
+#include "hydro.h"
+#include "radiation.h"
+#include "thermodynamics.h"
+#include "io.h"
+#include "star.h"
+#include "gridcell.h"
+#include "boundary.h"
+#include "parameters.h"
 
 #include <chrono>
 #include <cmath>
 
 Integrator::Integrator(IntegrationParameters& ipar, GridParameters& gpar, RadiationParameters& rpar,
-		HydroParameters& hpar, PrintParameters& ppar, Scalings& scalings, MPIHandler& mpih) :
+		HydroParameters& hpar, PrintParameters& ppar, Scalings& scale, MPIHandler& mpih) :
 		iparams(ipar), mpihandler(mpih) {
-	grid = new Grid3D(iparams.ORDER_S, gpar, scalings, mpih);
-	rad = new Radiation(rpar, scalings, grid);
-	hydro = new HydroDynamics(hpar, grid);
-	io = new InputOutput(ppar, scalings);
+	grid = new Grid3D(iparams.ORDER_S, gpar, mpih);
+	hydro = new HydroDynamics(hpar, *grid);
+	rad = new Radiation(rpar, *grid, mpih);
+	thermo = new Thermodynamics(scale, *grid);
+	io = new InputOutput(ppar, scale);
 
 	steps = 0;
 }
@@ -32,17 +34,8 @@ Integrator::~Integrator() {
 	delete grid;
 }
 
-void Integrator::init() {
+void Integrator::init(Scalings& scale) {
 	steps = 0;
-	Star star(0, 0, 0, 13.6*EV2ERG/grid->scale->E);
-	bool snapToFace[6];
-	snapToFace[0] = false;
-	snapToFace[1] = false;
-	snapToFace[2] = false;
-	snapToFace[3] = false;
-	snapToFace[4] = false;
-	snapToFace[5] = false;
-	rad->addStar(star, mpihandler, snapToFace);
 	for(GridCell* cptr = grid->fcell; cptr != NULL; cptr = cptr->next){
 		////////////
 		/** STROMGREN
@@ -131,23 +124,29 @@ void Integrator::init() {
 		*/
 		////////////
 		/** DTEST */
-		double rho = rad->rparams->NHI*H_MASS_G;
-		double pre = (GAS_CONST/1.0)*rho*rad->rparams->THI;
+		double rho = rad->rparams.NHI*H_MASS_G;
+		double pre = (GAS_CONST/1.0)*rho*rad->rparams.THI;
 		cptr->Q[ihii] = 0.0;
 		double r = 0;
 		for (int i = 0; i < grid->gparams->ND; ++i)
 			r += (cptr->xc[i]+0.5)*(cptr->xc[i]+0.5)*grid->dx[i]*grid->dx[i];
 		r = std::sqrt(r);
-		double n_H = rad->rparams->NHI / (1.0/(rad->scale->L*rad->scale->L*rad->scale->L));
+		double n_H = scale.toCodeUnits(rad->rparams.NHI, 0, -3, 0);
 		//double t_rec = (1.0/(n_H*rad->rparams->ALPHA_B));
-		double S = rad->rparams->SOURCE_S;
-		double RSinf = pow((3.0*S)/(4.0*PI*n_H*n_H*rad->rparams->ALPHA_B), 1.0/3.0);
+		double S = 0;
+		if (rad->stars.size() != 0)
+			S = rad->stars[0].photonRate;
+		double RSinf = std::pow((3.0*S)/(4.0*PI*n_H*n_H*rad->rparams.ALPHA_B), 1.0/3.0);
+		//std::cerr << "dx[0] = " << grid->dx[0] << ", RS_INF = " << RSinf << "\n";
+		/*
 		if (r < RSinf) {
 			cptr->Q[ihii] = 1.0;
-			pre = (GAS_CONST/0.5)*rho*rad->rparams->THII;
+			pre = (GAS_CONST/0.5)*rho*rad->rparams.THII;
 		}
-		cptr->Q[iden] = rho / io->RHO_SCALE;
-		cptr->Q[ipre] = pre / io->P_SCALE;
+		*/
+
+		cptr->Q[iden] = scale.toCodeUnits(rho, 1, -3, 0);
+		cptr->Q[ipre] = scale.toCodeUnits(pre, 1, -1, -2);
 		////////////
 		/** VISHNIAC
 		double rho = rad->rparams->NHI*H_MASS_G;
@@ -221,7 +220,7 @@ void Integrator::march(const int& nsteps) {
 	io->print2D(0, t, dt, grid, mpihandler);
 	io->printIF(t, rad, grid, mpihandler);
 	InputOutput::initProgressBar("Marching solution", mpihandler);
-	for(int step = 0; step < nsteps; grid->currentTime += dt * io->T_SCALE, ++step) {
+	for(int step = 0; step < nsteps; grid->currentTime += dt, ++step) {
 		InputOutput::progressBar((int)(100*step/(double)nsteps), 5, mpihandler);
 		io->freqPrint(rad, grid, mpihandler);
 		dt = fluidStepSplit();
@@ -235,58 +234,13 @@ void Integrator::march(const int& nsteps) {
 	if (mpihandler.getRank() == 0)
 		std::cout << "MARCH: Took " << elapsed.count() << " seconds." << '\n';
 }
-double Integrator::fluidStep() {
-	double dt_hydro, dt_rad, dt, dth;
-	hydro->globalQfromU();
-	hydro->updateBoundaries();
-	if(iparams.ORDER_S == 1)
-		hydro->reconstruct();
-	hydro->calcFluxes(iparams.ORDER_S);
-	dt_hydro = hydro->CFL(iparams.DT_MAX);
-	dt_rad = rad->calcTimeStep(iparams.DT_MAX);
-	dt = std::min(dt_hydro, dt_rad);
-	if (mpihandler.nProcessors() > 1)
-		dt = mpihandler.minimum(dt);
-	io->reduceToPrint(grid->currentTime, dt);
-	grid->deltatime = dt;
-	if (iparams.ORDER_T == 2) {
-		dth = dt/2.0;
-		hydro->globalWfromU();
-	}
-	else
-		dth = dt;
-	rad->transferRadiation(dth, mpihandler);
-	//mpihandler.barrier();///////////////
-	//hydro->applySrcTerms(dth);
-	//resetSrcTerms();
-	rad->applySrcTerms(dt, hydro->hparams);
-	hydro->applySrcTerms(dth);
-	hydro->advSolution(dth);
-	hydro->fixSolution();
-	if (iparams.ORDER_T == 2) {
-		hydro->globalQfromU();
-		hydro->updateBoundaries();
-		//mpihandler.barrier();///////////////
-		if(iparams.ORDER_S == 1)
-			hydro->reconstruct();
-		hydro->calcFluxes(iparams.ORDER_S);
-		rad->transferRadiation(dt, mpihandler);
-		hydro->globalUfromW();
-		//mpihandler.barrier();///////////////
-		//hydro->applySrcTerms(dt);
-		//resetSrcTerms();
-		rad->applySrcTerms(dt, hydro->hparams);
-		hydro->applySrcTerms(dt);
-		hydro->advSolution(dt);
-		hydro->fixSolution();
-	}
-	return dt;
-}
 
 double Integrator::calcTimeStep() {
+	hydro->calcFluxes(iparams.ORDER_S);
 	double dt_hydro = hydro->CFL(iparams.DT_MAX);
 	double dt_rad = rad->calcTimeStep(iparams.DT_MAX);
-	double dt = std::min(dt_hydro, dt_rad);
+	double dt_thermo = thermo->calcTimeStep(iparams.DT_MAX);
+	double dt = std::min(std::min(dt_hydro, dt_rad), dt_hydro);
 	if (mpihandler.nProcessors() > 1)
 		dt = mpihandler.minimum(dt);
 	io->reduceToPrint(grid->currentTime, dt);
@@ -294,138 +248,122 @@ double Integrator::calcTimeStep() {
 	return dt;
 }
 
-double Integrator::fluidStepSplitOld() {
-	calcHydroFlux();
+/*
+double Integrator::fluidStepSplit() {
+	hydro->globalQfromU();
 	double dt = calcTimeStep();
-	if(iparams.ORDER_T == 1) {
-		rad->transferRadiation(dt, mpihandler);
-		rad->updateSrcTerms(dt, hydro->hparams);
-		advSolution(dt);
+	if (steps%3 == 0) {
+		hydro->updateSrcTerms();
+		advSolution(dt/2.0);
 		fixSolution();
 		resetSrcTerms();
-		hydro->updateSrcTerms(dt);
-		advSolution(dt);
-		fixSolution();
-		resetSrcTerms();
+		hydro->globalQfromU();
+		radiationFluidStepSplit(dt);
+		hydro->globalQfromU();
+		hydroFluidStepSplit(dt/2.0);
 	}
 	else {
-		hydro->globalWfromU();
-		rad->transferRadiation(dt/2.0, mpihandler);
-		rad->updateSrcTerms(dt/2.0, hydro->hparams);
-		advSolution(dt/2.0);
-		fixSolution();
-		resetSrcTerms();
-		hydro->updateSrcTerms(dt/2.0);
-		advSolution(dt/2.0);
-		fixSolution();
-		resetSrcTerms();
-		/*
-		rad->applySrcTerms(dt/2.0, hydro->hparams);
-		hydro->applySrcTerms(dt/2.0);
-		hydro->advSolution(dt/2.0);
-		hydro->fixSolution();
-		*/
-		calcHydroFlux();
-		rad->transferRadiation(dt, mpihandler);
-		hydro->globalUfromW();
-		rad->updateSrcTerms(dt, hydro->hparams);
-		advSolution(dt);
-		fixSolution();
-		resetSrcTerms();
-		hydro->updateSrcTerms(dt);
-		advSolution(dt);
-		fixSolution();
-		resetSrcTerms();
-		/*
-		rad->applySrcTerms(dt/2.0, hydro->hparams);
-		hydro->applySrcTerms(dt/2.0);
-		hydro->advSolution(dt/2.0);
-		hydro->fixSolution();
-		*/
+		radiationFluidStepSplit(dt/2.0);
+		hydro->globalQfromU();
+		hydroFluidStepSplit(dt);
+		hydro->globalQfromU();
+		radiationFluidStepSplit(dt/2.0);
 	}
 	return dt;
 }
+*/
 
 double Integrator::fluidStepSplit() {
-	calcHydroFlux();
+	hydro->globalQfromU();
 	double dt = calcTimeStep();
-
-	if (steps%2 == 0) {
-		hydro->updateSrcTerms(dt/2.0);
+	if (steps%3 == 0) {
+		hydro->updateSrcTerms();
 		advSolution(dt/2.0);
 		fixSolution();
 		resetSrcTerms();
-
 		hydro->globalQfromU();
-		rad->transferRadiation(dt, mpihandler);
-		rad->updateSrcTerms(dt, hydro->hparams);
-		advSolution(dt);
-		fixSolution();
-		resetSrcTerms();
-
-		calcHydroFlux();
-		hydro->updateSrcTerms(dt/2.0);
+		thermoFluidStepSplit(dt/2.0);
+		hydro->globalQfromU();
+		radiationFluidStepSplit(dt);
+		hydro->globalQfromU();
+		thermoFluidStepSplit(dt/2.0);
+		hydro->globalQfromU();
+		hydroFluidStepSplit(dt/2.0);
+	}
+	else if (steps%3 == 1) {
+		thermo->updateSrcTerms();
 		advSolution(dt/2.0);
 		fixSolution();
 		resetSrcTerms();
+		hydro->globalQfromU();
+		radiationFluidStepSplit(dt/2.0);
+		hydro->globalQfromU();
+		hydroFluidStepSplit(dt);
+		hydro->globalQfromU();
+		radiationFluidStepSplit(dt/2.0);
+		hydro->globalQfromU();
+		thermoFluidStepSplit(dt/2.0);
 	}
 	else {
-		rad->transferRadiation(dt/2.0, mpihandler);
-		rad->updateSrcTerms(dt/2.0, hydro->hparams);
-		advSolution(dt/2.0);
-		fixSolution();
-		resetSrcTerms();
-
-		calcHydroFlux();
-		hydro->updateSrcTerms(dt);
-		advSolution(dt);
-		fixSolution();
-		resetSrcTerms();
-
+		radiationFluidStepSplit(dt/2.0);
 		hydro->globalQfromU();
-		rad->transferRadiation(dt/2.0, mpihandler);
-		rad->updateSrcTerms(dt/2.0, hydro->hparams);
-		advSolution(dt/2.0);
-		fixSolution();
-		resetSrcTerms();
+		hydroFluidStepSplit(dt/2.0);
+		hydro->globalQfromU();
+		thermoFluidStepSplit(dt);
+		hydro->globalQfromU();
+		hydroFluidStepSplit(dt/2.0);
+		hydro->globalQfromU();
+		radiationFluidStepSplit(dt/2.0);
 	}
-
-
 	return dt;
 }
 
+
 void Integrator::calcHydroFlux() {
-	hydro->globalQfromU();
 	hydro->updateBoundaries();
-	if(iparams.ORDER_S == 1)
-		hydro->reconstruct();
 	hydro->calcFluxes(iparams.ORDER_S);
 }
 
-void Integrator::fluidStepSplitHydro(const double& dt) {
-	hydro->updateSrcTerms(dt);
+void Integrator::hydroFluidStepSplit(const double& dt) {
+	hydro->updateBoundaries();
+	hydro->calcFluxes(iparams.ORDER_S);
+	hydro->updateSrcTerms();
+	advSolution(dt);
+	fixSolution();
+	resetSrcTerms();
 }
 
-void Integrator::fluidStepSplitRadiation(const double& dt) {
+void Integrator::radiationFluidStepSplit(const double& dt) {
 	rad->transferRadiation(dt, mpihandler);
 	rad->updateSrcTerms(dt, hydro->hparams);
+	advSolution(dt);
+	fixSolution();
+	resetSrcTerms();
+}
+
+void Integrator::thermoFluidStepSplit(const double& dt) {
+	thermo->calcHeatFlux(*rad);
+	double udot = thermo->updateSrcTerms();
+	//std::cout << "u change = " << udot*dt << "\n";
+	advSolution(dt);
+	fixSolution();
+	resetSrcTerms();
 }
 
 void Integrator::advSolution(const double& dt) {
 	for (GridCell* cptr = grid->fcell; cptr != NULL; cptr = cptr->next) {
-		for (int i = 0; i < NU; ++i) {
+		for (int i = 0; i < NU; ++i)
 			cptr->U[i] += dt*cptr->UDOT[i];
-		}
 	}
 }
 
 void Integrator::fixSolution() {
 	for (GridCell* cptr = grid->fcell; cptr != NULL; cptr = cptr->next) {
-		cptr->U[iden] = std::max(cptr->U[iden], hydro->hparams->DFLOOR);
+		cptr->U[iden] = std::max(cptr->U[iden], hydro->hparams.DFLOOR);
 		double ke = 0.0;
 		for(int dim = 0; dim < grid->gparams->ND; ++dim)
 			ke += 0.5*cptr->U[ivel+dim]*cptr->U[ivel+dim]/cptr->U[iden];
-		cptr->U[ipre] = std::max(cptr->U[ipre], hydro->hparams->PFLOOR/(hydro->hparams->GAMMA - 1.0) + ke);
+		cptr->U[ipre] = std::max(cptr->U[ipre], hydro->hparams.PFLOOR/(hydro->hparams.GAMMA - 1.0) + ke);
 		cptr->U[ihii] = std::max(std::min(cptr->U[ihii], cptr->U[iden]), 0.0);
 	}
 }

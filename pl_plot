@@ -1,16 +1,21 @@
 #!/bin/bash
 # Plot all data in directory with plot.py
-clear
-arg=""
-
-if [ "$1" == "pre" ]
-then
-	arg="-p"
-elif [ "$1" == "den" ]
-then
-	arg="-d"
-elif [ "$1" == "hii" ]
-then
-	arg="-h"
+if [ "$1" == "" ] || [ "$2" == "" ] || [ "$1" == "-help" ] ; then
+	echo "usage: pl_plot <directory_name>"
+else
+	arg=""
+	if [ "$1" == "pre" ]
+	then
+		arg="-p"
+	elif [ "$1" == "den" ]
+	then
+		arg="-d"
+	elif [ "$1" == "hii" ]
+	then
+		arg="-h"
+	elif [ "$1" == "tem" ]
+	then
+		arg="-t"
+	fi
+	ls $2/data2D_*.txt | parallel --gnu ./plot.py -i {} $arg
 fi
-ls tmp/data2D_*.txt | parallel --gnu ./plot.py -i {} $arg

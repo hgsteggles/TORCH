@@ -1,6 +1,6 @@
 /**
  * Provides the InputOutput class.
- * @file io.hpp
+ * @file io.h
  *
  * @author Harrison Steggles
  * @date 13/01/2014 - the first version.
@@ -12,10 +12,10 @@
 #ifndef IO_H
 #define IO_H
 
-#include "parameters.hpp"
-#include "grid3d.hpp"
-#include "radiation.hpp"
-#include "mpihandler.hpp"
+#include "parameters.h"
+#include "grid3d.h"
+#include "radiation.h"
+#include "mpihandler.h"
 
 #include <map>
 
@@ -27,8 +27,10 @@ class Radiation;
 
 /**
  * @class InputOutput
+ *
  * @brief Handler for all input/output operations.
- * @version 0.5, 24/02/2014
+ *
+ * @version 0.7, 13/06/2014
  */
 class InputOutput{
 public:
@@ -37,19 +39,12 @@ public:
 	std::string DIR_IF; //!< Directory the output of InputOutput::printIF is aimed.
 	bool PRINT2D_ON; //!< Toggles whether InputOutput::print2D will print anything.
 	bool PRINTIF_ON; //!< Toggles whether InputOutput::printIF will print anything.
-	double L_SCALE; //!< Length scale.
-	double M_SCALE; //!< Mass scale.
-	double T_SCALE; //!< Time scale.
-	double V_SCALE; //!< Velocity scale.
-	double RHO_SCALE; //!< Density scale.
-	double P_SCALE; //!< Pressure scale.
-	double E_SCALE; //!< Energy scale.
 	static bool debugging; //!< Switch for outputting debug information to console.
 	static bool freqPrinting; //!< Switch to printing data.
 	static int percent; //!< Percent complete.
 	static std::string progressMessage; //!< Prefix for progress bar.
 
-	InputOutput(const PrintParameters& rp, const Scalings& sc);
+	InputOutput(PrintParameters& rp, Scalings& sc);
 
 	static void initProgressBar(std::string msg, MPIHandler& mpihandler);
 	static void progressBar(const int& prcnow, const int& every, MPIHandler& mpihandler);
@@ -83,6 +78,9 @@ public:
 			}
 		}
 	}
+
+private:
+	Scalings& scale;
 };
 
 

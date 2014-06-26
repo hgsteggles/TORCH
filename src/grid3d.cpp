@@ -2,13 +2,13 @@
  * @file grid3d.cpp
  */
 
-#include "grid3d.hpp"
-#include "parameters.hpp"
-#include "mpihandler.hpp"
-#include "gridcell.hpp"
-#include "external.hpp"
-#include "partition.hpp"
-#include "io.hpp"
+#include "grid3d.h"
+#include "parameters.h"
+#include "mpihandler.h"
+#include "gridcell.h"
+#include "external.h"
+#include "partition.h"
+#include "io.h"
 
 #include <cstring>
 #include <cmath>
@@ -26,25 +26,24 @@
  * @param sc
  * @param mpih
  */
-Grid3D::Grid3D(const int spatialOrder, const GridParameters& gp, const Scalings& sc, MPIHandler& mpih) : fcell(NULL), lcell(NULL), currentTime(0.0), deltatime(0.0) {
+Grid3D::Grid3D(const int spatialOrder, const GridParameters& gp, MPIHandler& mpih) : fcell(NULL), lcell(NULL), currentTime(0.0), deltatime(0.0) {
 	gparams = new GridParameters(gp);
-	scale = new Scalings(sc);
 	gparams->NCELLS[1] = gparams->ND > 1 ? gparams->NCELLS[1] : 1;
 	gparams->NCELLS[2] = gparams->ND > 2 ? gparams->NCELLS[2] : 1;
 	std::memcpy( (void*)gparams->CORECELLS, (void*)gparams->NCELLS, 3 * sizeof(int) );
 	if (gparams->NCELLS[0]%mpih.nProcessors() == 0)
 		gparams->CORECELLS[0] = gparams->NCELLS[0] / mpih.nProcessors();
 	else {
-		std::cout << "ERROR: No. of GridCells in x dir not divisible by no. of processors." << '\n';
+		std::cout << "ERROR: No. of GridCells (" << gparams->NCELLS << ") in x dir not divisible by no. of processors (" << mpih.nProcessors() << ")." << '\n';
 		exit(EXIT_FAILURE);
 	}
 	for(int i = 0; i < 3; ++i){
 		fjoin[i] = NULL;
 		ljoin[i] = NULL;
 	}
-	dx[0] = 1.0/(double)gp.NCELLS[0];
-	dx[1] = 1.0/(double)gp.NCELLS[1];
-	dx[2] = 1.0/(double)gp.NCELLS[2];
+	dx[0] = gparams->SIDE_LENGTH/(double)gparams->NCELLS[0];
+	dx[1] = gparams->SIDE_LENGTH/(double)gparams->NCELLS[1];
+	dx[2] = gparams->SIDE_LENGTH/(double)gparams->NCELLS[2];
 
 	InputOutput::initProgressBar("Building Grid", mpih);
 	for(int i = 0; i < (gparams->CORECELLS[0]*gparams->CORECELLS[1]*gparams->CORECELLS[2]); ++i){

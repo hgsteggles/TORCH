@@ -9,6 +9,7 @@ import linecache
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import LogFormatterMathtext
 import matplotlib.colors as mcolors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import sod
 
 inputfile = ''
@@ -20,9 +21,11 @@ quiverOn = False
 DPI = 300
 zlog = True
 
-fig=plt.figure()
-fig.set_size_inches(10,10)
-ax=fig.add_subplot(1,1,1)
+font = {'family':'serif','size':16}
+plt.rc('font',**font)
+plt.rc('legend',**{'fontsize':14})
+plt.rc('xtick',**{'labelsize':12})
+plt.rc('ytick',**{'labelsize':12})
 
 def make_colormap(seq):
     """Return a LinearSegmentedColormap
@@ -40,12 +43,12 @@ def make_colormap(seq):
             cdict['blue'].append([item, b1, b2])
     return mcolors.LinearSegmentedColormap('CustomMap', cdict)
 
-def parseArg(argv):
+def parseArg(argv, figformat):
 	global inputfile
 	global outputfile
 	global var_type
 	try:
-		opts, args = getopt.getopt(argv,"i:phd")
+		opts, args = getopt.getopt(argv,"i:phdt")
 	except getopt.GetoptError:
 		print 'ERROR: plot.py -i <inputfile>'
 		sys.exit(2)
@@ -58,6 +61,8 @@ def parseArg(argv):
 			var_type = "pre"
 		if opt in ("-d"):
 			var_type = "den"
+		if opt in ("-t"):
+			var_type = "tem"
 	if inputfile == '':
 		print 'plot.py -i <inputfile>'
 		sys.exit(2)
@@ -65,30 +70,18 @@ def parseArg(argv):
 		inputfile += '.xq'
 	outputfile = inputfile.partition('.')[0] + '.' + figformat
 
-c = mcolors.ColorConverter().to_rgb
-cs1 = (53.0/255.0, 52/255.0, 50/255.0)
-cs2 = (78/255.0, 77/255.0, 74/255.0)
-cs3 = (43/255.0, 78/255.0, 114/255.0)
-cs4 = (39/255.0, 144/255.0, 176/255.0)
-cs5 = (148/255.0, 186/255.0, 101/255.0)
-sc0 = (29/255.0,6/255.0,12/255.0)
-sc1 = (176/255.0,39/255.0,75/255.0)
-sc2 = (176/255.0,139/255.0,39/255.0)
-sc3 = (219/255.0,187/255.0,97/255.0)
-
-#rvb = make_colormap([c('black'), cs1, 0.33, cs1, cs2, 0.66, cs2])
-#rvb = make_colormap([cs1, cs2, 0.25, cs2, cs3, 0.5, cs3, cs4, 0.75, cs4, cs5])
-#rvb = make_colormap([c('black'), c('gray')])
-#rvb = make_colormap([sc2, sc1])
-#rvb = make_colormap([sc0, sc1, 0.33, sc1, sc2, 0.66, sc2, sc3])
-fb0 = 0,0,0
-fb1 = 21/255.0,4/255.0,168/255.0
-fb2 = 0,247/255.0,214/255.0
-fb = make_colormap([fb0, fb1, 0.5, fb1, fb2])
-
 def main():
+	fig=plt.figure()
+	#fig.set_size_inches(10,10)
+	#ax=fig.add_subplot(1,1,1)
+
+	fb0 = 0,0,0
+	fb1 = 21/255.0,4/255.0,168/255.0
+	fb2 = 0,247/255.0,214/255.0
+	fb = make_colormap([fb0, fb1, 0.5, fb1, fb2])
+
 	#Parse arguements
-	parseArg(sys.argv[1:])
+	parseArg(sys.argv[1:], figformat)
 	
 	#Open file
 	f = open(inputfile,'r')
@@ -100,6 +93,7 @@ def main():
 	data = np.genfromtxt(inputfile,skip_header=0)
 
 	if data.shape[1] == 7:
+		# Data set up.
 		x = data[:,0]
 		y = data[:,1]
 		if var_type == 'den':
@@ -108,22 +102,29 @@ def main():
 			var = data[:,3]
 		if var_type == 'hii':
 			var = data[:,4]
+		if var_type == 'tem':
+			var = (data[:,3]/data[:,2])*1.91939e10/(8.314462e7*(data[:,4] + 1))
 		u = data[:,5]
 		v = data[:,6]
-		# Set up a regular grid of interpolation points
+
+		# Interpolation set up.
 		xi, yi = np.linspace(x.min(), x.max(), 1024), np.linspace(y.min(), y.max(), 2048)
 		xi, yi = np.meshgrid(xi, yi)
-		# Interpolate; method={'nearest','linear','cubic'}
-		interp = 'nearest'
+		interp = 'nearest' #{'nearest','linear','cubic'}
 		vari = scipy.interpolate.griddata((x, y), var, (xi, yi), method=interp)
 		ui = scipy.interpolate.griddata((x, y), u, (xi, yi), method=interp)
 		vi = scipy.interpolate.griddata((x, y), v, (xi, yi), method=interp)
-		plt.imshow(vari,vmin=var.min(),vmax=var.max(),origin='lower',extent=[x.min(),x.max(),y.min(),y.max()], interpolation="none", cmap=fb)
-		
-		#im = plt.pcolormesh(xi,yi,zi, cmap='hot', norm=LogNorm())	
-		#plt.colorbar(im,orientation='vertical',format=LogFormatterMathtext())
 
-		# Quiver Plot for vector field
+		# Figure set up.
+		ax = fig.add_axes([0.04, 0.04, 0.92, 0.92])
+		divider = make_axes_locatable(ax)
+		c_ax = divider.append_axes("right", size="5%", pad=0.04)
+		vari_min = vari.min()
+		vari_max = vari.max()
+		im = ax.imshow(vari,vmin=var.min(),vmax=var.max(),origin='lower',extent=[x.min(),x.max(),y.min(),y.max()], interpolation="none", cmap=fb)
+		cbar = plt.colorbar(im, cax=c_ax)
+
+		# Quiver plot for vector field
 		if quiverOn == True:
 			plt.quiver(xi[::9,::9], yi[::9,::9], ui[::9,::9], vi[::9,::9], pivot='mid', units='inches', color='r', scale=0.2)
 	
@@ -135,6 +136,8 @@ def main():
 			var = data[:,2]
 		if var_type == 'hii':
 			var = data[:,3]
+		if var_type == 'tem':
+			var = (data[:,2]/data[:,1])*1.91939e10/(8.314462e7*(data[:,3] + 1))
 		u = data[:,4]
 		#plt.xlim([0,128])
 		#plt.ylim([307411,450000]) #pg
@@ -150,15 +153,11 @@ def main():
 	else:
 		print "Can not handle %d columns" % data.shape[1]
 		return
-	
-	#title = "%5.3f * trec" % t
-	#plt.title(title)
-	#fig.set_size_inches(18.5,10.5)
-	#plt.axis('off')
-	#SaveFigureAsImage(outputfile, plt.gcf())
-	extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-	fig.savefig(outputfile, format=figformat, dpi=DPI, bbox_inches=extent, pad_inches=0)
-	print 'Plotted ' + outputfile
+
+	#extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+	#fig.savefig(outputfile, format=figformat, dpi=DPI, bbox_inches=extent, pad_inches=0)
+	fig.savefig(outputfile, format=figformat, dpi=DPI, bbox_inches='tight', pad_inches=0.1)
+	print 'plot.py: plotted ' + var_type + ' in ' + outputfile
 
 main()
 

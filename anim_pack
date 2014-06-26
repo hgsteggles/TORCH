@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ "$1" == "" ] || [ "$1" == "-help" ] ; then
+	echo "usage: anim_pack <directory_name>"
+else
+	./pl_prepare "$1"
+	./pl_plot pre "$1"
+	convert -delay 40 -loop 0 $1/*.png $1/evo_pre.gif
+	echo "anim_pack: animated pressure from "$1"/data2D_*.png"
+	./pl_plot den "$1"
+	convert -delay 40 -loop 0 $1/*.png $1/evo_den.gif
+	echo "anim_pack: animated density from "$1"/data2D_*.png"
+	./pl_plot hii "$1"
+	convert -delay 40 -loop 0 $1/*.png $1/evo_hii.gif
+	echo "anim_pack: animated hii from "$1"/data2D_*.png"
+	rm $1/*.png
+	rm $1/data2D*.txt
+fi

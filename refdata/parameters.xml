@@ -1,0 +1,68 @@
+<?xml version="1.0" ?>
+<PARAMETERS>
+<INTEGRATION>
+	<integration
+		spatial_order =              "1"
+		temporal_order =             "2"
+		max_timestep =               "100"/>
+</INTEGRATION>
+<GRID>
+	<grid
+		no_dimensions =              "2"
+		no_cells_x =                 "128"
+		no_cells_y =                 "128"
+		no_cells_z =                 "1"
+		geometry =                   "cylindrical"
+		side_length =                "3.88104e18"
+		left_boundary_condition_x =  "reflecting"
+		left_boundary_condition_y =  "reflecting"
+		left_boundary_condition_z =  "reflecting"
+		right_boundary_condition_x = "reflecting"
+		right_boundary_condition_y = "reflecting"
+		right_boundary_condition_z = "reflecting"/>
+</GRID>
+<RADIATION>
+	<radiation 
+		K1 =                         "0.2"
+		K2 =                         "0.0"
+		K3 =                         "0.0"
+		K4 =                         "0.0"
+		photoion_cross_section =     "6.3e-18"
+		case_b_recombination_coeff = "2.7e-13"
+		tau_0 =                      "0.6"
+		initial_no_density_hi =      "5.21e-21"
+		temperature_hi =             "100"
+		temperature_hii =            "10000"
+		integration_scheme =         "implicit"/>
+</RADIATION>
+<STARS>
+	<star
+		cell_position_x =            "0"
+		cell_position_y =            "0"
+		cell_position_z =            "0"
+		snap_to_face_left_x =        "false"
+		snap_to_face_left_y =        "false"
+		snap_to_face_left_z =        "false"
+		snap_to_face_right_x =       "false"
+		snap_to_face_right_y =       "false"
+		snap_to_face_right_z =       "false"
+		photon_energy =              "2.976e-11"
+		photon_rate =                "1.0e49"/>
+</STARS>
+<HYDRODYNAMICS>
+	<hydrodynamics
+		gamma =                      "1.4"
+		density_floor =              "0.00000001"
+		pressure_floor =             "0.00000001"/>
+</HYDRODYNAMICS>
+<PRINTING>
+	<printing
+		output_dir =                 "tmp/"
+		print_solution =             "true"
+		print_ionisation_front =     "true"/>
+</PRINTING>
+</PARAMETERS>
+
+
+
+

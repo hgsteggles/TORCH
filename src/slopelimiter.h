@@ -1,9 +1,11 @@
 /**
- * 
- * @file slopelimiter.hpp
+ * Provides methods for calculating the gradient of the fluid variables in a GridCell.
  *
- *  @author "Harrison Steggles"
- *  @date
+ * @file star.h
+ *
+ * @author Harrison Steggles
+ *
+ * @date 12/06/2014 - The first version.
  */
 
 #ifndef SLOPELIMITER_HPP_

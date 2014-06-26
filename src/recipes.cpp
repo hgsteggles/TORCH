@@ -1,4 +1,4 @@
-#include "recipes.hpp"
+#include "recipes.h"
 
 /**
  * @brief Calculates second derivatives of an interpolating function.

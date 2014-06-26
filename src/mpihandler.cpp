@@ -2,7 +2,7 @@
  * @file mpihandler.cpp
  */
 
-#include "mpihandler.hpp"
+#include "mpihandler.h"
 #include <sstream>
 
 /**
@@ -142,7 +142,7 @@ void MPIHandler::barrier() {
 
 
 /* BOOST VERSION
-#include "mpihandler.hpp"
+#include "mpihandler.h"
 
 MPIHandler::MPIHandler() {
 	proc_name =  env.processor_name();

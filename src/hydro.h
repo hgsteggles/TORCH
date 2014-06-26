@@ -2,7 +2,7 @@
 
 /**
  * Provides the GridCell and GridJoin classes.
- * @file gridcell.hpp
+ * @file gridcell.h
  *
  * @author Harrison Steggles
  * @date 13/01/2014 - the first version.
@@ -27,14 +27,16 @@ class HydroParameters;
 class Radiation;
 /**
  * @class HydroDynamics
+ *
  * @brief Contains parameters and methods for integrating the hydrodynamic fluid variables.
- * @version 0.5, 24/02/2014
+ *
+ * @version 0.7, 13/06/2014
  */
 class HydroDynamics{
 public:
-	Grid3D* gptr;
-	HydroParameters* hparams;
-	HydroDynamics(const HydroParameters& hp, Grid3D* grid);
+	HydroParameters& hparams;
+	Grid3D& grid;
+	HydroDynamics(HydroParameters& hp, Grid3D& g3d);
 	//Conversion methods.
 	void globalWfromU() const;
 	void globalUfromW() const;
@@ -49,7 +51,7 @@ public:
 	double CFL(const double& dt_max) const;
 
 	//Integration methods.
-	void updateSrcTerms(const double& dt) const;
+	void updateSrcTerms() const;
 	void updateBoundaries() const;
 	void advSolution(const double& dt);
 	void applySrcTerms(const double& dt) const;

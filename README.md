@@ -5,40 +5,35 @@
 
 
 **Overview**
-  - 
-  - why you might want to use it, and why you might not
+A 3D Eulerian fixed grid fluid dynamics code. The grid is a collection of finite elements, called grid cells, that 
+each hold fluid state information. The hydrodynamics are solved using a rotated hybrid HLLC-HLL Riemann solver
+to calculate fluxes on each grid cell face. Ionization from point source radiation is implicitly solved and the 
+column densities required for this are calculated via the method of short characteristics. Heating/cooling from 
+atomic processes is calculated using the approximate functions in Henney (2009).
+
 * **Example Usage**
+TODO.
+
 * **Getting Started**
-  - installation & prerequisites
-  - how to run examples and tests
-  - location of:
-    - code
-    - issue tracker
-    - wiki
-    - blog posts, screencasts, etc
-    - mailing list
+Requires Eigen: "a template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms"
+
+http://eigen.tuxfamily.org
+
+and TinyXml: "a simple, small, C++ XML parser"
+
+http://www.grinninglizard.com/tinyxml/
+
 * **Advanced Usage**
-  - models and interface
-  - how it works
+TODO.
+
 * **Goals**
-* **Colophon**
-  - Credits -- everyone who has contributed code, libraries from which we've borrowed code.
-  - Copyright and License -- state the license type (typically "Apache 2.0" or "All Rights Reserved and Confidential") and refer to the `LICENSE.md` file. Don't paste the license contents in here.
-  - How to contribute
-  - References
+None at the moment.
 
 * **Developer info**
-  - Important Components
-  - layout of internal code tree
-  - Limitations and known issues
-  - performance and benchmarking
+TODO.
 
 * **Colophon**
-  - Credits -- everyone who has contributed code, libraries from which we've borrowed code.
-  - Copyright and License -- state the license type (typically "Apache 2.0" or "All Rights Reserved and Confidential") and refer to the `LICENSE.md` file. Don't paste the license contents in here.
-  - How to contribute
-  - References
+TODO: references.
 
 ## Supporting Documentation
-
-Besides a `README.md`, your repo should contain a `CHANGELOG.md` summarizing major code changes, a `LICENSE.md` describing the code's license (typically Apache 2.0 for our open-source projects, All Rights Reserved for internal projects), and a `notes/` directory that is a git submodule of the project's wiki.s.
+TODO.

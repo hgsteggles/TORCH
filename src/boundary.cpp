@@ -2,10 +2,10 @@
  * @file boundary.cpp
  */
 
-#include "boundary.hpp"
-#include "grid3d.hpp"
-#include "gridcell.hpp"
-#include "parameters.hpp"
+#include "boundary.h"
+#include "grid3d.h"
+#include "gridcell.h"
+#include "parameters.h"
 
 #include <stddef.h>
 

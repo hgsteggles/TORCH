@@ -2,9 +2,9 @@
  * @file external.cpp
  */
 
-#include "external.hpp"
-#include "grid3d.hpp"
-#include "gridcell.hpp"
+#include "external.h"
+#include "grid3d.h"
+#include "gridcell.h"
 
 
 #include <stddef.h> // NULL

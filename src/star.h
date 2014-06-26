@@ -1,7 +1,10 @@
 /**
  * Provides the Star class.
- * @file star.hpp
+ *
+ * @file star.h
+ *
  * @author Harrison Steggles
+ *
  * @date 29/01/2014 - Version 0.3 pushed to Master.
  * @date 30/01/2014 - Changed type of Star::xc to double, location now in units of cell width and origin at corner of grid NOT at centre of GridCell in corner.
  * @date 30/01/2014 - Changed type of Star::xc back to int but coordinate system stays the same so that Star position can snap to vertex locations.
@@ -16,8 +19,10 @@ class GridCell;
 
 /**
  * @class Star
+ *
  * @brief The star class holds information about a star's location and the nearest existing GridCell object to it on a grid.
- * @version 0.4, 30/01/2014
+ *
+ * @version 0.7, 13/06/2014
  */
 class Star {
 public:
@@ -25,8 +30,9 @@ public:
 	int x[3];
 	double mod[3];
 	int core;
-	double photEnergy;
-	Star() : fcausal(NULL), core(0), photEnergy(0) {
+	double photonRate;
+	double photonEnergy;
+	Star() : fcausal(NULL), core(0), photonRate(0), photonEnergy(0) {
 		x[0] = 0;
 		x[1] = 0;
 		x[2] = 0;
@@ -34,7 +40,7 @@ public:
 		mod[1] = 0;
 		mod[2] = 0;
 	}
-	Star(int x, int y, int z, double energy) : fcausal(NULL), core(0), photEnergy(energy) {
+	Star(int x, int y, int z, double rate, double energy) : fcausal(NULL), core(0), photonRate(rate), photonEnergy(energy) {
 		this->x[0] = x;
 		this->x[1] = y;
 		this->x[2] = z;

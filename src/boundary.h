@@ -1,6 +1,6 @@
 /**
  * Provides the Boundary class.
- * @file boundary.hpp
+ * @file boundary.h
  *
  * @author Harrison Steggles
  *
@@ -21,18 +21,21 @@ class GridCell;
 
 /**
  * @class Boundary
+ *
  * @brief Contains Grid3D face boundary cells and methods to apply boundary conditions during integration.
+ *
  * The Boundary class is abstract. Classes that inherit from Boundary will instantiate objects that contain GridCell objects that act as
  * "buffer" cells across a hydrodynamic grid face. Calling the Boundary::applyBC method will give any Boundary derived objects a chance to
  * set the buffer cells according to boundary conditions (ExternalBoundary) or to receive information from processors processing adjacent
  * grids (Partition).
  * Grid3D handles the binding of a Boundary to its grid of GridCell objects.
+ *
  * @see ExternalBoundary
  * @see Partition
  * @see Grid3D
  * @see GridCell
  *
- * @version 0.4, 04/02/2014
+ * @version 0.7, 13/06/2014
  */
 class Boundary {
 public:

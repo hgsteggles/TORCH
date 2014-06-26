@@ -2,11 +2,11 @@
  * @file partition.cpp
  */
 
-#include "partition.hpp"
-#include "boundary.hpp"
-#include "mpihandler.hpp"
-#include "constants.hpp"
-#include "gridcell.hpp"
+#include "partition.h"
+#include "boundary.h"
+#include "mpihandler.h"
+#include "constants.h"
+#include "gridcell.h"
 
 #include <fstream>
 

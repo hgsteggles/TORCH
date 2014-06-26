@@ -1,6 +1,6 @@
 /**
  * Provides the MPIHandler class.
- * @file mpihandler.hpp
+ * @file mpihandler.h
  *
  * @author Harrison Steggles
  *
@@ -16,8 +16,10 @@
 
 /**
  * @class MPIHandler
+ *
  * @brief A handler for MPI communication.
- * @version 0.5, 21/02/2014
+ *
+ * @version 0.7, 13/06/2014
  */
 class MPIHandler {
 public:

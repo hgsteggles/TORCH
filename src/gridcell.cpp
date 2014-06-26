@@ -2,7 +2,7 @@
  * @file gridcell.cpp
  */
 
-#include "gridcell.hpp"
+#include "gridcell.h"
 
 #include <stddef.h>
 #include <iostream>
@@ -143,16 +143,4 @@ int GridCell::get_xc(const int& index) {return xc[index];}
  * @return The value of the fluid variable.
  */
 double GridCell::get_U(const int& index) {return U[index];}
-
-/**
- * @brief Returns the temperature of this GridCell object.
- * @return Temperature.
- */
-double GridCell::temperature() {
-	double pre, rho;
-	//molar_m = 1.0/(2.0*HIIfrac + (1.0-HIIfrac));
-	pre = Q[ipre];
-	rho = Q[iden];
-	return pre/(GAS_CONST*rho);
-}
 

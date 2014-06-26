@@ -1,6 +1,6 @@
 /**
  * Provides the GridCell and GridJoin classes.
- * @file gridcell.hpp
+ * @file gridcell.h
  *
  * @author Harrison Steggles
  * @date 13/01/2014, the first version.
@@ -16,15 +16,18 @@
 #ifndef GRIDCELL_H
 #define GRIDCELL_H
 
-#include "constants.hpp"
+#include "constants.h"
 
 class GridJoin;
 class GhostCell;
 /**
  * @class GridCell
+ *
  * @brief The GridCell class holds the fluid state information in a single grid cell of Grid3D.
+ *
  * A GridCell object holds links (for fast traversal) to nearest neighbours and GridJoin objects that lie between it and its neighbours.
- * @version 0.3, 28/01/2014
+ *
+ * @version 0.7, 13/06/2014
  */
 class GridCell{
 public:

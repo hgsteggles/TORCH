@@ -1,12 +1,22 @@
 #!/bin/bash
-ls tmp/data2D_*.txt.bz2 | parallel --gnu bzip2 -dk {}
-pad=4
+
 function zpad {
 	formatting="%0"$2"d"
 	[[ "$1" =~ ([0-9]+)\. ]]
 	num=${BASH_REMATCH[1]}
 	paddednum=`printf $formatting $((10#$num))`
-	mv $1 ${1/$num/$paddednum}
+	if [ "$1" != "${1/$num/$paddednum}" ]; then
+		mv $1 ${1/$num/$paddednum}
+	fi
+	echo "pl_prepare: "$1" -> "${1/$num/$paddednum}
 }
-export -f zpad
-ls tmp/data2D_*.txt | parallel --gnu zpad {} 3
+
+if [ "$1" == "" ] || [ "$1" == "-help" ] ; then
+	echo "usage: pl_prepare <directory_name>"
+else
+	ls $1/data2D_*.txt.bz2 | parallel --gnu bzip2 -dk {}
+	echo "pl_prepare: unzipped data2D_\*.txt.bz2"
+	pad=4
+	export -f zpad
+	ls tmp/data2D_*.txt | parallel --gnu zpad {} 3
+fi

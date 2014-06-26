@@ -1,6 +1,6 @@
 /**
  * Provides the Grid3D class.
- * @file grid3d.hpp
+ * @file grid3d.h
  *
  * @author Harrison Steggles
  *
@@ -23,17 +23,19 @@
 #ifndef GRID3D_H
 #define GRID3D_H
 
-#include "constants.hpp"
+#include "constants.h"
 
 #include <vector>
+#include <iterator>
 
 class GridCell;
 class GridJoin;
 class Boundary;
 class GridParameters;
-class Scalings;
 class MPIHandler;
-/** @class Grid3D
+/**
+ * @class Grid3D
+ *
  * @brief The Grid3D class holds the state information of the fluid and provides methods for traversing and locating {@link GridCell}s.
  *
  * A Grid3D object has access to a doubly linkedlist of GridCell objects that hold fluid and radiation
@@ -41,16 +43,14 @@ class MPIHandler;
  * derived objects. Traversal can either be plough-like or causal wrt a Star object.
  *
  * The grid coordinates are integers that start at 0. The coordinate in simulation units is given by (xc[dim] + 0.5)*dx[dim].
- *
- * @author      Harrison Steggles
- * @version     0.5, 24/01/2014
+
+ * @version 0.7, 13/06/2014
  */
 class Grid3D
 {
 public:
 	static int s_total; //!< Number of Grid3D objects in the program.
 	GridParameters* gparams; //!< Pointer to object containing grid parameters.
-	Scalings* scale; //!< Pointer to object containing scalings between computational and physical units.
 	GridCell* fcell; //!< Pointer to first GridCell object in simulation grid.
 	GridCell* lcell; //!< Pointer to last GridCell object in simulation grid.
 	GridJoin* fjoin[3]; //!< Pointers to first GridJoin object in linked list in each dimension.
@@ -61,7 +61,7 @@ public:
 	double deltatime; //!< the time to increment. TO-DO: move to Integrator.
 
 	//Structors.
-	Grid3D(const int spatialOrder, const GridParameters& gp, const Scalings& sc, MPIHandler& mpih);
+	Grid3D(const int spatialOrder, const GridParameters& gp, MPIHandler& mpih);
 	~Grid3D();
 
 	//Structure linking methods.

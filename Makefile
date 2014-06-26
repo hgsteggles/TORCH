@@ -14,9 +14,9 @@ HDRDIR = src
 OBJDIR = obj
 BINDIR = bin
 SRCEXT = cpp
-HDREXT = hpp
+HDREXT = h
 OBJEXT = o
-FILES = main integrator mpihandler io parameters hydro radiation thermodynamics grid3d boundary external partition gridcell slopelimiter recipes
+FILES = main integrator mpihandler io parameters hydro radiation thermodynamics grid3d boundary external partition gridcell slopelimiter recipes parameterparser tinyxml tinyxmlerror tinyxmlparser
 SRCS = $(FILES:=.$(SRCEXT))
 HDRS = $(FILES:=.$(HDREXT))
 OBJS = $(FILES:=.$(OBJEXT))
@@ -31,7 +31,20 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT) $(HDRDIR)/%.$(HDREXT)
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE)
 	
 $(OBJDIR)/mpihandler2.o : $(SRCDIR)/mpihandler.cpp $(HDRDIR)/mpihandler.hpp
+	@echo -n "Linking: "
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(MPILIBS)
+
+$(OBJDIR)/tinyxml.o : $(SRCDIR)/tinyxml.$(SRCEXT) $(HDRDIR)/tinyxml.$(HDREXT) $(HDRDIR)/tinystr.$(HDREXT)
+	@echo -n "Linking: "
+	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE)
+
+$(OBJDIR)/tinyxmlerror.o : $(SRCDIR)/tinyxmlerror.$(SRCEXT) $(HDRDIR)/tinyxml.$(HDREXT) $(HDRDIR)/tinystr.$(HDREXT)
+	@echo -n "Linking: "
+	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE)
+	
+$(OBJDIR)/tinyxmlparser.o : $(SRCDIR)/tinyxmlparser.$(SRCEXT) $(HDRDIR)/tinyxml.$(HDREXT) $(HDRDIR)/tinystr.$(HDREXT)
+	@echo -n "Linking: "
+	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE)
 
 main : $(FULLPATHOBJ)
 	@echo -n "Compiling: "
@@ -39,4 +52,4 @@ main : $(FULLPATHOBJ)
 
 .PHONY: clean
 clean:
-	rm obj/*.o main
+	rm $(OBJDIR)/*.o main

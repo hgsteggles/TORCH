@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for file in ${*:2}
+do
+	cp "$file" "${file%.*}.$1"
+done
