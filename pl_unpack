@@ -1,2 +1,0 @@
-#!/bin/bash
-ls tmp/data2D_*.txt.bz2 | parallel --gnu bzip2 -dk {}
