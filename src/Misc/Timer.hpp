@@ -1,8 +1,10 @@
-/*
- * Timer.h
+/** Provides the Timer class.
  *
- *  Created on: 19 Oct 2014
- *      Author: harry
+ * @file Timer.hpp
+ *
+ * @author Harrison Steggles
+ *
+ * @date 28/01/2014 - the first version.
  */
 
 #ifndef TIMER_H_

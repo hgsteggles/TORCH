@@ -1,10 +1,5 @@
-/**
- * @file io.cpp
- */
-
 #include "DataPrinter.hpp"
 #include "Fluid.hpp"
-//#include "grid3d.h"
 #include "GridFactory.hpp"
 #include "Radiation.hpp"
 #include "Hydro.hpp"

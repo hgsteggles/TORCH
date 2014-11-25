@@ -1,4 +1,4 @@
-/** Provides the various Converter class.
+/** Provides the Converter class.
  * @file Converter.hpp
  *
  * @author Harrison Steggles

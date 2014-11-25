@@ -1,4 +1,4 @@
-/** Provides the InputOutput class.
+/** Provides the DataPrinter class.
  *
  * @file DataPrinter.hpp
  *
@@ -9,6 +9,7 @@
  * @date 12/02/2014 - progress bar added which outputs progress to command line and sets the frequency for
  * printing data, initProgressBar needs to be called first and progressBar() needs to be called at the end.
  * @date 21/07/2014 - replaced const reference to int/double with a const copy.
+ * @date 24/08/2014 - renamed to DataPrinter.
  */
 
 #ifndef DATAPRINTER_HPP_

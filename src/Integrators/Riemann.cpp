@@ -1,13 +1,6 @@
-/*
- * riemann.cpp
- *
- *  Created on: 22 Oct 2014
- *      Author: harry
- */
-
 #include "Riemann.hpp"
 
-#include "eigen/Dense"
+#include "Eigen/Dense"
 
 #include <cmath>
 #include <iostream>

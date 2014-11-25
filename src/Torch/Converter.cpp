@@ -1,7 +1,3 @@
-/**
- * @file parameters.cpp
- */
-
 #include "Converter.hpp"
 #include "Constants.hpp"
 

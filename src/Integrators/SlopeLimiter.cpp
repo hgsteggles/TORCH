@@ -1,7 +1,3 @@
-/**
- * @file slopelimiter.cpp
- */
-
 #include "SlopeLimiter.hpp"
 
 #include <cmath>

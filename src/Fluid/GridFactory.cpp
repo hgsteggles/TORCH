@@ -1,10 +1,3 @@
-/*
- * gridBuilder.cpp
- *
- *  Created on: 1 Nov 2014
- *      Author: harry
- */
-
 #include "GridFactory.hpp"
 #include "GridCell.hpp"
 #include "Boundary.hpp"

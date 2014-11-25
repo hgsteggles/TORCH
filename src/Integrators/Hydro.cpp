@@ -1,10 +1,5 @@
-/**
- * @file hydro.cpp
- */
-
 #include "Hydro.hpp"
 #include "Fluid.hpp"
-//#include "grid3d.h"
 #include "Grid.hpp"
 #include "GridCell.hpp"
 #include "Boundary.hpp"
@@ -13,11 +8,11 @@
 #include "Constants.hpp"
 
 #include <string>
-#include <limits> // numeric_limits
-#include <cmath> // sqrt, etc
-#include <iostream> // cout, cerr
-#include <algorithm> //copy
-#include <iterator> //begin, end
+#include <limits>
+#include <cmath>
+#include <iostream>
+#include <algorithm>
+#include <iterator>
 
 static void printQ(const FluidArray& Q) {
 	std::cout << "density  = " << Q[UID::DEN] << std::endl;

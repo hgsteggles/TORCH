@@ -1,10 +1,3 @@
-/*
- * constants.cpp
- *
- *  Created on: 31 Oct 2014
- *      Author: harry
- */
-
 #include "Constants.hpp"
 
 Constants::Constants() {

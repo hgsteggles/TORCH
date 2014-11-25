@@ -35,24 +35,6 @@ void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location 
 	windTemperature = sp.windTemperature;
 }
 
-
-/*
-void Star::setWindCells(std::forward_list<GridCell*> cells) {
-	windCells = cells;
-	double volume = 0;
-	for (GridCell& cell : windCells)
-		volume += cell.vol;
-	volume = MPIW::Instance().sum(volume);
-	mdot = massLossRate/volume;
-	edot = 0.5*massLossRate*windVelocity*windVelocity/volume;
-}
-
-void Star::setCausalCells(std::forward_list<GridCell*> cells) {
-	causalCells = cells;
-}
-
-*/
-
 void Star::setWindCells(const CellContainer& cells) {
 	double volume = 0;
 	for (GridCell& cell : cells)

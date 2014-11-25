@@ -1,10 +1,3 @@
-/*
- * SplineData.cpp
- *
- *  Created on: 21 Nov 2014
- *      Author: harry
- */
-
 #include "SplineData.hpp"
 
 #include <cmath>

@@ -1,7 +1,3 @@
-/**
- * @file Boundary.cpp
- */
-
 #include "Boundary.hpp"
 #include "GridCell.hpp"
 #include "MPI_Wrapper.hpp"

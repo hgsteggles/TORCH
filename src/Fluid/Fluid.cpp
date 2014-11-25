@@ -1,10 +1,3 @@
-/*
- * fluid.cpp
- *
- *  Created on: 31 Oct 2014
- *      Author: harry
- */
-
 #include "Fluid.hpp"
 #include "Constants.hpp"
 #include "GridFactory.hpp"

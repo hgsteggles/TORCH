@@ -1,10 +1,3 @@
-/*
- * torch.cpp
- *
- *  Created on: 28 Oct 2014
- *      Author: harry
- */
-
 #include "Torch.hpp"
 #include "ProgressBar.hpp"
 #include "GridCell.hpp"

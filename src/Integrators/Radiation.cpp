@@ -1,7 +1,3 @@
-/**
- * @file radiation.cpp
- */
-
 #include "Radiation.hpp"
 #include "Grid.hpp"
 #include "Fluid.hpp"

@@ -1,10 +1,3 @@
-/*
- * Timer.cpp
- *
- *  Created on: 19 Oct 2014
- *      Author: harry
- */
-
 #include "Timer.hpp"
 
 #include <sstream>

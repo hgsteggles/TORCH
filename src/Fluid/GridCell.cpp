@@ -1,7 +1,3 @@
-/**
- * @file gridcell.cpp
- */
-
 #include "GridCell.hpp"
 
 #include <stddef.h>

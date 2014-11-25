@@ -1,6 +1,5 @@
 #include "Thermodynamics.hpp"
 #include "Fluid.hpp"
-//#include "grid3d.h"
 #include "Grid.hpp"
 #include "GridCell.hpp"
 #include "Radiation.hpp"

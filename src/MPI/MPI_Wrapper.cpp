@@ -1,15 +1,6 @@
-/**
- * @file mpihandler.cpp
- */
-
 #include "MPI_Wrapper.hpp"
 #include <sstream>
 #include <iostream>
-
-static void print(std::string str) {
-	std::cout << str << std::endl;
-}
-
 
 /**
  * @brief MPIHandler constructor.

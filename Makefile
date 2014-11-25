@@ -61,7 +61,7 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT)
 	@echo -n "Linking:   "
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS)
 
-main : $(FULLPATHOBJ)
+torch : $(FULLPATHOBJ)
 	@echo -n "Compiling: "
 	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(LIBS)
 

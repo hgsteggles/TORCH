@@ -1,10 +1,3 @@
-/*
- * parameters.cpp
- *
- *  Created on: 28 Oct 2014
- *      Author: harry
- */
-
 #include "Parameters.hpp"
 #include "Constants.hpp"
 

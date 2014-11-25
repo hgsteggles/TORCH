@@ -1,4 +1,3 @@
-
 #include "ProgressBar.hpp"
 
 #include <stdio.h>

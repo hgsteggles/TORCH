@@ -1,10 +1,3 @@
-/*
- * logger.cpp
- *
- *  Created on: 10 Nov 2014
- *      Author: harry
- */
-
 #include "Logger.hpp"
 
 void FileLogPolicy::open_ostream(const std::string& name) {
