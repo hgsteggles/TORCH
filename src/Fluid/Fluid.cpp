@@ -4,11 +4,11 @@
 #include "MPI_Wrapper.hpp"
 
 Star::Location calcContainingCore(int x, int xl, int xr, int rank) {
-	int containing_core = rank;
+	Star::Location containing_core = Star::Location::HERE;
 	if (x < xl)
-		--containing_core;
+		containing_core = Star::Location::LEFT;
 	else if (x > xr)
-		++containing_core;
+		containing_core = Star::Location::RIGHT;
 	return containing_core;
 }
 

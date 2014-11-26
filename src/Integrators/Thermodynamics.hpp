@@ -16,6 +16,7 @@
 #define THERMODYNAMICS_H_
 
 #include "Integrator.hpp"
+#include "SplineData.hpp"
 
 #include <vector>
 #include <cmath>

@@ -1,6 +1,7 @@
 #include "SlopeLimiter.hpp"
 
 #include <cmath>
+#include <stdexcept>
 
 inline double minmod(double a, double b) {
 	if (a*b > 0)

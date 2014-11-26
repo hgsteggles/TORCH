@@ -1,10 +1,11 @@
 #include "SplineData.hpp"
 
 #include <cmath>
+#include <stdexcept>
 
 SplineData::SplineData(const std::vector<std::pair<double, double>>& data) {
 	int ndata = 0;
-	for (std::pair<double, double>& dataPair : data) {
+	for (const std::pair<double, double>& dataPair : data) {
 		for (double& xi : m_x) {
 			if (xi == dataPair.first)
 				throw std::runtime_error("SplineData::Constructor: x values must be distinct."); //The xa's must be distinct.

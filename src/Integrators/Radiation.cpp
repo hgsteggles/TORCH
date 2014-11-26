@@ -7,7 +7,6 @@
 #include "Logger.hpp"
 #include "Star.hpp"
 #include "Converter.hpp"
-#include "SplineData.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -49,12 +48,6 @@ void Radiation::initialise(std::shared_ptr<Constants> c, RadiationParameters rp)
 	else
 		scheme = Scheme::IMPLICIT;
 
-	/*
-	const int nsendvars = scheme == Scheme::IMPLICIT ? 4 : 2;
-	msgSize = fluid.getGrid().getLeftBoundaries()[0]->getNumberGhosts()*nsendvars;
-	if (MPIW::Instance().nProcessors() > 1)
-		msgArray = new double[msgSize];
-	 */
 	initRecombinationHummer(m_consts->converter);
 }
 
@@ -213,7 +206,7 @@ void Radiation::doric(double dt, double& HII_avg, double& HII, double Api, doubl
 /**
  * @brief Cubic spline fit for Hummer (1994) HII recombination cooling rate data.
  */
-void Radiation::initRecombinationHummer(const Converter& scale) {
+void Radiation::initRecombinationHummer(const Converter& converter) {
 	double alphab[31] = { 9.283e-11, 8.823e-11, 8.361e-11, 7.898e-11, 7.435e-11,
 			6.973e-11, 6.512e-11, 6.054e-11, 5.599e-11, 5.147e-11, 4.700e-11,
 			4.258e-11, 3.823e-11, 3.397e-11, 2.983e-11, 2.584e-11, 2.204e-11,
@@ -231,8 +224,8 @@ void Radiation::initRecombinationHummer(const Converter& scale) {
 	for (int i = 0; i < 31; i++) {
 		double T = std::exp(std::log(10.0)*(1.0 +0.2*static_cast<double>(i)));
 		double sqrt_T = std::sqrt(T);
-		recomb.push_back(std::make_pair(T, alphab[i]/sqrt_T));
-		cool.push_back(std::make_pair(T, coolb[i]/sqrt_T));
+		recomb.push_back(std::make_pair(T, converter.toCodeUnits(alphab[i]/sqrt_T, 0, 3, -1)));
+		cool.push_back(std::make_pair(T, converter.toCodeUnits(coolb[i]/sqrt_T, 0, 3, -1)));
 	}
 	m_recombinationHII_RecombRates = std::unique_ptr<SplineData>(new SplineData(recomb));
 	m_recombinationHII_CoolingRates = std::unique_ptr<SplineData>(new SplineData(cool));

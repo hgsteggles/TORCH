@@ -41,6 +41,7 @@ Integrators/Riemann \
 Integrators/SlopeLimiter \
 Integrators/Radiation \
 Integrators/Thermodynamics \
+Integrators/SplineData \
 Misc/Recipes \
 Misc/Timer
 				

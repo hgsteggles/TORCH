@@ -39,6 +39,7 @@
 #include "Integrator.hpp"
 #include "Constants.hpp"
 #include "Common.hpp"
+#include "SplineData.hpp"
 
 #include <stdlib.h>
 #include <vector>
@@ -107,7 +108,7 @@ private:
 	void calculateNearestNeighbours(Fluid& fluid) const;
 	double cellPathLength(Vec3& xc, Vec3& sc, Vec3& dx) const;
 	double shellVolume(double ds, double r_sqrd) const;
-	void initRecombinationHummer(const Converter& scale);
+	void initRecombinationHummer(const Converter& converter);
 
 
 	//Calculation methods.

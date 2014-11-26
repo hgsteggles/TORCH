@@ -5,7 +5,6 @@
 #include "Radiation.hpp"
 #include "Star.hpp"
 #include "Converter.hpp"
-#include "Recipes.hpp"
 #include "Constants.hpp"
 #include "MPI_Wrapper.hpp"
 #include "Boundary.hpp"
