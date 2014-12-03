@@ -9,7 +9,8 @@
  * @date 02/07/2014 - Everything is in code units now.
  * @date 02/07/2014 - Added method for filling heating arrays for printing.
  * @date 02/07/2014 - Fixed heat flux calculation. Rays are traced across the grid to update column densities.
- * @date 24/11/2014 - lots of restructuring and changes to GridCell iteration. Thermodynamics is now an Integrator subclass.
+ * @date 24/11/2014 - Lots of restructuring and changes to GridCell iteration. Thermodynamics is now an Integrator subclass.
+ * @date 28/11/2014 - Fixed raytrace bug.
  */
 
 #ifndef THERMODYNAMICS_H_
@@ -96,8 +97,18 @@ private:
 	double m_T_min = 0;
 	double m_T_soft = 0;
 
-	std::unique_ptr<SplineData> m_collisionalExcitationHI_CoolingRates;
-	std::unique_ptr<SplineData> m_recombinationHII_CoolingRates;
+	std::vector<double> cxhi_T;
+	std::vector<double> cxhi_rate;
+	std::vector<double> cxhi_rate2;
+	double cxhi_minSlope, cxhi_maxSlope;
+
+	std::vector<double> hr_T;
+	std::vector<double> hr_rate;
+	std::vector<double> hr_rate2;
+	double hr_minSlope, hr_maxSlope;
+
+	std::unique_ptr<LogSplineData> m_collisionalExcitationHI_CoolingRates;
+	std::unique_ptr<LinearSplineData> m_recombinationHII_CoolingRates;
 };
 
 #endif // THERMODYNAMICS_H_

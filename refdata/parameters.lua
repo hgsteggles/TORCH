@@ -10,9 +10,9 @@ Parameters = {
 		simulation_time =            3.15569e11,
 		radiation_on =               true,
 		cooling_on =                 true,
-		debug =                      false,
+		debug =                      true,
 		output_directory =           "tmp/",
-		initial_conditions =         "",
+		initial_conditions =         "data2D_3.txt",
 	},
 	Grid = {
 		no_dimensions =              2,
@@ -32,9 +32,9 @@ Parameters = {
 		gamma =                      1.67,
 		density_floor =              1.0e-25,
 		pressure_floor =             1.0e-17,
-		temperature_floor =          10,
+		temperature_floor =          100,
 		riemann_solver =             "RotatedHLLC",
-		slope_limiter =              "superbee",
+		slope_limiter =              "albada",
 	},
 	Radiation = {
 		K1 =                         0.2,
@@ -53,7 +53,7 @@ Parameters = {
 		coupling =                   "neq",
 	},
 	Thermodynamics = {
-		heating_amplification =      0.001,
+		heating_amplification =      1,
 	},
 	Star = {
 		on =                         true,

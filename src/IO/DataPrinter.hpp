@@ -4,12 +4,14 @@
  *
  * @author Harrison Steggles
  *
- * @date 13/01/2014 - the first version.
- * @date 04/01/2014 - arguments now passed by const reference when appropriate.
- * @date 12/02/2014 - progress bar added which outputs progress to command line and sets the frequency for
+ * @date 13/01/2014 - The first version.
+ * @date 04/01/2014 - Arguments now passed by const reference when appropriate.
+ * @date 12/02/2014 - Progress bar added which outputs progress to command line and sets the frequency for
  * printing data, initProgressBar needs to be called first and progressBar() needs to be called at the end.
- * @date 21/07/2014 - replaced const reference to int/double with a const copy.
- * @date 24/08/2014 - renamed to DataPrinter.
+ * @date 21/07/2014 - Replaced const reference to int/double with a const copy.
+ * @date 24/08/2014 - Renamed to DataPrinter.
+ * @date 03/12/2014 - No longer uses boost::iostreams. Created zlib wrapper class (to reduce dependencies).
+ * @date 03/12/2014 - Throws runtime_errors instead of outputting to console.
  */
 
 #ifndef DATAPRINTER_HPP_

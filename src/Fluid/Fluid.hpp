@@ -4,7 +4,8 @@
  *
  * @author Harrison Steggles
  *
- * @date 24/11/2014 - the first version.
+ * @date 24/11/2014 - The first version.
+ * @date 03/12/2014 - Now correctly fixes solution in fixSolution().
  */
 
 #ifndef FLUID_HPP_
@@ -52,8 +53,11 @@ public:
 	void fixPrimitives();
 
 	// Calculations.
-	double calcTemperature(double hii, double pre, double den);
+	double calcTemperature(double hii, double pre, double den) const;
 	double calcSoundSpeed(double gamma, double pre, double den);
+	double max(UID::ID id) const;
+	double maxTemperature() const;
+	double minTemperature() const;
 
 	Grid& getGrid();
 	const Grid& getGrid() const;

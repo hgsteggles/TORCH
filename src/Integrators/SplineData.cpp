@@ -3,68 +3,6 @@
 #include <cmath>
 #include <stdexcept>
 
-SplineData::SplineData(const std::vector<std::pair<double, double>>& data) {
-	int ndata = 0;
-	for (const std::pair<double, double>& dataPair : data) {
-		for (double& xi : m_x) {
-			if (xi == dataPair.first)
-				throw std::runtime_error("SplineData::Constructor: x values must be distinct."); //The xa's must be distinct.
-		}
-		m_x.push_back(dataPair.first);
-		m_y.push_back(dataPair.second);
-		++ndata;
-	}
-	if (ndata == 0)
-		throw std::runtime_error("SplineData::Constructor: zero length data vector passed to constructor.");
-
-	m_y2 = spline(m_x, m_y, 1.e99, 1.e99);
-	// Logarithmic slopes at either end of the domain.
-	m_minSlope = (std::log10(m_y[1])-std::log10(m_y[0]))/(std::log10(m_x[1])-std::log10(m_x[0]));
-	m_maxSlope = (std::log10(m_y[ndata-1])-std::log10(m_y[ndata-2]))/(std::log10(m_x[ndata-1])-std::log10(m_x[ndata-2]));
-}
-
-/**
- * @brief Calculates a cubic spline interpolated value from the data this object was initialised with.
- * @param x Interpolation location.
- * @return Cubic spline interpolated value.
- */
-double SplineData::interpolate(double x) const {
-	double rate = 0;
-	if (x > m_x[m_x.size()-1])
-		rate = m_y[m_x.size()-1] * std::pow( x/m_x[m_x.size()-1], m_maxSlope );
-	else if ( x < m_x[0])
-		rate = m_y[0] * std::pow(x/m_x[0], m_minSlope);
-	else {
-		int klo, khi, k;
-		double h,b,a;
-		int n = m_x.size();
-		// We will find the right place in the table by means of bisection. This is
-		// optimal if sequential calls to this routine are at random values of x.
-		// If sequential calls are in order, and closely spaced, one would do better
-		// to store previous values of klo and khi and test if they remain appropriate
-		// on the next call.
-		klo = 0;
-		khi = n-1;
-
-		while (khi-klo > 1) {
-			k = (khi+klo) >> 1;
-			if (m_x[k] > x)
-				khi = k;
-			else
-				klo = k;
-		}
-
-		// klo and khi now bracket the input value of x.
-		h = m_x[khi]-m_x[klo];
-
-		a = (m_x[khi]-x)/h;
-		b = (x-m_x[klo])/h; // Cubic spline polynomial is now evaluated.
-
-		rate = a*m_y[klo]+b*m_y[khi]+((a*a*a-a)*m_y2[klo]+(b*b*b-b)*m_y2[khi])*(h*h)/6.0;
-	}
-	return rate;
-}
-
 /**
  * @brief Calculates second derivatives of an interpolating function.
  * @param x Vector of function arguments.
@@ -73,7 +11,7 @@ double SplineData::interpolate(double x) const {
  * @param ypn First derivative of function at x[n-1].
  * @return Vector of second derivatives of interpolating function.
  */
-std::vector<double> SplineData::spline(const std::vector<double>& x, const std::vector<double>& f, double yp1, double ypn){
+std::vector<double> SplineData::spline(const std::vector<double>& x, const std::vector<double>& f, double yp1, double ypn) {
 	int n = x.size();
 	std::vector<double> y2(n, 0.0);
 	std::vector<double> u(n-1, 0.0);
@@ -113,4 +51,98 @@ std::vector<double> SplineData::spline(const std::vector<double>& x, const std::
 	for ( k = n-2; k >= 0; k-- )
 		y2[k] = y2[k]*y2[k+1]+u[k];
 	return y2;
+}
+
+double SplineData::splint(const std::vector<double>& x, const std::vector<double>& f, const std::vector<double>& f2, double x2) {
+	int klo, khi, k;
+	double h,b,a;
+	int n = x.size();
+	//We will find the right place in the table by means of bisection. This is
+	//optimal if sequential calls to this routine are at random values of x.
+	//If sequential calls are in order, and closely spaced, one would do better
+	//to store previous values of klo and khi and test if they remain appropriate
+	//on the next call.
+	klo = 0;
+	khi = n-1;
+	while(khi-klo > 1){
+		k = (khi+klo) >> 1;
+		if(x[k] > x2)
+			khi = k;
+		else
+			klo = k;
+	}
+	//klo and khi now bracket the input value of x.
+	h = x[khi]-x[klo];
+	a = (x[khi]-x2)/h;
+	b = (x2-x[klo])/h; //Cubic spline polynomial is now evaluated.
+
+	return a*f[klo]+b*f[khi]+((a*a*a-a)*f2[klo]+(b*b*b-b)*f2[khi])*(h*h)/6.0;
+}
+
+LinearSplineData::LinearSplineData(const std::vector<std::pair<double, double>>& data) {
+	int ndata = 0;
+	for (const std::pair<double, double>& dataPair : data) {
+		for (double& xi : m_x) {
+			if (xi == dataPair.first)
+				throw std::runtime_error("SplineData::Constructor: x values must be distinct."); //The xa's must be distinct.
+		}
+		m_x.push_back(dataPair.first);
+		m_y.push_back(dataPair.second);
+		++ndata;
+	}
+	if (ndata == 0)
+		throw std::runtime_error("SplineData::Constructor: zero length data vector passed to constructor.");
+
+	m_y2 = spline(m_x, m_y, 1.e99, 1.e99);
+	// Logarithmic slopes at either end of the domain.
+	m_minSlope = (std::log10(m_y[1])-std::log10(m_y[0]))/(std::log10(m_x[1])-std::log10(m_x[0]));
+	m_maxSlope = (std::log10(m_y[ndata-1])-std::log10(m_y[ndata-2]))/(std::log10(m_x[ndata-1])-std::log10(m_x[ndata-2]));
+}
+
+/**
+ * @brief Calculates a cubic spline interpolated value from the data this object was initialised with.
+ * @param x Interpolation location.
+ * @return Cubic spline interpolated value.
+ */
+double LinearSplineData::interpolate(double x) const {
+	double rate = 0;
+	if (x > m_x[m_x.size()-1])
+		rate = m_y[m_x.size()-1] * std::pow( x/m_x[m_x.size()-1], m_maxSlope );
+	else if ( x < m_x[0])
+		rate = m_y[0] * std::pow(x/m_x[0], m_minSlope);
+	else
+		rate = splint(m_x, m_y, m_y2, x);
+	return rate;
+}
+
+LogSplineData::LogSplineData(const std::vector<std::pair<double, double>>& data)
+{
+	int ndata = 0;
+	for (const std::pair<double, double>& dataPair : data) {
+		for (double& xi : m_x) {
+			if (xi == dataPair.first)
+				throw std::runtime_error("SplineData::Constructor: x values must be distinct."); //The xa's must be distinct.
+		}
+		m_x.push_back(dataPair.first);
+		m_y.push_back(dataPair.second);
+		++ndata;
+	}
+	if (ndata == 0)
+		throw std::runtime_error("SplineData::Constructor: zero length data vector passed to constructor.");
+
+	m_y2 = spline(m_x, m_y, 1.e99, 1.e99);
+	// Logarithmic slopes at either end of the domain.
+	m_minSlope = (m_y[1]-m_y[0])/(m_x[1]-m_x[0]);
+	m_maxSlope = (m_y[ndata-1]-m_y[ndata-2])/(m_x[ndata-1]-m_x[ndata-2]);
+}
+
+double LogSplineData::interpolate(double x) const {
+	double rate = 0;
+	if (x > m_x[m_x.size()-1])
+		rate = m_y[m_y.size()-1] + m_maxSlope*(x - m_x[m_x.size()-1]);
+	else if ( x < m_x[0])
+		rate = m_y[0] + m_minSlope*(x - m_x[0]);
+	else
+		rate = splint(m_x, m_y, m_y2, x);
+	return rate;
 }

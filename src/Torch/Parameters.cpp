@@ -6,7 +6,7 @@
 void TorchParameters::initialise(std::shared_ptr<Constants>& consts) {
 	nHI = consts->converter.toCodeUnits(nHI, 0, -3, 0);
 	tmax = consts->converter.toCodeUnits(tmax, 0, 0, 1);
-	dt_max = tmax/200.0;
+	dt_max = tmax/10.0;
 	sideLength = consts->converter.toCodeUnits(sideLength, 0, 1, 0);
 	if (geometry.compare("spherical") == 0 || geometry.compare("cylindrical") == 0)
 		leftBC[0] = "reflecting";

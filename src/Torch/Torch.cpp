@@ -30,6 +30,8 @@ void Torch::initialise(TorchParameters p) {
 	mpihandler.serial([&] () {
 		if (p.initialConditions.compare("") != 0) {
 			std::ifstream myfile(p.initialConditions, std::ios_base::in);
+			if (!myfile)
+				throw std::runtime_error("Torch::initialise: invalid input file " + p.initialConditions + ".");
 			double t;
 			int a, b, c;
 			myfile >> t >> a >> b >> c;
@@ -229,9 +231,8 @@ void Torch::run() {
 		if (print_now) {
 			int step = (int)(100.0*(fluid.getGrid().currentTime-initTime)/(tmax-initTime) + 0.5);
 			inputOutput.print2D(std::to_string(step), fluid.getGrid().currentTime, fluid.getGrid());
-			//inputOutput.printVariables((int)(100.0*(fluid.getGrid().currentTime-initTime)/(tmax-initTime)), fluid.getGrid().currentTime, fluid.getGrid());
-			//thermodynamics.fillHeatingArrays(star);
-			//inputOutput.printVariable((int)(100.0*(fluid.getGrid().currentTime-initTime)/(tmax-initTime)), fluid.getGrid().currentTime, fluid.getGrid());
+			thermodynamics.fillHeatingArrays(fluid);
+			inputOutput.printVariables(step, fluid.getGrid().currentTime, fluid.getGrid());
 			isFinalPrintOn = (step != 100);
 		}
 
@@ -241,8 +242,11 @@ void Torch::run() {
 	}
 	progBar.end(mpihandler.getRank() == 0);
 
-	if (isFinalPrintOn)
+	if (isFinalPrintOn) {
+		thermodynamics.fillHeatingArrays(fluid);
+		inputOutput.printVariables(100, fluid.getGrid().currentTime, fluid.getGrid());
 		inputOutput.print2D(std::to_string(100), fluid.getGrid().currentTime, fluid.getGrid());
+	}
 	//inputOutput.printSTARBENCH(radiation, hydrodynamics, fluid);
 
 	mpihandler.barrier();

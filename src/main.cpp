@@ -24,7 +24,6 @@ int main (int argc, char** argv) {
 
 	if (mpihandler.getRank() == 0)
 		deleteFileContents("tmp/");
-
 	try {
 		TorchParameters tpars;
 		mpihandler.serial([&] () { parseParameters( "refdata/parameters.lua", tpars ); });

@@ -49,7 +49,17 @@ public:
 	double calculate(double a, double b) const;
 };
 
-class FalleLimiter : public SlopeLimiter {
+class LeerLimiter : public SlopeLimiter {
+public:
+	double calculate(double a, double b) const;
+};
+
+class OspreLimiter : public SlopeLimiter {
+public:
+	double calculate(double a, double b) const;
+};
+
+class AlbadaLimiter : public SlopeLimiter {
 public:
 	double calculate(double a, double b) const;
 };

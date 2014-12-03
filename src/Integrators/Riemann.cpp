@@ -72,14 +72,14 @@ void HartenLaxLeerContactSolver::solve(FluidArray& F, const FluidArray& Q_l, con
 		double A_lr = Q_lr[UID::DEN]*(S_lr-Q_lr[UID::VEL+dim])/(S_lr-S_c);
 		FluidArray U_clr;
 		U_clr[UID::DEN] = A_lr;
-		for(int id = 0; id < nd; ++id)
+		for (int id = 0; id < nd; ++id)
 			U_clr[UID::VEL+id] = A_lr*Q_lr[UID::VEL+id];
 		U_clr[UID::VEL+dim] = A_lr*S_c;
 		U_clr[UID::PRE] = A_lr*((U_lr[UID::PRE]/Q_lr[UID::DEN]) + (S_c-Q_lr[UID::VEL+dim])*(S_c+Q_lr[UID::PRE]/(Q_lr[UID::DEN]*(S_lr-Q_lr[UID::VEL+dim]))));
 		U_clr[UID::HII] = A_lr*Q_lr[UID::HII];
 
-		for(int i = 0; i < UID::N; ++i)
-			F[i] = F_lr[i]+S_lr*(U_clr[i]-U_lr[i]);
+		for (int i = 0; i < UID::N; ++i)
+			F[i] = F_lr[i] + S_lr*(U_clr[i] - U_lr[i]);
 		if (nd < 3)
 			F[UID::VEL+2] = 0;
 		if (nd < 2)

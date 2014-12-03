@@ -99,8 +99,8 @@ public:
 private:
 	std::shared_ptr<Constants> m_consts = nullptr;
 	//Hummer (1994) parameters.
-	std::unique_ptr<SplineData> m_recombinationHII_CoolingRates;
-	std::unique_ptr<SplineData> m_recombinationHII_RecombRates;
+	std::unique_ptr<LinearSplineData> m_recombinationHII_CoolingRates;
+	std::unique_ptr<LinearSplineData> m_recombinationHII_RecombRates;
 
 	//Initialization methods.
 	int getRayPlane(Vec3& xc, Vec3& xs) const;

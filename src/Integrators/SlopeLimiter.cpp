@@ -33,8 +33,24 @@ double SuperbeeLimiter::calculate(double a, double b) const {
 	return maxmod(minmod(b, 2.0*a), minmod(2.0*b, a));
 }
 
-double FalleLimiter::calculate(double a, double b) const {
-	return(b*a < 1.0e-12 ? 0 : a*b*(a + b)/ (a*a + b*b));
+double LeerLimiter::calculate(double a, double b) const {
+	if (b == 0)
+		return 0;
+	else {
+		double r = std::abs(a/b);
+		return (a + b*r)/(1.0 + r);
+	}
+}
+
+double OspreLimiter::calculate(double a, double b) const {
+	if (a*b <= 1.0e-30)
+		return 0;
+	else
+		return 1.5*b*(a*a + a*b)/(a*a + a*b + b*b);
+}
+
+double AlbadaLimiter::calculate(double a, double b) const {
+	return a*b <= 1.0e-30 ? 0 : a*b*(a + b) / (a*a + b*b);
 }
 
 std::unique_ptr<SlopeLimiter> SlopeLimiterFactory::create(std::string type) {
@@ -46,10 +62,14 @@ std::unique_ptr<SlopeLimiter> SlopeLimiterFactory::create(std::string type) {
 		return std::unique_ptr<SlopeLimiter>(new MinmodLimiter());
 	else if (type.compare("maxmod") == 0)
 		return std::unique_ptr<SlopeLimiter>(new MaxmodLimiter());
-	else if (type.compare("falle") == 0)
-		return std::unique_ptr<SlopeLimiter>(new FalleLimiter());
+	else if (type.compare("leer") == 0)
+		return std::unique_ptr<SlopeLimiter>(new LeerLimiter());
+	else if (type.compare("ospre") == 0)
+		return std::unique_ptr<SlopeLimiter>(new OspreLimiter());
+	else if (type.compare("albada") == 0)
+		return std::unique_ptr<SlopeLimiter>(new AlbadaLimiter());
 	else if (type.compare("default") == 0)
-		return std::unique_ptr<SlopeLimiter>(new FalleLimiter());
+		return std::unique_ptr<SlopeLimiter>(new AlbadaLimiter());
 	else
 		throw std::runtime_error("SlopeLimiterFactory::create: unknown type.");
 }

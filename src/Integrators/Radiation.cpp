@@ -222,13 +222,13 @@ void Radiation::initRecombinationHummer(const Converter& converter) {
 
 	std::vector<std::pair<double, double>> recomb, cool;
 	for (int i = 0; i < 31; i++) {
-		double T = std::exp(std::log(10.0)*(1.0 +0.2*static_cast<double>(i)));
+		double T = std::exp(std::log(10.0)*(1.0 + 0.2*static_cast<double>(i)));
 		double sqrt_T = std::sqrt(T);
 		recomb.push_back(std::make_pair(T, converter.toCodeUnits(alphab[i]/sqrt_T, 0, 3, -1)));
 		cool.push_back(std::make_pair(T, converter.toCodeUnits(coolb[i]/sqrt_T, 0, 3, -1)));
 	}
-	m_recombinationHII_RecombRates = std::unique_ptr<SplineData>(new SplineData(recomb));
-	m_recombinationHII_CoolingRates = std::unique_ptr<SplineData>(new SplineData(cool));
+	m_recombinationHII_RecombRates = std::unique_ptr<LinearSplineData>(new LinearSplineData(recomb));
+	m_recombinationHII_CoolingRates = std::unique_ptr<LinearSplineData>(new LinearSplineData(cool));
 }
 
 /**
@@ -291,6 +291,7 @@ void Radiation::preTimeStepCalculations(Fluid& fluid) const {
 		double photoion = n_H*(1.0-cell.Q[UID::HII])*A_pi*excessEnergy;
 		double recombination = recombinationCoolingRate(n_H, cell.Q[UID::HII], T);
 		double collisions = cell.Q[UID::HII]*(1.0-cell.Q[UID::HII])*n_H*n_H*collisionalIonisationRate(T);
+		cell.H[HID::RHII] = recombination;
 		double rate = photoion - recombination - collisions;
 		if (T < 300 && rate < 0.0)
 			rate = std::min(0.0, rate*(T-100)/(300-100)); //"Soft landing" to equilibrium neutral gas temperature

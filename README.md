@@ -30,6 +30,8 @@ mpirun -np 8 ./torch
 Problems are set up by modifying the lua configuration files "refdata/parameters.lua" and 
 "refdata/setup.lua". In the parameters file, cgs units are assumed.  
 
+#####Setup
+
 For example, to set up a 2D cylindrically symmetric 368x490 mesh (each cell having width 1.854e18/368 cm) with a star located at (0, 276) parameters could be:
 
 ```lua
@@ -69,7 +71,7 @@ Parameters = {
 		pressure_floor =             1.0e-17,
 		temperature_floor =          10,
 		riemann_solver =             "RotatedHLLC",
-		slope_limiter =              "superbee",
+		slope_limiter =              "albada",
 	},
 	Radiation = {
 		K1 =                         0.2,
@@ -139,12 +141,24 @@ end
 ```
 
 The function ```initialise``` takes in six arguments: x (or r-polar), 
-y (or z-polar) and z coordinates of the cell and the coordinates of the star (all in cm). Density, 
-pressure, ionised hydrogen fraction, and velocity components are returned (in cgs units). This
-script executed by Torch in order to set up the fluid variables in a grid.
+y (or z-polar) and z coordinates of the cell and the coordinates of the star (all in 
+cm). Density, pressure, ionised hydrogen fraction, and velocity components are 
+returned (in cgs units). This script is executed by Torch in order to set up the fluid
+variables in a grid.
 
-After 10,000 years the solution looks like this:
+#####Output
+Torch outputs compressed data files in a specified directory (```output_directory```).
+The header contains 4 lines; the first line is the simulation time in seconds and the 
+next three lines give the number of grid cells along the x, y and z directions of the 
+mesh. After the header, grid cell data is displayed in columns. The first ND columns 
+are the position coordinates of the grid cell, where ND is the number of dimensions. 
+Next is density, pressure and HII fraction. Then the last ND columns are the fluid 
+velocity components. All output is in cgs units.
+
+After 10,000 years the solution to the setup given above looks like this:
+
 ![SolutionImage](data2D_100.jpg)
+\[Image produced using matplotlib.\]
 
 ####Getting Started
 
@@ -205,6 +219,7 @@ Harrison Steggles, University of Leeds (PhD student).
 
 ####Requirements
 * Compiler support for C++11.
-* [Eigen](http://eigen.tuxfamily.org): "A template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms"  
-* [Selene](https://github.com/jeremyong/Selene): "Simple C++11 friendly header-only bindings to Lua 5.2+."  
-* [Lua5.2+](http://www.lua.org/): "A powerful, fast, lightweight, embeddable scripting language."
+* [zlib](http://www.zlib.net): "A massively spiffy yet delicately unobtrusive compression library".  
+* [Eigen](http://eigen.tuxfamily.org): "A template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms".  
+* [Selene](https://github.com/jeremyong/Selene): "Simple C++11 friendly header-only bindings to Lua 5.2+".  
+* [Lua5.2+](http://www.lua.org/): "A powerful, fast, lightweight, embeddable scripting language".  

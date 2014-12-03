@@ -65,8 +65,8 @@ bool Timer::isPaused() {
 }
 
 std::string Timer::formatTime(double time) const {
-	int hours = (int)(time/3600.0 + 0.5);
-	int minutes = (int)(time/60.0 - 60*hours + 0.5);
+	int hours = (int)(time/3600.0);
+	int minutes = (int)(time/60.0 - 60*hours);
 	int seconds = (int)(time - 60*minutes - 3600*hours + 0.5);
 
 	std::stringstream ss;

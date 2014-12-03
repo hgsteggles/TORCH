@@ -43,7 +43,7 @@ void Fluid::initialiseStar(StarParameters sp) {
 	star.setCausalCells(wind_and_causal.second);
 }
 */
-double Fluid::calcTemperature(double hii, double pre, double den) {
+double Fluid::calcTemperature(double hii, double pre, double den) const {
 	double mu_inv = massFractionH*(hii + 1.0) + (1.0 - massFractionH)*0.25;
 	return (pre/den)*(1.0/mu_inv)/consts->specificGasConstant;
 }
@@ -68,27 +68,35 @@ void Fluid::fixSolution() {
 
 		double hii = std::max(std::min(cell.U[UID::HII]/cell.U[UID::DEN], 1.0), 0.0);
 		double v[3];
+
+		double den = std::max(cell.U[UID::DEN], consts->dfloor);
+
 		for (int dim = 0; dim < consts->nd; ++dim)
 			v[dim] = cell.U[UID::VEL+dim]/cell.U[UID::DEN];
-
-		cell.U[UID::DEN] = std::max(cell.U[UID::DEN], consts->dfloor);
-		cell.U[UID::HII] = hii*cell.U[UID::DEN];
-		for (int dim = 0; dim < consts->nd; ++dim)
-			cell.U[UID::VEL+dim] = cell.U[UID::DEN]*v[dim];
-
 
 		double ke = 0.0;
 		for(int dim = 0; dim < consts->nd; ++dim)
 			ke += v[dim]*v[dim];
 		ke *= 0.5*cell.U[UID::DEN];
-		double pre = std::max((cell.U[UID::PRE] - ke)*(cell.heatCapacityRatio - 1.0), consts->pfloor);
+
+		double pre = (cell.U[UID::PRE] - ke)*(cell.heatCapacityRatio - 1.0);
+		ke *= den/cell.U[UID::DEN];
+
+		if (pre < consts->pfloor) {
+			pre = consts->pfloor;
+		}
 
 		double mu_inv = massFractionH*(hii + 1.0) + (1.0 - massFractionH)*0.25;
-		double temperature = pre/(mu_inv*consts->specificGasConstant*cell.U[UID::DEN]);
-		if (temperature < consts->tfloor)
-			pre = mu_inv*consts->specificGasConstant*cell.U[UID::DEN]*consts->tfloor;
+		double temperature = pre/(mu_inv*consts->specificGasConstant*den);
+		if (temperature < consts->tfloor) {
+			pre = mu_inv*consts->specificGasConstant*den*consts->tfloor;
+		}
 
+		cell.U[UID::DEN] = den;
 		cell.U[UID::PRE] = pre/(cell.heatCapacityRatio - 1.0) + ke;
+		cell.U[UID::HII] = hii*den;
+		for (int dim = 0; dim < consts->nd; ++dim)
+			cell.U[UID::VEL+dim] = den*v[dim];
 
 		if (cell.U[UID::DEN] == 0 || cell.U[UID::PRE] == 0)
 			throw std::runtime_error("Fluid::fixSolution: density or pressure is zero.\n" + cell.printInfo());
@@ -131,6 +139,39 @@ void Fluid::globalQfromU() const {
 void Fluid::globalUfromQ() const {
 	for(GridCell& cell : grid.getCells())
 		UfromQ(cell.U, cell.Q, cell.heatCapacityRatio, consts->nd);
+}
+
+double Fluid::max(UID::ID id) const {
+	double ret = 0;
+	bool first = false;
+	for (GridCell& cell : grid.getCells()) {
+		if (first) {
+			first = false;
+			ret = cell.Q[id];
+		}
+		else {
+			ret = cell.Q[id] > ret ? cell.Q[id] : ret;
+		}
+	}
+	return ret;
+}
+
+double Fluid::maxTemperature() const {
+	double ret = 0;
+	for (GridCell& cell : grid.getCells()) {
+		double T = calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]);
+		ret = T > ret ? T : ret;
+	}
+	return ret;
+}
+
+double Fluid::minTemperature() const {
+	double ret = 1.0e20;
+	for (GridCell& cell : grid.getCells()) {
+		double T = calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]);
+		ret = T < ret ? T : ret;
+	}
+	return ret;
 }
 
 Grid& Fluid::getGrid() {

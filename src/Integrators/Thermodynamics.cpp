@@ -47,12 +47,6 @@ void Thermodynamics::initialise(std::shared_ptr<Constants> c, ThermoParameters t
 	initRecombinationHII(m_consts->converter);
 }
 
-/**
- * @brief Cubic spline fit for the Aggarwal (1993) collisional excitation of HI data.
- * Tabulated values for the cooling rate from Raga, Mellema, \& Lundqvist, 1997, ApJS, 109, 517. The rates are for collisionally
- * excited cooling from neutral hydrogen (H I), and the rates are per electron, per HI atom, in [erg.cm3/s]. Spline is fit in
- * log-log space and the slopes off the end of the fit are also logarithmic.
- */
 void Thermodynamics::initCollisionalExcitationHI(const Converter& converter) {
 
 	double T[26] = {3162.2776602, 3981.0717055, 5011.8723363, 6309.5734448, 7943.2823472,
@@ -70,10 +64,12 @@ void Thermodynamics::initCollisionalExcitationHI(const Converter& converter) {
 
 	std::vector<std::pair<double, double>> dataPairs;
 	for (int i = 0; i < 26; i++) {
-		dataPairs.push_back(std::make_pair(T[i], converter.toCodeUnits(R[i], 1, 5, -3)));
+		dataPairs.push_back(std::make_pair(std::log10(T[i]), std::log10(converter.toCodeUnits(R[i], 1, 5, -3))));
+		//dataPairs.push_back(std::make_pair(T[i], converter.toCodeUnits(R[i], 1, 5, -3)));
 	}
-	m_collisionalExcitationHI_CoolingRates = std::unique_ptr<SplineData>(new SplineData(dataPairs));
+	m_collisionalExcitationHI_CoolingRates = std::unique_ptr<LogSplineData>(new LogSplineData(dataPairs));
 }
+
 
 /**
  * @brief Cubic spline fit for Hummer (1994) HII recombination cooling rate data.
@@ -91,7 +87,7 @@ void Thermodynamics::initRecombinationHII(const Converter& converter) {
 		double R = converter.toCodeUnits(coolb[i]/std::sqrt(T), 0, 3, -1);
 		dataPairs.push_back(std::make_pair(T, R));
 	}
-	m_recombinationHII_CoolingRates = std::unique_ptr<SplineData>(new SplineData(dataPairs));
+	m_recombinationHII_CoolingRates = std::unique_ptr<LinearSplineData>(new LinearSplineData(dataPairs));
 }
 
 double Thermodynamics::fluxFUV(const double Q_FUV, const double dist_sqrd) const {
@@ -136,9 +132,10 @@ double Thermodynamics::neutralMolecularLineCooling(const double nH, const double
  * @return Collisional excitation cooling rate of HI.
  */
 double Thermodynamics::collisionalExcitationHI(const double nH, const double HIIFRAC, const double T) const {
-	double rate = m_collisionalExcitationHI_CoolingRates->interpolate(T);
+	double rate = m_collisionalExcitationHI_CoolingRates->interpolate(std::log10(T));
 
-	return HIIFRAC*(1.0-HIIFRAC)*nH*nH*rate*std::exp(-((T/m_cxhi_damp)*(T/m_cxhi_damp)));
+	return HIIFRAC*(1.0-HIIFRAC)*nH*nH*std::exp((2.302585093*rate)-((T/m_cxhi_damp)*(T/m_cxhi_damp)));
+	//return HIIFRAC*(1.0-HIIFRAC)*nH*nH*rate*std::exp(-(T/m_cxhi_damp)*(T/m_cxhi_damp));
 }
 
 /**
@@ -152,7 +149,6 @@ double Thermodynamics::recombinationHII(const double nH, const double HIIFRAC, c
 
 	return HIIFRAC*HIIFRAC*nH*nH*m_consts->boltzmannConst*T*rate;
 }
-
 
 //FUV heating (Henney et al. 2009, eq. A3)
 double Thermodynamics::farUltraVioletHeating(const double nH, const double Av_FUV, const double F_FUV) const {
@@ -184,6 +180,7 @@ double Thermodynamics::softLanding(const double rate, const double T) const {
 
 /**
  * @brief Calculates the cooling and heating rates of gas in a grid cell due to atomic processes.
+ *
  * Cooling due to collisionally excited optical lines of ionized metals; collisionally
  * excited lines of neutral metals; free-free and free-bound transitions of ionized
  * hydrogen; collisionally excited lines of neutral hydrogen; collisional ionization
@@ -191,53 +188,10 @@ double Thermodynamics::softLanding(const double rate, const double T) const {
  * Heating due to ionizing EUV photons; absorption of FUV radiation by dust grains;
  * hard X-rays deep inside the PDR; stellar radiation reprocessed by dense gas (>10^4cm-3)
  * and absorbed by dust; and cosmic ray particles.
+ *
  * @param star The star heating its surroundings.
  */
 void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
-	if (m_isSubcycling)
-		return;
-
-	if (fluid.getStar().on)
-		rayTrace(fluid);
-
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
-		double nH = m_massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
-		double HIIFRAC = cell.Q[UID::HII];
-		double ne = nH*(HIIFRAC); //Ionized hydrogen no. density.
-		double nn = nH*(1.0-HIIFRAC); //Neutral hydrogen no. density.
-		double T = cell.temperature(m_massFractionH, m_consts->specificGasConstant);
-
-		double rsqrd = 0;
-		double F_FUV = 0;
-		if (fluid.getStar().on) {
-			for (int id = 0; id < m_consts->nd; ++id)
-				rsqrd += (cell.xc[id]-fluid.getStar().xc[id])*(cell.xc[id]-fluid.getStar().xc[id])*fluid.getGrid().dx[id]*fluid.getGrid().dx[id];
-			F_FUV = fluxFUV(0.5*fluid.getStar().photonRate, rsqrd);
-		}
-		double tau = cell.T[TID::COL_DEN];
-		double Av_FUV = 1.086*m_consts->dustExtinctionCrossSection*tau; //!< Visual band optical extinction in magnitudes.
-
-		double rate = 0;
-
-		rate += farUltraVioletHeating(nH, Av_FUV, F_FUV);
-		rate += infraRedHeating(nH, Av_FUV, F_FUV);
-		rate += cosmicRayHeating(nH);
-
-		rate -= ionisedMetalLineCooling(ne, T);
-		rate -= neutralMetalLineCooling(ne, nn, T);
-		rate -= collisionalExcitationHI(nH, HIIFRAC, T);
-		rate -= collisionalIonisationEquilibriumCooling(ne, T);
-		rate -= neutralMolecularLineCooling(nH, HIIFRAC, T);
-		rate = softLanding(rate, T);
-
-		cell.T[TID::HEAT] = m_heatingAmplification*rate;
-	}
-}
-
-void Thermodynamics::integrate(double dt, Fluid& fluid) const {
-	if (!m_isSubcycling)
-		return;
-
 	if (fluid.getStar().on)
 		rayTrace(fluid);
 
@@ -258,20 +212,37 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		double tau = cell.T[TID::COL_DEN];
 		double Av_FUV = 1.086*m_consts->dustExtinctionCrossSection*tau; //!< Visual band optical extinction in magnitudes.
 
-		double heating = 0;
-		double cooling = 0;
+		double rate = 0;
 
-		heating += farUltraVioletHeating(nH, Av_FUV, F_FUV);
-		heating += infraRedHeating(nH, Av_FUV, F_FUV);
-		heating += cosmicRayHeating(nH);
+		rate += farUltraVioletHeating(nH, Av_FUV, F_FUV);
+		rate += infraRedHeating(nH, Av_FUV, F_FUV);
+		rate += cosmicRayHeating(nH);
 
-		cooling += ionisedMetalLineCooling(ne, T);
-		cooling += neutralMetalLineCooling(ne, nn, T);
-		cooling += collisionalExcitationHI(nH, HIIFRAC, T);
-		cooling += collisionalIonisationEquilibriumCooling(ne, T);
-		cooling += neutralMolecularLineCooling(nH, HIIFRAC, T);
+		//cell.T[TID::HEAT] = rate;
+		cell.T[TID::HEAT] = 0;
 
-		double rate = m_heatingAmplification*softLanding(heating - cooling, T);
+		rate -= ionisedMetalLineCooling(ne, T);
+		rate -= neutralMetalLineCooling(ne, nn, T);
+		rate -= collisionalExcitationHI(nH, HIIFRAC, T);
+		rate -= collisionalIonisationEquilibriumCooling(ne, T);
+		rate -= neutralMolecularLineCooling(nH, HIIFRAC, T);
+		rate = softLanding(rate, T);
+
+		cell.T[TID::RATE] = m_heatingAmplification*rate;
+	}
+}
+
+void Thermodynamics::integrate(double dt, Fluid& fluid) const {
+	if (!m_isSubcycling)
+		return;
+
+	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+		double nH = m_massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
+		double HIIFRAC = cell.Q[UID::HII];
+		double ne = nH*(HIIFRAC); //Ionised hydrogen no. density.
+		double nn = nH*(1.0-HIIFRAC); //Neutral hydrogen no. density.
+
+		double rate = cell.T[TID::RATE];
 
 		double dti = std::abs(0.10*cell.U[UID::PRE]/rate);
 		if (dt > dti) {
@@ -299,7 +270,7 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 
 			// Subcycling.
 			for (int i = 0; i < nsteps; ++i) {
-				double subcycleRate = heating;
+				double subcycleRate = cell.T[TID::HEAT];
 				subcycleRate -= ionisedMetalLineCooling(ne, subcycleT);
 				subcycleRate -= neutralMetalLineCooling(ne, nn, subcycleT);
 				subcycleRate -= collisionalExcitationHI(nH, HIIFRAC, subcycleT);
@@ -322,7 +293,7 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 			}
 		}
 
-		cell.T[TID::HEAT] = rate;
+		cell.T[TID::RATE] = rate;
 	}
 }
 
@@ -379,25 +350,25 @@ void Thermodynamics::rayTrace(const Fluid& fluid) const {
 			dist2 += (cell.xc[i] - fluid.getStar().xc[i])*(cell.xc[i] - fluid.getStar().xc[i]);
 		updateColDen(cell, dist2);
 	}
-	/** Send column densities to processor on left */
+	// Send column densities to processor on left.
 	if(!(mpihandler.getRank() == 0 || fluid.getStar().core == Star::Location::LEFT)) {
 		Partition* part = static_cast<Partition*>(fluid.getGrid().getLeftBoundaries()[0]);
 
 		for (GridCell* ghostcell : part->getGhostCells()) {
 			GridCell* cptr = ghostcell->rjoin[0]->rcell;
-			part->addSendItem(cptr->R[RID::DTAU]);
-			part->addSendItem(cptr->R[RID::TAU]);
+			part->addSendItem(cptr->T[TID::COL_DEN]);
+			part->addSendItem(cptr->T[TID::DCOL_DEN]);
 		}
 		part->sendData(SendID::THERMO_MSG);
 	}
-	/** Send column densities to processor on right */
+	// Send column densities to processor on right.
 	if(!(mpihandler.getRank() == mpihandler.nProcessors()-1 || fluid.getStar().core == Star::Location::RIGHT)) {
 		Partition* part = static_cast<Partition*>(fluid.getGrid().getRightBoundaries()[0]);
 
 		for (GridCell* ghostcell : part->getGhostCells()) {
 			GridCell* cptr = ghostcell->ljoin[0]->lcell;
-			part->addSendItem(cptr->R[RID::DTAU]);
-			part->addSendItem(cptr->R[RID::TAU]);
+			part->addSendItem(cptr->T[TID::COL_DEN]);
+			part->addSendItem(cptr->T[TID::DCOL_DEN]);
 		}
 		part->sendData(SendID::THERMO_MSG);
 	}
@@ -435,13 +406,10 @@ void Thermodynamics::fillHeatingArrays(const Fluid& fluid) {
 }
 
 double Thermodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
-	if (m_isSubcycling)
-		return dt_max;
-
 	double dt = dt_max;
 	for (GridCell& cell : fluid.getGrid().getCells()) {
-		if (cell.T[TID::HEAT] != 0) {
-			double dti = std::abs(cell.U[UID::PRE]/cell.T[TID::HEAT]);
+		if (cell.T[TID::RATE] != 0) {
+			double dti = std::abs(cell.U[UID::PRE]/cell.T[TID::RATE]);
 			if (dti < dt) {
 				dt = dti;
 			}
@@ -452,7 +420,7 @@ double Thermodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
 
 void Thermodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 	for (GridCell& cell : fluid.getGrid().getCells()) {
-		cell.UDOT[UID::PRE] += cell.T[TID::HEAT];
-		cell.T[TID::HEAT] = 0;
+		cell.UDOT[UID::PRE] += cell.T[TID::RATE];
+		cell.T[TID::RATE] = 0;
 	}
 }

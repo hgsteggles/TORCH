@@ -7,6 +7,7 @@
 #include "GridCell.hpp"
 #include "Star.hpp"
 #include "Converter.hpp"
+#include "StreamGZ.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -14,10 +15,6 @@
 #include <cmath>
 #include <iomanip>
 #include <string.h>
-
-#include "boost/iostreams/filtering_stream.hpp"
-#include "boost/iostreams/filtering_streambuf.hpp"
-#include "boost/iostreams/filter/bzip2.hpp"
 
 void print(std::string str) {
 	std::cout << str << std::endl;
@@ -32,22 +29,15 @@ void DataPrinter::initialise(std::shared_ptr<Constants> c, std::string output_di
 void DataPrinter::printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydro, const Fluid& fluid) {
 	MPIW& mpihandler = MPIW::Instance();
 	const Grid& grid = fluid.getGrid();
-	for(int i = (int)printTimes.size()-1; i >= 0 ; --i) {
+	for (int i = (int)printTimes.size()-1; i >= 0 ; --i) {
 		if (std::abs(grid.currentTime - printTimes[i])/grid.currentTime <= 0.0000000001 && !printDone[i]) {
 			fluid.globalQfromU();
-			if (mpihandler.getRank() != 0) {
-				int ready;
-				mpihandler.receive(&ready, 1, mpihandler.getRank() - 1, SendID::PRINTSTARBENCH_MSG);
-			}
-			{
+			mpihandler.serial([&] () {
 				std::ostringstream os;
-				os << dir2D << "starbench_" << i << ".txt.bz2";
-				std::ofstream ofile(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
-				if(!ofile)
-					std::cerr << "ERROR: Unable to open " << os.str() << '\n';
-				boost::iostreams::filtering_ostream out;
-				out.push(boost::iostreams::bzip2_compressor());
-				out.push(ofile);
+				os << dir2D << "starbench_" << i << ".txt.gz";
+				OutputStreamGZ out(os.str().c_str(), std::ios_base::app);
+				if (!out)
+					throw std::runtime_error("DataPrinter::printStarbench: unable to open" + os.str());
 				out << std::setprecision(10) << std::fixed;
 				for (GridCell& cell : grid.getCells()){
 					double x1 = 0, x2 = 0, v1 = 0, v2 = 0;
@@ -71,11 +61,7 @@ void DataPrinter::printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydr
 					out << fortranformat(v2, 16, 7, 3);
 					out << '\n';
 				}
-			}
-			if (mpihandler.getRank() != mpihandler.nProcessors() - 1) {
-				int ready = 1;
-				mpihandler.send(&ready, 1, mpihandler.getRank() + 1, SendID::PRINTSTARBENCH_MSG);
-			}
+			});
 			printDone[i] = true;
 		}
 	}
@@ -114,22 +100,6 @@ std::string DataPrinter::fortranformat(double value, int w, int d, int e) const 
 	return os.str();
 }
 
-/*
-boost::iostreams::filtering_ostream createCompressionStream(std::string directory, int step) {
-	// Creating filename.
-	std::ostringstream os;
-	os << directory << "data2D_";
-	os << step << ".txt.bz2";
-
-	std::ofstream ofile(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
-	if (!ofile)
-		std::cerr << "ERROR: Unable to open " << os.str() << '\n';
-	boost::iostreams::filtering_ostream buff;
-	buff.push(boost::iostreams::bzip2_compressor());
-	buff.push(ofile);
-	return buff;
-}
-*/
 void DataPrinter::printBinary2D(const int step, const double t, const Grid& grid) const {
 	if (!printing_on)
 		return;
@@ -178,33 +148,30 @@ void DataPrinter::print2D(const std::string& append_name, const double t, const 
 		// Creating filename.
 		std::ostringstream os;
 		os << dir2D << "data2D_";
-		os << append_name << ".txt.bz2";
+		os << append_name << ".txt.gz";
 
-		std::ofstream ofile(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
-		if(!ofile)
-			std::cerr << "ERROR: Unable to open " << os.str() << '\n';
-		boost::iostreams::filtering_ostream buff;
-		buff.push(boost::iostreams::bzip2_compressor());
-		buff.push(ofile);
+		OutputStreamGZ file(os.str().c_str(), std::ios_base::app);
+		if (!file)
+			throw std::runtime_error("DataPrinter::print2D: unable to open" + os.str());
 
 		// Writing data to file.
 		std::stringstream data;
-		buff << std::setprecision(10) << std::scientific;
+		file << std::setprecision(10) << std::scientific;
 		if (mpihandler.getRank() == 0) {
-			buff << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
-			buff << grid.ncells[0] << '\n';
-			buff << grid.ncells[1] << '\n';
-			buff << grid.ncells[2] << '\n';
+			file << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
+			file << grid.ncells[0] << '\n';
+			file << grid.ncells[1] << '\n';
+			file << grid.ncells[2] << '\n';
 		}
 		for (GridCell& cell : grid.getCells()) {
 			for (int idim = 0; idim < consts->nd; ++idim)
-				buff << consts->converter.fromCodeUnits(cell.xc[idim]*grid.dx[idim], 0, 1, 0) << '\t';
-			buff << consts->converter.fromCodeUnits(cell.Q[UID::DEN], 1, -3, 0);
-			buff << '\t' << consts->converter.fromCodeUnits(cell.Q[UID::PRE], 1, -1, -2);
-			buff << '\t' << cell.Q[UID::HII];
+				file << consts->converter.fromCodeUnits(cell.xc[idim]*grid.dx[idim], 0, 1, 0) << '\t';
+			file << consts->converter.fromCodeUnits(cell.Q[UID::DEN], 1, -3, 0);
+			file << '\t' << consts->converter.fromCodeUnits(cell.Q[UID::PRE], 1, -1, -2);
+			file << '\t' << cell.Q[UID::HII];
 			for (int idim = 0; idim < consts->nd; ++idim)
-				buff << '\t' << consts->converter.fromCodeUnits(cell.Q[UID::VEL+idim], 0, 1, -1);
-			buff << '\n';
+				file << '\t' << consts->converter.fromCodeUnits(cell.Q[UID::VEL+idim], 0, 1, -1);
+			file << '\n';
 		}
 	});
 }
@@ -302,30 +269,27 @@ void DataPrinter::printHeating(const int step, const double t, const Grid& grid)
 		/* creating filename */
 		std::ostringstream os;
 		os << dir2D << "heating_";
-		os << step << ".txt.bz2";
+		os << step << ".txt.gz";
 		/* opening new file for appending data */
-		std::ofstream ofile(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
-		if(!ofile)
-			std::cerr << "ERROR: Unable to open " << os.str() << '\n';
-		boost::iostreams::filtering_ostream buff;
-		buff.push(boost::iostreams::bzip2_compressor());
-		buff.push(ofile);
+		OutputStreamGZ file(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
+		if (!file)
+			throw std::runtime_error("DataPrinter::printHeating: unable to open" + os.str());
 		/* writing data to file */
 		std::stringstream data;
-		buff << std::setprecision(10) << std::scientific;
+		file << std::setprecision(10) << std::scientific;
 		if (mpihandler.getRank() == 0) {
-			buff << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
-			buff << grid.ncells[0] << '\n';
-			buff << grid.ncells[1] << '\n';
-			buff << grid.ncells[2] << '\n';
+			file << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
+			file << grid.ncells[0] << '\n';
+			file << grid.ncells[1] << '\n';
+			file << grid.ncells[2] << '\n';
 		}
 		for (GridCell& cell : grid.getCells()) {
 			for (int idim = 0; idim < consts->nd; ++idim)
-				buff << cell.xc[idim] << '\t';
-			buff << consts->converter.fromCodeUnits(cell.H[0], 1, -1, -3);
+				file << cell.xc[idim] << '\t';
+			file << consts->converter.fromCodeUnits(cell.H[0], 1, -1, -3);
 			for (int i = 1; i < HID::N; ++i)
-				buff << '\t' << consts->converter.fromCodeUnits(cell.H[i], 1, -1, -3);
-			buff << '\n';
+				file << '\t' << consts->converter.fromCodeUnits(cell.H[i], 1, -1, -3);
+			file << '\n';
 		}
 	});
 }
@@ -336,30 +300,27 @@ void DataPrinter::printVariables(const int step, const double t, const Grid& gri
 		/* creating filename */
 		std::ostringstream os;
 		os << dir2D << "heating_";
-		os << step << ".txt.bz2";
+		os << step << ".txt.gz";
 		/* opening new file for appending data */
-		std::ofstream ofile(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
-		if(!ofile)
-			std::cerr << "ERROR: Unable to open " << os.str() << '\n';
-		boost::iostreams::filtering_ostream buff;
-		buff.push(boost::iostreams::bzip2_compressor());
-		buff.push(ofile);
+		OutputStreamGZ file(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
+		if (!file)
+			throw std::runtime_error("DataPrinter::printVariables: unable to open" + os.str());
 		/* writing data to file */
 		std::stringstream data;
-		buff << std::setprecision(10) << std::scientific;
+		file << std::setprecision(10) << std::scientific;
 		if (mpihandler.getRank() == 0) {
-			buff << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
-			buff << grid.ncells[0] << '\n';
-			buff << grid.ncells[1] << '\n';
-			buff << grid.ncells[2] << '\n';
+			file << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
+			file << grid.ncells[0] << '\n';
+			file << grid.ncells[1] << '\n';
+			file << grid.ncells[2] << '\n';
 		}
 		for (GridCell& cell : grid.getCells()) {
 			for (int idim = 0; idim < consts->nd; ++idim)
-				buff << cell.xc[idim] << '\t';
-			buff << cell.H[0];
+				file << cell.xc[idim] << '\t';
+			file << cell.H[0];
 			for (int i = 1; i < HID::N; ++i)
-				buff << '\t' << cell.H[i];
-			buff << '\n';
+				file << '\t' << cell.H[i];
+			file << '\n';
 		}
 	});
 }
@@ -370,27 +331,24 @@ void DataPrinter::printVariable(const int step, const double t, const Grid& grid
 		/* creating filename */
 		std::ostringstream os;
 		os << dir2D << "var_";
-		os << step << ".txt.bz2";
+		os << step << ".txt.gz";
 		/* opening new file for appending data */
-		std::ofstream ofile(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
-		if(!ofile)
-			std::cerr << "ERROR: Unable to open " << os.str() << '\n';
-		boost::iostreams::filtering_ostream buff;
-		buff.push(boost::iostreams::bzip2_compressor());
-		buff.push(ofile);
+		OutputStreamGZ file(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
+		if (!file)
+			throw std::runtime_error("DataPrinter::printVariable: unable to open" + os.str());
 		/* writing data to file */
 		std::stringstream data;
-		buff << std::setprecision(10) << std::scientific;
+		file << std::setprecision(10) << std::scientific;
 		if (mpihandler.getRank() == 0) {
-			buff << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
-			buff << grid.ncells[0] << '\n';
-			buff << grid.ncells[1] << '\n';
-			buff << grid.ncells[2] << '\n';
+			file << consts->converter.fromCodeUnits(t, 0, 0, 1) << '\n';
+			file << grid.ncells[0] << '\n';
+			file << grid.ncells[1] << '\n';
+			file << grid.ncells[2] << '\n';
 		}
 		for (GridCell& cell : grid.getCells()) {
 			for (int idim = 0; idim < consts->nd; ++idim)
-				buff << cell.xc[idim] << '\t';
-			buff << cell.H[0] << '\n';
+				file << cell.xc[idim] << '\t';
+			file << cell.H[0] << '\n';
 		}
 	});
 }
@@ -461,15 +419,15 @@ void InputOutput::printCellPathLength(const Grid& grid) const {
 	ofile.close();
 }
  */
-void DataPrinter::fileToMap(const std::string& myString, std::map<double,double> myMap) const {
-	std::ifstream inFile(myString.c_str(), std::ios::in);
-	if(!inFile)
-		std::cout << "ERROR: unable to open " << myString << '\n';
-	else{
-		double a,b;
-		while(!inFile.eof() ){
+void DataPrinter::fileToMap(const std::string& filename, std::map<double,double> map) const {
+	std::ifstream inFile(filename.c_str(), std::ios::in);
+	if ( !inFile )
+		throw std::runtime_error("DataPrinter::fileToMap: unable to open" + filename);
+	else {
+		double a, b;
+		while ( !inFile.eof() ) {
 			inFile >> a >> b;
-			myMap[a] = b;
+			map[a] = b;
 		}
 	}
 	inFile.close();
@@ -479,6 +437,7 @@ void DataPrinter::addPrintTime(const double t) {
 	printTimes.push_back(t);
 	printDone.push_back(false);
 }
+
 void DataPrinter::reduceToPrint(const double currTime, double& dt) const {
 	for (int i = 0; i < (int)printTimes.size(); i++) {
 		if(currTime < printTimes[i] && currTime+dt > printTimes[i]) {

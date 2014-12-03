@@ -27,7 +27,7 @@ struct RID {
 	enum ID {HII_A, TAU, TAU_A, DTAU, DTAU_A, HEAT, N};
 };
 struct TID {
-	enum ID {COL_DEN, DCOL_DEN, HEAT, N};
+	enum ID {COL_DEN, DCOL_DEN, HEAT, RATE, N};
 };
 struct HID {
 	enum ID {IMLC, NMLC, RHII, CEHI, CIEC, NMC, FUVH, IRH, CRH, N};

@@ -1,11 +1,8 @@
 # MAKEFILE FOR simple C++ programming
 
 CFLAGS = -O2 -g -pedantic -Wall -std=c++11
-#INCLUDE = -I/home/harry/c++ -I/usr/local/include/
 INCLUDE = -I./src -I./src/Torch -I./src/MPI -I./src/IO -I./src/Fluid -I./src/Integrators -I./src/Misc -I./include/ -I./include/lua-5.2.3/
-LIBS = -L./lib/ -l:liblua.a -l:libboost_iostreams.a -l:libbz2.a
-#LIBS = -lhdf5
-#LIBS = /home/harry/Documents/libraries/cavlib/cavlib.a -lgsl -lgslcblas -lfftw3
+LIBS = -L./lib/ -l:liblua.a -lz
 CXX = mpic++
 MPICXX = mpic++
 SRCDIR = src
@@ -13,7 +10,7 @@ HDRDIR = src
 OBJDIR = obj
 BINDIR = bin
 SRCEXT = cpp
-HDREXT = h
+HDREXT = hpp
 OBJEXT = o
 
 SUBDIRS = Torch MPI IO Fluid Integrators Misc
@@ -27,6 +24,7 @@ MPI/MPI_Wrapper \
 IO/DataPrinter \
 IO/Logger \
 IO/ProgressBar \
+IO/StreamGZ \
 Torch/Constants \
 Torch/Converter \
 Torch/Parameters \
@@ -42,7 +40,6 @@ Integrators/SlopeLimiter \
 Integrators/Radiation \
 Integrators/Thermodynamics \
 Integrators/SplineData \
-Misc/Recipes \
 Misc/Timer
 				
 SRCS = $(FILES:=.$(SRCEXT))
@@ -72,4 +69,4 @@ test : $(FULLPATHOBJ)
 
 .PHONY: clean
 clean:
-	rm $(FULLPATHOBJ) main test
+	rm $(FULLPATHOBJ) torch test
