@@ -75,4 +75,4 @@ private:
 
 
 
-#endif /* GRIDBUILDER_HPP_ */
+#endif // GRIDBUILDER_HPP_

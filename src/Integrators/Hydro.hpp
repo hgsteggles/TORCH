@@ -63,6 +63,7 @@ public:
 	void reconstruct(Fluid& fluid) const;
 
 	void calcFluxes(Fluid& fluid) const;
+	void fixIC(Fluid& fluid) const;
 	//Integration methods.
 	void updateBoundaries(Fluid& fluid) const;
 
@@ -79,4 +80,4 @@ private:
 	void Qisnan(const int id, const int i, const int xc, const int yc, const int zc) const;
 };
 
-#endif
+#endif // HYDRO_HPP_

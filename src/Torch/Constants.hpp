@@ -88,4 +88,4 @@ private:
 	void initialise();
 };
 
-#endif /* CONSTANTS_HPP_ */
+#endif // CONSTANTS_HPP_

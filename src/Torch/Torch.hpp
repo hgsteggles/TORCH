@@ -49,6 +49,7 @@ private:
 	Thermodynamics thermodynamics;
 
 	std::string initialConditions = "";
+	std::vector<ComponentID> activeComponents;
 	double nHI = 0;
 	bool radiation_on = false;
 	bool cooling_on = false;
@@ -68,7 +69,7 @@ private:
 
 	void setUp();
 	void setUp(std::string filename);
-	void setUpLua(std::string filename);
+	void setUpLua(std::string filename, int setupID);
 	double calculateTimeStep();
 	Integrator& getComponent(ComponentID id);
 	void hydroStep(double dt, bool hasCalculatedHeatFlux);
@@ -77,4 +78,4 @@ private:
 	void checkValues(std::string componentname);
 };
 
-#endif /* TORCH_HPP_ */
+#endif // TORCH_HPP_

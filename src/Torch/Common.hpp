@@ -52,4 +52,4 @@ using ConditionVec = std::array<Condition, 3>;
 using CellContainer = IntrusiveContainer<GridCell>;
 using JoinContainer = IntrusiveContainer<GridJoin>;
 
-#endif /* COMMON_HPP_ */
+#endif // COMMON_HPP_

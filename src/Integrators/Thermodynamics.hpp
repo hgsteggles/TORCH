@@ -13,8 +13,8 @@
  * @date 28/11/2014 - Fixed raytrace bug.
  */
 
-#ifndef THERMODYNAMICS_H_
-#define THERMODYNAMICS_H_
+#ifndef THERMODYNAMICS_HPP_
+#define THERMODYNAMICS_HPP_
 
 #include "Integrator.hpp"
 #include "SplineData.hpp"
@@ -72,6 +72,7 @@ private:
 	std::shared_ptr<Constants> m_consts = nullptr;
 
 	bool m_isSubcycling = false;
+	double m_thermoHII_Switch = 0;
 	double m_heatingAmplification = 1.0; //!< Heating amplification/reduction hack.
 	double m_massFractionH = 0;
 
@@ -100,15 +101,15 @@ private:
 	std::vector<double> cxhi_T;
 	std::vector<double> cxhi_rate;
 	std::vector<double> cxhi_rate2;
-	double cxhi_minSlope, cxhi_maxSlope;
+	double cxhi_minSlope = 0, cxhi_maxSlope = 0;
 
 	std::vector<double> hr_T;
 	std::vector<double> hr_rate;
 	std::vector<double> hr_rate2;
-	double hr_minSlope, hr_maxSlope;
+	double hr_minSlope = 0, hr_maxSlope = 0;
 
 	std::unique_ptr<LogSplineData> m_collisionalExcitationHI_CoolingRates;
 	std::unique_ptr<LinearSplineData> m_recombinationHII_CoolingRates;
 };
 
-#endif // THERMODYNAMICS_H_
+#endif // THERMODYNAMICS_HPP_

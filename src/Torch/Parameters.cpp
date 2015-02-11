@@ -18,6 +18,10 @@ void TorchParameters::initialise(std::shared_ptr<Constants>& consts) {
 	photonRate = consts->converter.toCodeUnits(photonRate, 0, 0, -1); // Source photon Luminosity (s^-1/scale).
 	massLossRate = consts->converter.toCodeUnits(massLossRate, 1, 0, -1); // Wind mass loss rate (g.s-1/scale).
 	windVelocity = consts->converter.toCodeUnits(windVelocity, 0, 1, -1); // Wind velocity (cm.s-1/scale).
+
+	const size_t len = outputDirectory.size();
+	if ( outputDirectory[len-1] == '\\' || outputDirectory[len-1] == '/' )
+		outputDirectory.pop_back();
 }
 
 GridParameters TorchParameters::getGridParameters() {
@@ -61,6 +65,7 @@ RadiationParameters TorchParameters::getRadiationParameters() {
 
 ThermoParameters TorchParameters::getThermoParameters() {
 	ThermoParameters tpar;
+	tpar.thermoHII_Switch = thermoHII_Switch;
 	tpar.heatingAmplification = heatingAmplification;
 	tpar.massFractionH = massFractionH;
 
@@ -70,14 +75,17 @@ ThermoParameters TorchParameters::getThermoParameters() {
 StarParameters TorchParameters::getStarParameters() {
 	StarParameters spar;
 	std::copy(faceSnap.begin(), faceSnap.end(), spar.faceSnap.begin());
-	spar.massLossRate = massLossRate;
-	spar.on = star_on;
-	spar.photonEnergy = photonEnergy;
-	spar.photonRate = photonRate;
 	std::copy(star_position.begin(), star_position.end(), spar.position.begin());
-	spar.windCellRadius = windCellRadius;
-	spar.windTemperature = windTemperature;
-	spar.windVelocity = windVelocity;
+
+	spar.on = star_on;
+	if (star_on) {
+		spar.massLossRate = massLossRate;
+		spar.photonEnergy = photonEnergy;
+		spar.photonRate = photonRate;
+		spar.windCellRadius = windCellRadius;
+		spar.windTemperature = windTemperature;
+		spar.windVelocity = windVelocity;
+	}
 
 	return spar;
 }

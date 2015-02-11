@@ -112,4 +112,4 @@ private:
 
 
 
-#endif /* GRID_HPP_ */
+#endif // GRID_HPP_

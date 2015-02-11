@@ -1,12 +1,14 @@
-/*
- * logger.h
+/** Provides the Logger class.
  *
- *  Created on: 10 Nov 2014
- *      Author: harry
+ * @file Logger.hpp
+ *
+ * @author Harrison Steggles
+ *
+ * @date 28/01/2014 - the first version.
  */
 
-#ifndef LOGGER_H_
-#define LOGGER_H_
+#ifndef LOGGER_HPP_
+#define LOGGER_HPP_
 
 #include "MPI_Wrapper.hpp"
 
@@ -174,4 +176,4 @@ std::string Logger< log_policy >::getLoglineHeader() {
 
 
 
-#endif /* LOGGER_H_ */
+#endif // LOGGER_HPP_

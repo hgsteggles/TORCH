@@ -33,8 +33,8 @@
  * @date 24/11/2014 - lots of restructuring and changes to GridCell iteration. Radiation is now an Integrator subclass.
  */
 
-#ifndef RADIATION_H
-#define RADIATION_H
+#ifndef RADIATION_HPP_
+#define RADIATION_HPP_
 
 #include "Integrator.hpp"
 #include "Constants.hpp"
@@ -133,4 +133,4 @@ private:
 	bool isStar(const GridCell& cell, const Star& star) const;
 };
 
-#endif
+#endif // RADIATION_HPP_

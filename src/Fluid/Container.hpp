@@ -340,4 +340,4 @@ private:
 };
 
 
-#endif /* CONTAINER_HPP_ */
+#endif // CONTAINER_HPP_

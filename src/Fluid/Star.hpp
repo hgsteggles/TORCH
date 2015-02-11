@@ -72,4 +72,4 @@ private:
 	double edot;
 };
 
-#endif /* STAR_HPP_ */
+#endif // STAR_HPP_

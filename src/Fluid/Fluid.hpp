@@ -72,4 +72,4 @@ private:
 	Star star;
 };
 
-#endif /* FLUID_HPP_ */
+#endif // FLUID_HPP_

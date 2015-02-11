@@ -38,4 +38,4 @@ public:
 
 
 
-#endif /* INTEGRATOR_HPP_ */
+#endif // INTEGRATOR_HPP_

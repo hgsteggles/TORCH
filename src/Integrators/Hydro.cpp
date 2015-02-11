@@ -144,25 +144,14 @@ void Hydrodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 					throw std::runtime_error("Hydrodynamics::updateSourceTerms: ljoin[dim] or rjoin[dim] is nullptr." + cell.printInfo());
 				cell.UDOT[i] += (cell.ljoin[dim]->area/cell.vol)*cell.ljoin[dim]->F[i];
 				cell.UDOT[i] -= (cell.rjoin[dim]->area/cell.vol)*cell.rjoin[dim]->F[i];
+				//cell.UDOT[i] -= cell.FIX[i];
 			}
-		}
-
-		//Internal Energy Source.
-		double div_v = 0;
-		if (fluid.getGrid().spatialOrder == 1) {
-			for (int i = 0; i < m_consts->nd; ++i)
-				div_v += (cell.QR[i][UID::VEL+i]-cell.QL[i][UID::VEL+i])/fluid.getGrid().dx[i];
-		}
-		else {
-			for (int i = 0; i < m_consts->nd; ++i)
-				div_v += m_slopeLimiter->calculate(cell.Q[UID::VEL+i] - cell.ljoin[i]->lcell->Q[UID::VEL+i], cell.rjoin[i]->rcell->Q[UID::VEL+i] - cell.Q[UID::VEL+i])/fluid.getGrid().dx[i];
 		}
 
 		//Geometric.
 		if (rzp) {
 			double r = fluid.getGrid().dx[0]*cell.xc[0];
 			cell.UDOT[UID::VEL+0] += cell.Q[UID::PRE]/r;
-			div_v += cell.Q[UID::VEL+0]/r;
 		}
 		else if (rtp) {
 			double r, area1, area2;
@@ -170,11 +159,8 @@ void Hydrodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 			area2 = cell.ljoin[0]->area;
 			r = cell.vol/(area1 - area2);
 			cell.UDOT[UID::VEL+0] += cell.Q[UID::PRE]/r;
-			div_v += 2.0*cell.Q[UID::VEL+0]/r;
 		}
 
-		//Internal Energy Source.
-		//cell.UDOT[UID::EINT] -= cell.Q[UID::PRE]*div_v;
 	}
 
 	if (fluid.getStar().on)
@@ -194,30 +180,4 @@ void Hydrodynamics::updateBoundaries(Fluid& fluid) const {
 		fluid.getGrid().getRightBoundaries()[i]->applyBC();
 		fluid.getGrid().getLeftBoundaries()[i]->applyBC();
 	}
-	/*
-	mpihandler.serial([&] () {
-		std::cout << std::endl;
-		if (MPIW::Instance().getRank() == 0) {
-			GridCell& cell0 = **fluid.getGrid().getRightBoundaries()[0]->getGhostCells().begin();
-			GridCell& cell1 = *cell0.right[0];
-			GridCell& c0 = *cell0.left[0];
-			GridCell& c1 = *cell1.left[0];
-			std::cout << cell0.printCoords() << cell0.Q[UID::PRE] << std::endl;
-			std::cout << cell1.printCoords() << cell1.Q[UID::PRE] << std::endl;
-			std::cout << c0.printCoords() << c0.Q[UID::PRE] << std::endl;
-			std::cout << c1.printCoords() << c1.Q[UID::PRE] << std::endl;
-		}
-		else if (MPIW::Instance().getRank() == 1) {
-			GridCell& cell0 = **fluid.getGrid().getLeftBoundaries()[0]->getGhostCells().begin();
-			GridCell& cell1 = *cell0.left[0];
-			GridCell& c0 = *cell0.right[0];
-			GridCell& c1 = *cell1.right[0];
-			std::cout << cell0.printCoords() << cell0.Q[UID::PRE] << std::endl;
-			std::cout << cell1.printCoords() << cell1.Q[UID::PRE] << std::endl;
-			std::cout << c0.printCoords() << c0.Q[UID::PRE] << std::endl;
-			std::cout << c1.printCoords() << c1.Q[UID::PRE] << std::endl;
-		}
-		std::cout << std::endl;
-	});
-	*/
 }

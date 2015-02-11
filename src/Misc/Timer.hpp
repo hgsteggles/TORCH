@@ -7,8 +7,8 @@
  * @date 28/01/2014 - the first version.
  */
 
-#ifndef TIMER_H_
-#define TIMER_H_
+#ifndef TIMER_HPP_
+#define TIMER_HPP_
 
 #include <cstdint>
 #include <string>
@@ -50,4 +50,4 @@ class Timer {
 
 
 
-#endif /* TIMER_H_ */
+#endif // TIMER_HPP_

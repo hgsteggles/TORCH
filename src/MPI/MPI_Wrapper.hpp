@@ -14,7 +14,7 @@
 #ifndef MPIHANDLER_HPP_
 #define MPIHANDLER_HPP_
 
-#include <mpi.h>
+#include <mpi/mpi.h>
 #include <string>
 #include <functional>
 
@@ -80,4 +80,4 @@ private:
 };
 
 
-#endif /* MPIHANDLER_HPP_ */
+#endif // MPIHANDLER_HPP_

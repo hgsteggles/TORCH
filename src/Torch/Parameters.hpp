@@ -44,6 +44,7 @@ struct TorchParameters {
 	bool radiation_on = false;
 	bool cooling_on = false;
 	bool debug = true;
+	int setupID = 0;
 	std::string outputDirectory = "tmp/";
 
 	double dfloor = 0;
@@ -75,6 +76,7 @@ struct TorchParameters {
 	double windTemperature = 0;
 	int windCellRadius = 0;
 
+	double thermoHII_Switch = 0;
 	double heatingAmplification = 1.0; //!< Heating amplification/reduction hack.
 
 	double massFractionH = 0; //!< Mass fraction of hydrogen.
@@ -121,6 +123,7 @@ struct RadiationParameters {
 };
 
 struct ThermoParameters {
+	double thermoHII_Switch = 0;
 	double heatingAmplification = 1.0; //!< Heating amplification/reduction hack.
 	double massFractionH = 0;
 };
@@ -139,4 +142,4 @@ struct StarParameters {
 
 
 
-#endif /* PARAMETERS_H_ */
+#endif // PARAMETERS_H_

@@ -4,17 +4,18 @@
  *
  * @author Harrison Steggles
  *
- * @date 16/01/2014 - the first version.
- * @date 04/01/2014 - arguments now passed by const reference when appropriate.
- * @date 08/05/2014 - integer specifying the number of ghost cell layers passed into Boundary constructor
+ * @date 16/01/2014 - The first version.
+ * @date 04/01/2014 - Arguments now passed by const reference when appropriate.
+ * @date 08/05/2014 - Integer specifying the number of ghost cell layers passed into Boundary constructor
  * now as it depends on spatial reconstruction information (ORDER_S) which now lies in IntegrationParameters
  * rather than GridParameters.
- * @date 21/07/2014 - replaced const reference to int/double with a const copy.
- * @date 24/11/2014 - now add GridCells to Boundary by calling Boundary::addGhostCell. Passed in GridCell gets linked so that BCs can
+ * @date 21/07/2014 - Replaced const reference to int/double with a const copy.
+ * @date 24/11/2014 - Now add GridCells to Boundary by calling Boundary::addGhostCell. Passed in GridCell gets linked so that BCs can
  * be quickly calculated.
- * @date 24/11/2014 - derived classes: Partition and ExternalBoundary have been moved to here.
+ * @date 24/11/2014 - Derived classes: Partition and ExternalBoundary have been moved to here.
  * @date 24/11/2014 - Partition now holds send AND receive buffers for sending data across processors rather than allocating heap
  * space for a buffer at every call to MPIW::exchange (which has also been modified).
+ * @date 15/12/2014 - Fixed bug in ExternalBoundary::applyBC where heatCapacityRatio not sent to ghost cells.
  */
 
 #ifndef BOUNDARY_HPP_
@@ -141,4 +142,4 @@ private:
 	double* recv_buffer = nullptr;
 };
 
-#endif /* BOUNDARY_HPP_ */
+#endif // BOUNDARY_HPP_

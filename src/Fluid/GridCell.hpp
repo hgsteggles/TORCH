@@ -115,4 +115,4 @@ public:
 	double area = 0; //!< The area of the GridJoin.
 };
 
-#endif /* GRIDCELL_HPP_ */
+#endif // GRIDCELL_HPP_

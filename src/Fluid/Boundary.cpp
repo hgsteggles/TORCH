@@ -11,34 +11,6 @@
  * boundaries have face<3 and right boundaries have face>=3).
  * @param gptr Pointer to Grid3D instance that this Boundary is to be attached to.
  */
-/*
-Boundary::Boundary(const int face, const int nOfGhosts, int xlength, int ylength) {
-	this->face = face;
-	this->nghosts = nOfGhosts;
-
-	int dim = face%3;
-
-	for (int i = 0; i < xlength; ++i) {
-		ghostcells.push_back(std::vector<GridCell*>());
-
-		for (int j = 0; j < ylength; ++j) {
-			ghostcells[i].push_back(new GridCell());
-			GridCell* newghost = ghostcells[i][j];
-
-			for (int ig = 0; ig < nghosts-1; ++ig) {
-				GridCell* oldghost = newghost;
-				newghost = new GridCell();
-
-				if (face < 3)
-					oldghost->left[dim] = newghost;
-				else
-					oldghost->right[dim] = newghost;
-			}
-		}
-	}
-	isPartition = false;
-}
-*/
 
 Boundary::Boundary(const int face, const int depth, Boundary::Type type)
 	: m_face(face)
@@ -166,6 +138,7 @@ void ExternalBoundary::applyBC() {
 
 			for(int iu = 0; iu < UID::N; iu++)
 				ghost->Q[iu] = cptr->Q[iu];
+			ghost->heatCapacityRatio = cptr->heatCapacityRatio;
 
 			switch (m_bc) {
 			case Condition::REFLECTING:

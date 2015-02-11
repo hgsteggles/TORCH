@@ -69,4 +69,4 @@ public:
 	static std::unique_ptr<SlopeLimiter> create(std::string type);
 };
 
-#endif /* SLOPELIMITER_HPP_ */
+#endif // SLOPELIMITER_HPP_

@@ -54,4 +54,4 @@ public:
 
 
 
-#endif /* SPLINEDATA_HPP_ */
+#endif // SPLINEDATA_HPP_

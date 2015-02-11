@@ -34,7 +34,7 @@ void DataPrinter::printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydr
 			fluid.globalQfromU();
 			mpihandler.serial([&] () {
 				std::ostringstream os;
-				os << dir2D << "starbench_" << i << ".txt.gz";
+				os << dir2D << "/starbench_" << i << ".txt.gz";
 				OutputStreamGZ out(os.str().c_str(), std::ios_base::app);
 				if (!out)
 					throw std::runtime_error("DataPrinter::printStarbench: unable to open" + os.str());
@@ -104,7 +104,7 @@ void DataPrinter::printBinary2D(const int step, const double t, const Grid& grid
 	if (!printing_on)
 		return;
 	std::ostringstream os;
-	os << dir2D << "data2D_";
+	os << dir2D << "/data2D_";
 	os << step << ".hbin";
 	int ncols = 5;
 	if (consts->nd > 1)
@@ -147,7 +147,7 @@ void DataPrinter::print2D(const std::string& append_name, const double t, const 
 	mpihandler.serial([&] () {
 		// Creating filename.
 		std::ostringstream os;
-		os << dir2D << "data2D_";
+		os << dir2D << "/data2D_";
 		os << append_name << ".txt.gz";
 
 		OutputStreamGZ file(os.str().c_str(), std::ios_base::app);
@@ -268,7 +268,7 @@ void DataPrinter::printHeating(const int step, const double t, const Grid& grid)
 	mpihandler.serial([&] () {
 		/* creating filename */
 		std::ostringstream os;
-		os << dir2D << "heating_";
+		os << dir2D << "/heating_";
 		os << step << ".txt.gz";
 		/* opening new file for appending data */
 		OutputStreamGZ file(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
@@ -299,7 +299,7 @@ void DataPrinter::printVariables(const int step, const double t, const Grid& gri
 	mpihandler.serial([&] () {
 		/* creating filename */
 		std::ostringstream os;
-		os << dir2D << "heating_";
+		os << dir2D << "/heating_";
 		os << step << ".txt.gz";
 		/* opening new file for appending data */
 		OutputStreamGZ file(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
@@ -330,7 +330,7 @@ void DataPrinter::printVariable(const int step, const double t, const Grid& grid
 	mpihandler.serial([&] () {
 		/* creating filename */
 		std::ostringstream os;
-		os << dir2D << "var_";
+		os << dir2D << "/var_";
 		os << step << ".txt.gz";
 		/* opening new file for appending data */
 		OutputStreamGZ file(os.str().c_str(), std::ios_base::app | std::ios_base::binary);

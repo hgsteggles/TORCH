@@ -8,14 +8,10 @@
 void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location containing_core, const Vec3& delta_x) {
 	consts = std::move(c);
 
-	if (!sp.on)
-		return;
-
 	std::array<double, 3> mod;
 
 	for (int i = 0; i < 3; ++i)
 		mod[i] = (sp.faceSnap[i] && (sp.position[i] == 0)) ? 0.5 : 0;
-
 
 	xc = std::array<double, 3>{ sp.position[0] + 0.5 - mod[0], sp.position[1] + 0.5 - mod[1], sp.position[2] + 0.5 - mod[2] };
 
@@ -23,6 +19,9 @@ void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location 
 		xc[2] = 0;
 	if (consts->nd < 2)
 		xc[1] = 0;
+
+	if (!sp.on)
+		return;
 
 	on = true;
 	dx = delta_x;

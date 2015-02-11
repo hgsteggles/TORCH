@@ -4,6 +4,10 @@
 
 #include "Torch.hpp"
 #include "MPI_Wrapper.hpp"
+#include "DataPrinter.hpp"
+#include "Logger.hpp"
+
+#include "selene.h"
 
 #include <dirent.h>
 #include <cmath>
@@ -11,22 +15,31 @@
 #include <fstream>
 #include <string>
 #include <memory>
-#include "DataPrinter.hpp"
-#include "Logger.hpp"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#include "selene.h"
-
-void parseParameters(const std::string& filename, TorchParameters& p);
+void parseParameters(const std::string& filename, TorchParameters& p, int param_id);
+void makeDirectory(const std::string& dir_name);
 void deleteFileContents(const std::string& myString);
+void copyConfigFile(const std::string& filename, const std::string& directory);
 
 int main (int argc, char** argv) {
-	MPIW& mpihandler = MPIW::Instance(&argc, &argv);
+	MPIW& mpihandler = MPIW::Instance();
 
-	if (mpihandler.getRank() == 0)
-		deleteFileContents("tmp/");
 	try {
 		TorchParameters tpars;
-		mpihandler.serial([&] () { parseParameters( "refdata/parameters.lua", tpars ); });
+		std::string paramFile = "parameters.lua";
+		int param_id = argc > 1 ? std::stoi(std::string(argv[1])) : -1;
+		mpihandler.serial([&] () { parseParameters( paramFile, tpars, param_id ); });
+
+		if (mpihandler.getRank() == 0) {
+			makeDirectory(tpars.outputDirectory);
+			deleteFileContents(tpars.outputDirectory);
+			copyConfigFile("setup.lua", tpars.outputDirectory);
+			copyConfigFile("parameters.lua", tpars.outputDirectory);
+		}
+
 		Torch torch;
 		torch.initialise(tpars);
 		torch.run();
@@ -44,16 +57,19 @@ std::string parseString(sel::Selector selector) {
 	return str;
 }
 
-void parseParameters(const std::string& filename, TorchParameters& p) {
+void parseParameters(const std::string& filename, TorchParameters& p, int param_id) {
+	std::string fullfilename = "refdata/" + filename;
 	Logger<FileLogPolicy>& logger = Logger<FileLogPolicy>::Instance();
-	MPIW& mpihandler = MPIW::Instance();
 	// Create new Lua state and load the lua libraries
 	sel::State luaState{true};
 
-	if (!luaState.Load(filename)) {
-		throw std::runtime_error("ParseParameters: could not open lua file: " + filename);
+	if (!luaState.Load(fullfilename)) {
+		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename);
 	}
 	else {
+		if (param_id != 0)
+			luaState["param_set"](param_id);
+
 		p.nHI                  = (double)luaState["Parameters"]["Integration"]["ambient_no_density"];
 		p.dscale               = (double)luaState["Parameters"]["Integration"]["density_scale"];
 		p.pscale               = (double)luaState["Parameters"]["Integration"]["pressure_scale"];
@@ -64,6 +80,7 @@ void parseParameters(const std::string& filename, TorchParameters& p) {
 		p.radiation_on         = (bool)luaState["Parameters"]["Integration"]["radiation_on"];
 		p.cooling_on           = (bool)luaState["Parameters"]["Integration"]["cooling_on"];
 		p.debug                = (bool)luaState["Parameters"]["Integration"]["debug"];
+		p.setupID              = (int)(luaState["Parameters"]["Integration"]["setup_id"]);
 		p.outputDirectory      = parseString(luaState["Parameters"]["Integration"]["output_directory"]);
 		p.initialConditions    = parseString(luaState["Parameters"]["Integration"]["initial_conditions"]);
 
@@ -115,6 +132,7 @@ void parseParameters(const std::string& filename, TorchParameters& p) {
 		logger.print<SeverityType::DEBUG>("Radiation/Hydrodynamics coupling: " + p.rt_coupling);
 		logger.print<SeverityType::DEBUG>("Radiation integration scheme: " + p.rt_scheme);
 
+		p.thermoHII_Switch     = (double)luaState["Parameters"]["Thermodynamics"]["thermo_hii_switch"];
 		p.heatingAmplification = (double)luaState["Parameters"]["Thermodynamics"]["heating_amplification"];
 
 		p.star_on              = (bool)luaState["Parameters"]["Star"]["on"];
@@ -132,7 +150,19 @@ void parseParameters(const std::string& filename, TorchParameters& p) {
 		p.windTemperature      = (double)luaState["Parameters"]["Star"]["wind_temperature"];
 
 		logger.print<SeverityType::DEBUG>("Star is on: " + p.star_on);
+
+		std::cout << p.setupID << std::endl;
+		std::cout << p.outputDirectory << std::endl;
+		std::cout << p.photonRate << std::endl;
+		std::cout << p.massLossRate << std::endl;
+		std::cout << p.windVelocity << std::endl;
 	}
+}
+
+void makeDirectory(const std::string& dir_name) {
+	struct stat st = {0};
+	if (stat(dir_name.c_str(), &st) == -1)
+		mkdir(dir_name.c_str(), 0755);
 }
 
 ////// deleteFileContents deletes all files within a directory
@@ -153,4 +183,11 @@ void deleteFileContents(const std::string& folder){
 	}
 
 	closedir(dir);
+}
+
+void copyConfigFile(const std::string& filename, const std::string& directory) {
+	std::string configDirectory = "refdata/";
+	std::ifstream  src(configDirectory + filename, std::ios::binary);
+	std::ofstream  dst(directory + filename, std::ios::binary);
+	dst << src.rdbuf();
 }

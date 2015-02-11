@@ -11,12 +11,6 @@
 #include <iostream>
 #include <assert.h>
 
-extern "C" {
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-}
-
 #include "selene.h"
 
 void Torch::initialise(TorchParameters p) {
@@ -94,6 +88,11 @@ void Torch::initialise(TorchParameters p) {
 
 	steps = 0;
 	stepCounter = 0;
+
+	if (initialConditions.compare("") == 0)
+		setUpLua("refdata/setup.lua", p.setupID);
+	else
+		setUp(initialConditions);
 }
 
 void Torch::setUp() {
@@ -156,7 +155,7 @@ void Torch::setUp(std::string filename) {
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUp(initialConditionsFile) complete.");
 }
 
-void Torch::setUpLua(std::string filename) {
+void Torch::setUpLua(std::string filename, int setupID) {
 	MPIW& mpihandler = MPIW::Instance();
 
 	mpihandler.print("Reading lua config file: " + filename);
@@ -169,17 +168,25 @@ void Torch::setUpLua(std::string filename) {
 		if (!hasLoaded)
 			std::cout << "SetUpLua: could not open lua file: " << filename << std::endl;
 		else {
-			for (GridCell& cell : fluid.getGrid().getCells()) {
+			if (setupID != 0)
+				luaState["setup_set"](setupID);
 
+			std::cout << (double)luaState["nHI"] << std::endl;
+
+			for (GridCell& cell : fluid.getGrid().getCells()) {
 				std::array<double, 3> xc, xs;
 				for (int i = 0; i < 3; ++i) {
 					xc[i] = consts->converter.fromCodeUnits(cell.xc[i]*fluid.getGrid().dx[i], 0, 1, 0);
 					xs[i] = consts->converter.fromCodeUnits(fluid.getStar().xc[i]*fluid.getGrid().dx[i], 0, 1, 0);
 				}
 
-				sel::tie(cell.Q[UID::DEN], cell.Q[UID::PRE], cell.Q[UID::HII], cell.Q[UID::VEL], cell.Q[UID::VEL+1], cell.Q[UID::VEL+2])
+				sel::tie(cell.Q[UID::DEN],
+						cell.Q[UID::PRE],
+						cell.Q[UID::HII],
+						cell.Q[UID::VEL],
+						cell.Q[UID::VEL+1],
+						cell.Q[UID::VEL+2])
 					= luaState["initialise"](xc[0], xc[1], xc[2], xs[0], xs[1], xs[2]);
-
 
 				cell.Q[UID::VEL+2] = consts->converter.toCodeUnits(cell.Q[UID::VEL+2], 0, 1, -1);
 				cell.Q[UID::VEL+1] = consts->converter.toCodeUnits(cell.Q[UID::VEL+1], 0, 1, -1);
@@ -200,14 +207,7 @@ void Torch::setUpLua(std::string filename) {
 }
 
 void Torch::run() {
-	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() starting...");
 	MPIW& mpihandler = MPIW::Instance();
-
-	if (initialConditions.compare("") == 0)
-		setUpLua("refdata/setup.lua");
-	else
-		setUp(initialConditions);
-
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() initial conditions set up.");
 
 	double initTime = fluid.getGrid().currentTime;
@@ -216,10 +216,18 @@ void Torch::run() {
 	fluid.globalQfromU();
 	fluid.fixPrimitives();
 
+	//hydrodynamics.fixIC(fluid);
+
 	inputOutput.print2D(std::to_string(0), fluid.getGrid().currentTime, fluid.getGrid());
 	inputOutput.printSTARBENCH(radiation, hydrodynamics, fluid);
 
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() first data dump complete.");
+
+	activeComponents.push_back(ComponentID::HYDRO);
+	if (cooling_on)
+		activeComponents.push_back(ComponentID::THERMO);
+	if (radiation_on)
+		activeComponents.push_back(ComponentID::RAD);
 
 	Timer timer;
 	timer.start();
@@ -247,7 +255,6 @@ void Torch::run() {
 		inputOutput.printVariables(100, fluid.getGrid().currentTime, fluid.getGrid());
 		inputOutput.print2D(std::to_string(100), fluid.getGrid().currentTime, fluid.getGrid());
 	}
-	//inputOutput.printSTARBENCH(radiation, hydrodynamics, fluid);
 
 	mpihandler.barrier();
 	if (mpihandler.getRank() == 0)
@@ -347,11 +354,7 @@ double Torch::fullStep(double dt_nextCheckPoint) {
 
 	double dt = std::min(dt_nextCheckPoint, calculateTimeStep());
 
-	int ncomps = 3;
-	if (!cooling_on)
-		ncomps = 2;
-	if (!radiation_on)
-		ncomps = 1;
+	int ncomps = activeComponents.size();
 
 	if (ncomps == 1) {
 		hydroStep(dt, true);
@@ -362,11 +365,11 @@ double Torch::fullStep(double dt_nextCheckPoint) {
 
 	for (int i = 0; i < ncomps; ++i) {
 		double h = (i == ncomps-1) ? 1.0 : 0.5;
-		subStep(h*dt, i == 0, getComponent((ComponentID)((i+stepCounter)%ncomps)));
+		subStep(h*dt, i == 0, getComponent(activeComponents[(i+stepCounter)%ncomps]));
 	}
 
 	for (int i = ncomps-2; i >= 0; --i) {
-		subStep(dt/2.0, false, getComponent((ComponentID)((i+stepCounter)%ncomps)));
+		subStep(dt/2.0, false, getComponent(activeComponents[(i+stepCounter)%ncomps]));
 	}
 
 	return dt;

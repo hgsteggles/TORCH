@@ -18,6 +18,7 @@ void Thermodynamics::initialise(std::shared_ptr<Constants> c, ThermoParameters t
 	m_consts = std::move(c);
 
 	m_isSubcycling = true;
+	m_thermoHII_Switch = tp.thermoHII_Switch;
 	m_heatingAmplification = tp.heatingAmplification;
 	m_massFractionH = tp.massFractionH;
 
@@ -218,8 +219,8 @@ void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
 		rate += infraRedHeating(nH, Av_FUV, F_FUV);
 		rate += cosmicRayHeating(nH);
 
-		//cell.T[TID::HEAT] = rate;
-		cell.T[TID::HEAT] = 0;
+		cell.T[TID::HEAT] = rate;
+		//cell.T[TID::HEAT] = 0;
 
 		rate -= ionisedMetalLineCooling(ne, T);
 		rate -= neutralMetalLineCooling(ne, nn, T);
@@ -237,6 +238,10 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		return;
 
 	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+		if (cell.Q[UID::HII] < m_thermoHII_Switch) {
+			cell.T[TID::RATE] = 0;
+			continue;
+		}
 		double nH = m_massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
 		double HIIFRAC = cell.Q[UID::HII];
 		double ne = nH*(HIIFRAC); //Ionised hydrogen no. density.

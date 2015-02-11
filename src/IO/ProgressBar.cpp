@@ -52,7 +52,7 @@ bool ProgressBar::update(double time_current, double& dt_nextCheckpoint, bool ou
 			duration total_time = Clock::now() - clockStart;
 			std::chrono::minutes total_minutes = std::chrono::duration_cast<std::chrono::minutes>(total_time);
 			std::chrono::seconds total_seconds = std::chrono::duration_cast<std::chrono::seconds>(total_time - total_minutes);
-			std::cout << "time taken = " << std::cout << total_minutes.count() << "m " << total_seconds.count() << "s)               \r";
+			std::cout << "(time taken = " << total_minutes.count() << "m " << total_seconds.count() << "s)               \r";
 		}
 		std::cout << std::flush;
 

@@ -86,4 +86,4 @@ public:
 };
 
 
-#endif /* RIEMANN_HPP_ */
+#endif // RIEMANN_HPP_

@@ -25,11 +25,12 @@
 
 class PrintParameters;
 class Converter;
-class Grid;
+class Fluid;
 class Radiation;
 class Hydrodynamics;
 class Constants;
 class Fluid;
+class Grid;
 
 /**
  * @class DataPrinter
@@ -76,4 +77,4 @@ struct PrintParameters {
 	void printInfo() const;
 };
 
-#endif /* DATAPRINTER_HPP_ */
+#endif // DATAPRINTER_HPP_
