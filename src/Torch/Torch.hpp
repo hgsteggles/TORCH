@@ -10,17 +10,20 @@
 #ifndef TORCH_HPP_
 #define TORCH_HPP_
 
-#include "Fluid.hpp"
-#include "Integrator.hpp"
-#include "Hydro.hpp"
-#include "Riemann.hpp"
-#include "SlopeLimiter.hpp"
-#include "Radiation.hpp"
-#include "Thermodynamics.hpp"
-#include "Star.hpp"
-#include "DataPrinter.hpp"
-#include "Converter.hpp"
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "Fluid/Fluid.hpp"
+#include "Integrators/Hydro.hpp"
+#include "Integrators/Radiation.hpp"
+#include "Integrators/Riemann.hpp"
+#include "Integrators/SlopeLimiter.hpp"
+#include "Integrators/Thermodynamics.hpp"
+#include "IO/DataPrinter.hpp"
 #include "Parameters.hpp"
+
+//#include "Star.hpp"
 
 class Constants;
 
@@ -50,7 +53,6 @@ private:
 
 	std::string initialConditions = "";
 	std::vector<ComponentID> activeComponents;
-	double nHI = 0;
 	bool radiation_on = false;
 	bool cooling_on = false;
 	bool debug = false;
@@ -67,7 +69,7 @@ private:
 
 	bool m_isQuitting = false;
 
-	void setUp();
+	void toCodeUnits();
 	void setUp(std::string filename);
 	void setUpLua(std::string filename, int setupID);
 	double calculateTimeStep();

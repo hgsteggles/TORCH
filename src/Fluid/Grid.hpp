@@ -28,8 +28,11 @@
 #ifndef GRID_HPP_
 #define GRID_HPP_
 
-#include "Common.hpp"
-#include "Constants.hpp"
+#include <array>
+#include <utility>
+
+#include "Torch/Common.hpp"
+#include "Container.hpp"
 #include "GridCell.hpp"
 
 class Boundary;
@@ -105,6 +108,9 @@ public:
 private:
 	int m_leftX = 0;
 	int m_rightX = 0;
+
+	std::array<double, 3> leftBoundaryPos;
+	std::array<double, 3> rightBoundaryPos;
 
     Grid(const Grid&);
     Grid& operator=(const Grid&);

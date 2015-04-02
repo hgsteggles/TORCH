@@ -14,9 +14,8 @@
 #ifndef MPIHANDLER_HPP_
 #define MPIHANDLER_HPP_
 
-#include <mpi/mpi.h>
-#include <string>
 #include <functional>
+#include <string>
 
 enum class SendID : unsigned int {PARTITION_MSG, RADIATION_MSG, THERMO_MSG, PRINT2D_MSG,
 	CFL_COLLECT, CFL_BROADCAST, PRINTIF_NEXT_MSG, PRINTIF_FOUND_MSG,

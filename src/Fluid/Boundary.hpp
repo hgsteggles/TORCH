@@ -21,11 +21,10 @@
 #ifndef BOUNDARY_HPP_
 #define BOUNDARY_HPP_
 
-#include "Common.hpp"
-#include "MPI_Wrapper.hpp"
-#include "Constants.hpp"
-
 #include <forward_list>
+
+#include "MPI/MPI_Wrapper.hpp"
+#include "Torch/Common.hpp"
 
 class GridCell;
 

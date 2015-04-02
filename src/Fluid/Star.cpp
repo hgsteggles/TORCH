@@ -1,9 +1,12 @@
-#include "GridCell.hpp"
 #include "Star.hpp"
-#include "MPI_Wrapper.hpp"
-#include "Constants.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+
+#include "MPI/MPI_Wrapper.hpp"
+#include "Torch/Constants.hpp"
+#include "GridCell.hpp"
 
 void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location containing_core, const Vec3& delta_x) {
 	consts = std::move(c);
@@ -55,6 +58,7 @@ void Star::injectEnergyMomentum(CellContainer& windCells) {
 			cell.UDOT[UID::DEN] += mdot;
 			cell.UDOT[UID::PRE] += edot;
 			cell.UDOT[UID::HII] += (cell.U[UID::HII]/cell.U[UID::DEN])*mdot;
+			cell.UDOT[UID::ADV] += mdot;
 		}
 	}
 }

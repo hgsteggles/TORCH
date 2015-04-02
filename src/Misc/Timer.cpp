@@ -1,7 +1,6 @@
 #include "Timer.hpp"
 
 #include <sstream>
-#include <chrono>
 
 Timer::Timer()
 : m_startTicks(std::chrono::system_clock::now())

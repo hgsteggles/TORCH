@@ -10,10 +10,9 @@
 #ifndef CONTAINER_HPP_
 #define CONTAINER_HPP_
 
-#include <memory>
-#include <iterator>
-#include <type_traits>
 #include <iostream>
+#include <iterator>
+#include <memory>
 
 template <class T>
 class DualIntrusiveContainer;

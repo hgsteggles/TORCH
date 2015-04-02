@@ -1,17 +1,21 @@
 #include "Radiation.hpp"
-#include "Grid.hpp"
-#include "Fluid.hpp"
-#include "GridCell.hpp"
-#include "Boundary.hpp"
-#include "MPI_Wrapper.hpp"
-#include "Logger.hpp"
-#include "Star.hpp"
-#include "Converter.hpp"
 
+#include <algorithm>
 #include <cmath>
-#include <iostream>
-#include <fstream>
-#include <cstring>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
+#include "Fluid/Boundary.hpp"
+#include "Fluid/Fluid.hpp"
+#include "Fluid/Grid.hpp"
+#include "Fluid/GridCell.hpp"
+#include "Fluid/Star.hpp"
+#include "IO/Logger.hpp"
+#include "MPI/MPI_Wrapper.hpp"
+#include "Torch/Converter.hpp"
+#include "Torch/Parameters.hpp"
 
 Radiation::Radiation()
 : Integrator("Radiation")
@@ -473,6 +477,8 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 		cell.R[iheat] *= heatingAmplification;
 		*/
 		cell.Q[UID::HII] = HII;
+		if (HII > 0.001)
+			cell.Q[UID::ADV] = 1;
 
 		/*
 		cell.H[0] = A_pi;
@@ -681,6 +687,7 @@ void Radiation::updateSourceTerms(double dt, Fluid& fluid) const {
 			}
 
 			cell.UDOT[UID::HII] += (cell.Q[UID::HII]*cell.Q[UID::DEN] - cell.U[UID::HII])/dt;
+			cell.UDOT[UID::ADV] += (cell.Q[UID::ADV]*cell.Q[UID::DEN] - cell.U[UID::ADV])/dt;
 		}
 	}
 }

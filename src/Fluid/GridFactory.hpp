@@ -10,12 +10,15 @@
 #ifndef GRIDBUILDER_HPP_
 #define GRIDBUILDER_HPP_
 
-#include "Container.hpp"
-#include "Common.hpp"
-#include "Grid.hpp"
-
 #include <array>
-#include <vector>
+#include <memory>
+#include <utility>
+
+#include "Torch/Common.hpp"
+#include "Torch/Constants.hpp"
+#include "Container.hpp"
+#include "Grid.hpp"
+#include "GridCell.hpp"
 
 class GridCell;
 class GridJoin;

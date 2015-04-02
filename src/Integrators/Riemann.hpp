@@ -11,8 +11,10 @@
 #ifndef RIEMANN_HPP_
 #define RIEMANN_HPP_
 
-#include "GridCell.hpp"
 #include <memory>
+#include <string>
+
+#include "Torch/Common.hpp"
 
 /**
  * @class RiemannSolver

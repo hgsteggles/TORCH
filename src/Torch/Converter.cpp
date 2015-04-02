@@ -1,9 +1,7 @@
 #include "Converter.hpp"
-#include "Constants.hpp"
 
-#include <stdio.h>
-#include <iostream>
 #include <cmath>
+#include <iostream>
 
 
 Converter::Converter() : M(MO_2_G(1.0)), L(PC_2_CM(14.6)), T(YR_2_S(10000.0)) {

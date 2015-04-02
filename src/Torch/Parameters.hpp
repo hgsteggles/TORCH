@@ -12,6 +12,7 @@
 
 #include <array>
 #include <memory>
+#include <string>
 
 class Constants;
 
@@ -31,12 +32,14 @@ struct TorchParameters {
 	std::array<std::string, 3> rightBC = std::array<std::string, 3>{ "free", "free", "free" }; //!< Array of right boundary conditions for each dimension.
 	std::string geometry = "cartesian"; //!< The GEOMETRY of the grid [CARTESIAN, CYLINDRICAL, SPHERICAL].
 
+	std::string patchfilename = "";
+	std::array<int, 3> patchoffset = std::array<int, 3>{ 0, 0, 0 };
+
 	std::string riemannSolver = "hll";
 	std::string slopeLimiter = "falle";
-	std::string rt_scheme = "implicit";  //!< Ionization fraction integration scheme.
+	std::string rt_scheme = "implicit";  //!< Ionisation fraction integration scheme.
 	std::string rt_coupling = "off";
 
-	double nHI = 0;
 	int spatialOrder = 0;
 	int temporalOrder = 0;
 	double tmax = 0;
@@ -104,6 +107,14 @@ struct GridParameters {
 	std::string geometry; //!< The GEOMETRY of the grid [CARTESIAN, CYLINDRICAL, SPHERICAL].
 };
 
+struct DataParameters {
+	double time;
+	std::array<int, 3> ncells; //!< Array holding the number of grid cells along each dimension.
+	int nd;
+	double dx;
+	double sideLength; //!< The side length of the simulation line/square/cube.
+};
+
 struct RadiationParameters {
 	double K1 = 0; //!< [Mackey 2012 (table 1)] timestep constant.
 	double K2 = 0; //!< [Mackey 2012 (table 1)] timestep constant.
@@ -139,7 +150,6 @@ struct StarParameters {
 	double windVelocity = 0;
 	double windTemperature = 0;
 };
-
 
 
 #endif // PARAMETERS_H_

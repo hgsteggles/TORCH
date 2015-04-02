@@ -1,7 +1,13 @@
 #include "Fluid.hpp"
-#include "Constants.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
+#include <string>
+
+#include "Torch/Constants.hpp"
+#include "GridCell.hpp"
 #include "GridFactory.hpp"
-#include "MPI_Wrapper.hpp"
 
 Star::Location calcContainingCore(int x, int xl, int xr, int rank) {
 	Star::Location containing_core = Star::Location::HERE;
@@ -67,6 +73,7 @@ void Fluid::fixSolution() {
 			throw std::runtime_error("Fluid::fixSolution(): Density = " + std::to_string(cell.U[UID::DEN]) + ", Energy =" + std::to_string(cell.U[UID::PRE]));
 
 		double hii = std::max(std::min(cell.U[UID::HII]/cell.U[UID::DEN], 1.0), 0.0);
+		double adv = std::max(std::min(cell.U[UID::ADV]/cell.U[UID::DEN], 1.0), 0.0);
 		double v[3];
 
 		double den = std::max(cell.U[UID::DEN], consts->dfloor);
@@ -95,6 +102,7 @@ void Fluid::fixSolution() {
 		cell.U[UID::DEN] = den;
 		cell.U[UID::PRE] = pre/(cell.heatCapacityRatio - 1.0) + ke;
 		cell.U[UID::HII] = hii*den;
+		cell.U[UID::ADV] = adv*den;
 		for (int dim = 0; dim < consts->nd; ++dim)
 			cell.U[UID::VEL+dim] = den*v[dim];
 
@@ -111,6 +119,7 @@ void Fluid::fixSolution() {
 void Fluid::fixPrimitives() {
 	for (GridCell& cell : getGrid().getCells()) {
 		cell.Q[UID::HII] = std::max(std::min(cell.Q[UID::HII], 1.0), 0.0);
+		cell.Q[UID::ADV] = std::max(std::min(cell.Q[UID::ADV], 1.0), 0.0);
 		cell.Q[UID::DEN] = std::max(cell.Q[UID::DEN], consts->dfloor);
 		cell.Q[UID::PRE] = std::max(cell.Q[UID::PRE], consts->pfloor);
 		double mu_inv = massFractionH*(cell.Q[UID::HII] + 1.0) + (1.0 - massFractionH)*0.25;

@@ -1,8 +1,9 @@
 #include "Boundary.hpp"
-#include "GridCell.hpp"
-#include "MPI_Wrapper.hpp"
 
-#include <stddef.h>
+#include "Fluid/GridCell.hpp"
+#include "MPI/MPI_Wrapper.hpp"
+
+#include "GridCell.hpp"
 
 /**
  * @brief Boundary constructor.

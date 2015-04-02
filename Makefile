@@ -22,6 +22,7 @@ FILES = main \
 Torch/Torch \
 MPI/MPI_Wrapper \
 IO/DataPrinter \
+IO/DataReader \
 IO/Logger \
 IO/ProgressBar \
 IO/StreamGZ \
@@ -52,19 +53,17 @@ FULLPATHSRC = $(addprefix $(SRCDIR)/, $(SRCS))
 FULLPATHHDR = $(addprefix $(HDRDIR)/, $(HDRS))
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT) $(HDRDIR)/%.$(HDREXT)
-	@echo -n "Linking:   "
+	mkdir -p $(dir $@)
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS)
 	
 $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT)
-	@echo -n "Linking:   "
+	mkdir -p $(dir $@)
 	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS)
 
 torch : $(FULLPATHOBJ)
-	@echo -n "Compiling: "
 	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(LIBS)
 
 test : $(FULLPATHOBJ)
-	@echo -n "Compiling: "
 	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(LIBS)
 
 .PHONY: clean

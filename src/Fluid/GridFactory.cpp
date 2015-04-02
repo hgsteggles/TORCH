@@ -1,11 +1,16 @@
 #include "GridFactory.hpp"
-#include "GridCell.hpp"
-#include "Boundary.hpp"
-#include "Parameters.hpp"
-#include "ProgressBar.hpp"
 
-#include <iostream>
-#include <cmath>
+#include <algorithm>
+#include <stdexcept>
+#include <string>
+
+#include "IO/ProgressBar.hpp"
+#include "MPI/MPI_Wrapper.hpp"
+#include "Torch/Constants.hpp"
+#include "Torch/Parameters.hpp"
+#include "Boundary.hpp"
+#include "Grid.hpp"
+#include "GridCell.hpp"
 
 static int calcCoreCells(int nx, int nproc, int iproc) {
 	int ncells = nx/nproc;
@@ -80,7 +85,8 @@ Grid GridFactory::createGrid(const std::shared_ptr<Constants>& c, const GridPara
 
 	// Set Grid wall locations.
 	grid.setLeftX((int)firstLastCell.first->xc[0]);
-	grid.setRightX((int)firstLastCell.second->xc[0]);
+	grid.setRightX((int)(firstLastCell.second->xc[0]+1));
+
 
 	return std::move(grid);
 }
@@ -116,7 +122,7 @@ GridFactory::GridCellPair GridFactory::buildGrid(const Coords& ncells, int nd, i
 		}
 		else {
 			newcptr->xc[0] = start_xc + 0.5;
-			for (unsigned int i = 1; i < nd; ++i)
+			for (int i = 1; i < nd; ++i)
 				newcptr->xc[i] = 0.5;
 			firstCell = newcptr;
 		}
@@ -129,14 +135,13 @@ GridFactory::GridCellPair GridFactory::buildGrid(const Coords& ncells, int nd, i
 
 DualIntrusiveContainer<GridCell> GridFactory::zipList(const GridCellPair& firstLastCell, const Coords& xs, int radius, int nd) {
 	GridCell* fcausal = Grid::getNearestCell(xs, firstLastCell);
-	GridCell *oldwptr = nullptr, *startcptr = nullptr, *oldcptr = nullptr;
 	GridCell *startwptr = Grid::locate(xs, firstLastCell.first);
 
 	CellContainer windCells, causalCells;
 
 	for (GridCell *cptr = fcausal; cptr != nullptr; cptr = Grid::nextCausal(cptr, fcausal, nd)) {
 		double dist2 = 0;
-		for (unsigned int idim = 0; idim < nd; ++idim)
+		for (int idim = 0; idim < nd; ++idim)
 			dist2 += (cptr->xc[idim] - xs[idim])*(cptr->xc[idim] - xs[idim]);
 		if (dist2 <= radius*radius || cptr == startwptr)
 			windCells.push_back(cptr);

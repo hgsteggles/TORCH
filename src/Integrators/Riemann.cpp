@@ -1,9 +1,14 @@
 #include "Riemann.hpp"
 
-#include "Eigen/Dense"
-
+#include <array>
 #include <cmath>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
+
+#include "Eigen/Dense"
+#include "Fluid/GridCell.hpp"
 
 std::string printQ(const FluidArray& Q) {
 	std::stringstream out;
@@ -11,6 +16,7 @@ std::string printQ(const FluidArray& Q) {
 	out << "density  = " << Q[UID::DEN] << std::endl;
 	out << "pressure = " << Q[UID::PRE] << std::endl;
 	out << "hii      = " << Q[UID::HII] << std::endl;
+	out << "hii      = " << Q[UID::ADV] << std::endl;
 	out << "vel0     = " << Q[UID::VEL+0] << std::endl;
 	out << "vel1     = " << Q[UID::VEL+1] << std::endl;
 	out << "vel2     = " << Q[UID::VEL+2] << std::endl;
@@ -77,6 +83,7 @@ void HartenLaxLeerContactSolver::solve(FluidArray& F, const FluidArray& Q_l, con
 		U_clr[UID::VEL+dim] = A_lr*S_c;
 		U_clr[UID::PRE] = A_lr*((U_lr[UID::PRE]/Q_lr[UID::DEN]) + (S_c-Q_lr[UID::VEL+dim])*(S_c+Q_lr[UID::PRE]/(Q_lr[UID::DEN]*(S_lr-Q_lr[UID::VEL+dim]))));
 		U_clr[UID::HII] = A_lr*Q_lr[UID::HII];
+		U_clr[UID::ADV] = A_lr*Q_lr[UID::ADV];
 
 		for (int i = 0; i < UID::N; ++i)
 			F[i] = F_lr[i] + S_lr*(U_clr[i] - U_lr[i]);

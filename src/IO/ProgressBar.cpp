@@ -1,8 +1,6 @@
 #include "ProgressBar.hpp"
 
-#include <stdio.h>
 #include <iostream>
-#include <iomanip>
 
 
 ProgressBar::ProgressBar(double tmax, int cpoint, const std::string msg, bool debug)

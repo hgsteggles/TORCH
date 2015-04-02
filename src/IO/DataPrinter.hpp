@@ -17,11 +17,10 @@
 #ifndef DATAPRINTER_HPP_
 #define DATAPRINTER_HPP_
 
-#include "MPI_Wrapper.hpp"
-
 #include <map>
-#include <vector>
 #include <memory>
+#include <string>
+#include <vector>
 
 class PrintParameters;
 class Converter;
@@ -48,6 +47,7 @@ public:
 	void printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydro, const Fluid& fluid);
 	void printBinary2D(const int step, const double t, const Grid& grid) const;
 	void print2D(const std::string& append_name, const double t, const Grid& grid) const;
+	void printMinMax(const std::string& filename, const Grid& grid) const;
 	void printHeating(const int step, const double t, const Grid& grid) const;
 	void printVariables(const int step, const double t, const Grid& grid) const;
 	void printVariable(const int step, const double t, const Grid& grid) const;

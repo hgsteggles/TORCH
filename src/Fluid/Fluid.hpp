@@ -11,13 +11,12 @@
 #ifndef FLUID_HPP_
 #define FLUID_HPP_
 
-#include "Parameters.hpp"
-#include "Star.hpp"
-#include "Grid.hpp"
-#include "GridCell.hpp"
-
 #include <memory>
-#include <cmath>
+
+#include "Torch/Common.hpp"
+#include "Torch/Parameters.hpp"
+#include "Grid.hpp"
+#include "Star.hpp"
 
 class Constants;
 

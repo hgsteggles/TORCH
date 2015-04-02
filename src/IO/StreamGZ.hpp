@@ -29,9 +29,9 @@
 #ifndef STREAMGZ_HPP_
 #define STREAMGZ_HPP_
 
-#include <iostream>
-#include <fstream>
+#include <libio.h>
 #include <zlib.h>
+#include <iostream>
 
 class StreambufGZ : public std::streambuf {
 private:

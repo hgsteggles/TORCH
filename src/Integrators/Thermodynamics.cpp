@@ -1,14 +1,21 @@
 #include "Thermodynamics.hpp"
-#include "Fluid.hpp"
-#include "Grid.hpp"
-#include "GridCell.hpp"
-#include "Radiation.hpp"
-#include "Star.hpp"
-#include "Converter.hpp"
-#include "Constants.hpp"
-#include "MPI_Wrapper.hpp"
-#include "Boundary.hpp"
-#include "Constants.hpp"
+
+#include <bits/forward_list.h>
+#include <algorithm>
+#include <cmath>
+#include <complex>
+#include <utility>
+
+#include "Fluid/Boundary.hpp"
+#include "Fluid/Fluid.hpp"
+#include "Fluid/Grid.hpp"
+#include "Fluid/GridCell.hpp"
+#include "Fluid/Star.hpp"
+#include "MPI/MPI_Wrapper.hpp"
+#include "Torch/Common.hpp"
+#include "Torch/Constants.hpp"
+#include "Torch/Converter.hpp"
+#include "Torch/Parameters.hpp"
 
 Thermodynamics::Thermodynamics()
 : Integrator("Thermodynamics")
@@ -41,8 +48,8 @@ void Thermodynamics::initialise(std::shared_ptr<Constants> c, ThermoParameters t
 	m_irh_a = m_consts->converter.toCodeUnits(7.7e-32, 1.0, 4.0, -2.0);
 	m_irh_b = m_consts->converter.toCodeUnits(3.0e4, 0.0, -3.0, 0.0);
 	m_crh = m_consts->converter.toCodeUnits(5.0e-27, 1.0, 2.0, -3.0);
-	m_T_min = 300;
-	m_T_soft = 500;
+	m_T_min = 100;
+	m_T_soft = 300;
 
 	initCollisionalExcitationHI(m_consts->converter);
 	initRecombinationHII(m_consts->converter);
@@ -197,9 +204,13 @@ void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
 		rayTrace(fluid);
 
 	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+		if (cell.Q[UID::ADV] < m_thermoHII_Switch) {
+			cell.T[TID::RATE] = 0;
+			continue;
+		}
 		double nH = m_massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
 		double HIIFRAC = cell.Q[UID::HII];
-		double ne = nH*(HIIFRAC); //Ionized hydrogen no. density.
+		double ne = nH*(HIIFRAC); //Ionised hydrogen no. density.
 		double nn = nH*(1.0-HIIFRAC); //Neutral hydrogen no. density.
 		double T = fluid.calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]);
 
@@ -238,7 +249,7 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		return;
 
 	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
-		if (cell.Q[UID::HII] < m_thermoHII_Switch) {
+		if (cell.Q[UID::ADV] < m_thermoHII_Switch) {
 			cell.T[TID::RATE] = 0;
 			continue;
 		}
@@ -268,9 +279,9 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 			double pressure = cell.Q[UID::PRE] + rate*rate2dpre;
 			double subcycleT = pressure*pre2temp;
 			// Fix pressure and temperature.
-			if (pressure < m_consts->pfloor || subcycleT < m_consts->tfloor) {
-				pressure = std::max(m_consts->tfloor*temp2pre, m_consts->pfloor);
-				subcycleT = m_consts->tfloor;
+			if (pressure < m_consts->pfloor || subcycleT < m_T_min) {
+				pressure = std::max(m_T_min*temp2pre, m_consts->pfloor);
+				subcycleT = m_T_min;
 			}
 
 			// Subcycling.
@@ -287,10 +298,10 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 				pressure += subcycleRate*rate2dpre;
 				subcycleT = pressure*pre2temp;
 				// Fix pressure and temperature and heating rate.
-				if (pressure < m_consts->pfloor || subcycleT < m_consts->tfloor) {
-					double pfloor = std::max(m_consts->tfloor*temp2pre, m_consts->pfloor);
+				if (pressure < m_consts->pfloor || subcycleT < m_T_min) {
+					double pfloor = std::max(m_T_min*temp2pre, m_consts->pfloor);
 					subcycleRate += (pfloor - pressure)*dpre2rate;
-					subcycleT = m_consts->tfloor;
+					subcycleT = m_T_min;
 					pressure = pfloor;
 				}
 

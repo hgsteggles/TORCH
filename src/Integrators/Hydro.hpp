@@ -21,9 +21,12 @@
 #ifndef HYDRO_HPP_
 #define HYDRO_HPP_
 
+#include <memory>
+
+#include "Torch/Common.hpp"
 #include "Integrator.hpp"
-#include "SlopeLimiter.hpp"
 #include "Riemann.hpp"
+#include "SlopeLimiter.hpp"
 
 class Fluid;
 class HydroParameters;

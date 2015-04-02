@@ -10,8 +10,10 @@
 #ifndef COMMON_HPP_
 #define COMMON_HPP_
 
-//#include "GridCell.hpp"
-#include "Container.hpp"
+#include <stddef.h>
+#include <array>
+
+#include "Fluid/Container.hpp"
 
 class Boundary;
 class GridCell;
@@ -21,7 +23,7 @@ template <class T, size_t ROW, size_t COL>
 using Array2D = std::array<std::array<T, COL>, ROW>;
 
 struct UID {
-	enum ID {DEN, PRE, HII, VEL, N=6};
+	enum ID {DEN, PRE, HII, ADV, VEL, N=7};
 };
 struct RID {
 	enum ID {HII_A, TAU, TAU_A, DTAU, DTAU_A, HEAT, N};

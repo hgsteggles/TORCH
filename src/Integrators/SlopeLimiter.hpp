@@ -10,9 +10,8 @@
 #ifndef SLOPELIMITER_HPP_
 #define SLOPELIMITER_HPP_
 
-#include <functional>
 #include <memory>
-#include <iostream>
+#include <string>
 
 enum class LimiterName : unsigned int {MONOTONISED_CENTRAL, SUPERBEE, MINMOD, MAXMOD, FALLE};
 

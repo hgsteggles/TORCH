@@ -36,15 +36,13 @@
 #ifndef RADIATION_HPP_
 #define RADIATION_HPP_
 
-#include "Integrator.hpp"
-#include "Constants.hpp"
-#include "Common.hpp"
-#include "SplineData.hpp"
-
-#include <stdlib.h>
-#include <vector>
 #include <memory>
-#include <array>
+#include <string>
+
+#include "Torch/Common.hpp"
+#include "Torch/Constants.hpp"
+#include "Integrator.hpp"
+#include "SplineData.hpp"
 
 class GridCell;
 class Fluid;

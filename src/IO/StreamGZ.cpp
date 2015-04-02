@@ -27,8 +27,7 @@
 // ============================================================================
 
 #include "StreamGZ.hpp"
-#include <iostream>
-#include <string>
+
 #include <cstring>
 
 StreambufGZ* StreambufGZ::open( const char* name, int open_mode) {

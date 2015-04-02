@@ -1,6 +1,10 @@
 #include "MPI_Wrapper.hpp"
-#include <sstream>
+
+#include <stdlib.h>
 #include <iostream>
+#include <sstream>
+
+#include <mpi/mpi.h>
 
 /**
  * @brief MPIHandler constructor.

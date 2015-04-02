@@ -1,20 +1,21 @@
 #include "DataPrinter.hpp"
-#include "Fluid.hpp"
-#include "GridFactory.hpp"
-#include "Radiation.hpp"
-#include "Hydro.hpp"
-#include "Constants.hpp"
-#include "GridCell.hpp"
-#include "Star.hpp"
-#include "Converter.hpp"
+#include "Fluid/Fluid.hpp"
+#include "Fluid/GridFactory.hpp"
+#include "Integrators/Radiation.hpp"
+#include "Integrators/Hydro.hpp"
+#include "Torch/Constants.hpp"
+#include "Fluid/GridCell.hpp"
+#include "Fluid/Star.hpp"
+#include "Torch/Converter.hpp"
 #include "StreamGZ.hpp"
+#include "MPI/MPI_Wrapper.hpp"
 
 #include <fstream>
 #include <sstream>
 #include <vector>
 #include <cmath>
 #include <iomanip>
-#include <string.h>
+#include <string>
 
 void print(std::string str) {
 	std::cout << str << std::endl;
@@ -176,8 +177,70 @@ void DataPrinter::print2D(const std::string& append_name, const double t, const 
 	});
 }
 
+void DataPrinter::printMinMax(const std::string& filename, const Grid& grid) const {
+	enum MMID {DEN, PRE, HII, VEL, HIIDEN = 6, TEM, KE, N};
+	double maxQ[MMID::N];
+	double minQ[MMID::N];
+	double tempQ[MMID::N];
+
+	int i = 0;
+	for (GridCell& cell : grid.getCells()) {
+		tempQ[MMID::DEN] = cell.Q[UID::DEN];
+		tempQ[MMID::PRE] = cell.Q[UID::PRE];
+		tempQ[MMID::HII] = cell.Q[UID::HII];
+		tempQ[MMID::VEL+0] = cell.Q[UID::VEL+0];
+		tempQ[MMID::VEL+1] = cell.Q[UID::VEL+1];
+		tempQ[MMID::VEL+2] = cell.Q[UID::VEL+2];
+		tempQ[MMID::HIIDEN] = tempQ[MMID::HII]*tempQ[MMID::DEN];
+		tempQ[MMID::TEM] = (tempQ[MMID::PRE]/tempQ[MMID::DEN])/(consts->specificGasConstant*(tempQ[MMID::HII]+1));
+		tempQ[MMID::KE] = 0;
+		for (int idim = 0; idim < consts->nd; ++idim)
+			tempQ[MMID::KE] += 0.5*tempQ[MMID::DEN]*tempQ[MMID::VEL+idim]*tempQ[MMID::VEL+idim];
+
+		if (i == 0) {
+			for (int mmid = 0; mmid < MMID::N; ++mmid) {
+				maxQ[mmid] = tempQ[mmid];
+				minQ[mmid] = tempQ[mmid];
+			}
+			++i;
+		}
+		else {
+			for (int mmid = 0; mmid < MMID::N; ++mmid) {
+				maxQ[mmid] = std::max(maxQ[mmid], tempQ[mmid]);
+				minQ[mmid] = std::min(minQ[mmid], tempQ[mmid]);
+			}
+		}
+	}
+
+	// Creating filename.
+	std::ostringstream os;
+	os << dir2D << "/" << filename;
+
+	std::ofstream file(os.str().c_str(), std::ios_base::app);
+	if (!file)
+		throw std::runtime_error("DataPrinter::printMinMax: unable to open" + os.str());
+
+	// Writing data to file.
+	file << std::setprecision(10) << std::scientific;
+
+	file << "==================================================" << '\n';
+	file << "Time: " << grid.currentTime << '\n';
+	file << "==================================================" << '\n';
+	file << "Density:     " << consts->converter.fromCodeUnits(minQ[MMID::DEN], 1, -3, 0) << '\t' << consts->converter.fromCodeUnits(maxQ[MMID::DEN], 1, -3, 0) << '\n';
+	file << "Pressure:    " << consts->converter.fromCodeUnits(minQ[MMID::PRE], 1, -1, -2) << '\t' << consts->converter.fromCodeUnits(maxQ[MMID::PRE], 1, -1, -2) << '\n';
+	file << "HII:         " << minQ[MMID::HII] << '\t' << maxQ[MMID::HII] << '\n';
+	file << "VEL[0]:      " << consts->converter.fromCodeUnits(minQ[MMID::VEL+0], 0, 1, -1) << '\t' << consts->converter.fromCodeUnits(maxQ[MMID::VEL+0], 0, 1, -1) << '\n';
+	file << "VEL[1]:      " << consts->converter.fromCodeUnits(minQ[MMID::VEL+1], 0, 1, -1) << '\t' << consts->converter.fromCodeUnits(maxQ[MMID::VEL+1], 0, 1, -1) << '\n';
+	file << "VEL[2]:      " << consts->converter.fromCodeUnits(minQ[MMID::VEL+2], 0, 1, -1) << '\t' << consts->converter.fromCodeUnits(maxQ[MMID::VEL+2], 0, 1, -1) << '\n';
+	file << "HII Density: " << consts->converter.fromCodeUnits(minQ[MMID::HIIDEN], 1, -3, 0) << '\t' << consts->converter.fromCodeUnits(maxQ[MMID::HIIDEN], 1, -3, 0) << '\n';
+	file << "Temperature: " << minQ[MMID::TEM] << '\t' << maxQ[MMID::TEM] << '\n';
+	file << "K. Energy:   " << consts->converter.fromCodeUnits(minQ[MMID::KE], 1, -1, -2) << '\t' << consts->converter.fromCodeUnits(maxQ[MMID::KE], 1, -1, -2) << std::endl;
+
+	file.close();
+}
+
 /**
- * @brief Calculates and prints the location of the ionization front from a Star that is located at the origin.
+ * @brief Calculates and prints the location of the ionisation front from a Star that is located at the origin.
  * @param t Current simulation time.
  * @param scale For conversion from unit-less variables to variables in cgs units.
  * @param rad Radiation provides this method with radiation parameters.

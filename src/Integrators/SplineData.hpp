@@ -10,6 +10,7 @@
 #ifndef SPLINEDATA_HPP_
 #define SPLINEDATA_HPP_
 
+#include <utility>
 #include <vector>
 
 /**

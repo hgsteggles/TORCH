@@ -1,7 +1,10 @@
 #include "Grid.hpp"
-#include "Boundary.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
+
+#include "Boundary.hpp"
 
 
 static int safe_round(double val) {
@@ -20,6 +23,8 @@ Grid::Grid(Grid&& o)
 	coreCells = o.coreCells;
 	m_leftX = o.m_leftX;
 	m_rightX = o.m_rightX;
+	leftBoundaryPos = o.leftBoundaryPos;
+	rightBoundaryPos = o.rightBoundaryPos;
 	currentTime = o.currentTime;
 	deltatime = o.deltatime;
 	dx = o.dx;
@@ -39,6 +44,8 @@ Grid& Grid::operator=(Grid&& o) {
 	coreCells = o.coreCells;
 	m_leftX = o.m_leftX;
 	m_rightX = o.m_rightX;
+	leftBoundaryPos = o.leftBoundaryPos;
+	rightBoundaryPos = o.rightBoundaryPos;
 	currentTime = o.currentTime;
 	deltatime = o.deltatime;
 	dx = o.dx;
@@ -397,4 +404,5 @@ GridCell* Grid::getNearestCell(const Coords& x, const GridCellPair& firstLastCel
 		search_x[2] = firstLastCell.second->xc[2];
 	return locate(search_x, firstLastCell.first);
 }
+
 

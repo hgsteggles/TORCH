@@ -19,12 +19,11 @@
 #ifndef STAR_HPP_
 #define STAR_HPP_
 
-#include "Common.hpp"
-#include "Parameters.hpp"
-
-#include <vector>
+#include <array>
 #include <memory>
-#include <forward_list>
+
+#include "Torch/Common.hpp"
+#include "Torch/Parameters.hpp"
 
 class GridCell;
 class Grid3D;

@@ -10,9 +10,8 @@
 #ifndef TIMER_HPP_
 #define TIMER_HPP_
 
-#include <cstdint>
-#include <string>
 #include <chrono>
+#include <string>
 
 class Timer {
 	using TimePoint = typename std::chrono::time_point<std::chrono::system_clock>;

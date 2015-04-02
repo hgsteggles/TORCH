@@ -21,12 +21,11 @@
 #ifndef GRIDCELL_HPP_
 #define GRIDCELL_HPP_
 
-#include "Constants.hpp"
-#include "Common.hpp"
-
 #include <array>
-#include <cstdlib>
 #include <string>
+
+#include "Torch/Common.hpp"
+#include "Container.hpp"
 
 void UfromQ(FluidArray& u, const FluidArray& q, double gamma, int nd);
 void QfromU(FluidArray& q, const FluidArray& u, double gamma, int nd);
@@ -50,6 +49,7 @@ public:
 	std::array<GridJoin*, 3> ljoin = std::array<GridJoin*, 3> { nullptr, nullptr, nullptr }; //!< Contains pointers to GridJoins that lie on the left side of this GridCell.
 	std::array<GridCell*, 3> right = std::array<GridCell*, 3> { nullptr, nullptr, nullptr }; //!< Contains pointers to GridCells that lie on the right side of this GridCell.
 	std::array<GridCell*, 3> left = std::array<GridCell*, 3> { nullptr, nullptr, nullptr }; //!< Contains pointers to GridCells that lie on the left side of this GridCell.
+	std::array<double, 3> GRAV;
 	//GridCell* next; //!< Points to the next GridCell in a list that Grid uses to clean up GridCells.
 	FluidArray UDOT; //!< Contains rate of change of conservative fluid variable values.
 	FluidArray U; //!< Contains conservative fluid variable values.

@@ -9,12 +9,12 @@
 #ifndef CONSTANTS_H_
 #define CONSTANTS_H_
 
-#include "Converter.hpp"
-#include "Common.hpp"
-
-#include <string>
 #include <map>
 #include <stdexcept>
+#include <string>
+
+#include "Common.hpp"
+#include "Converter.hpp"
 
 class Constants;
 

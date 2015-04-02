@@ -1,10 +1,12 @@
 #include "Parameters.hpp"
-#include "Constants.hpp"
 
+#include <stddef.h>
 #include <algorithm>
 
+#include "Constants.hpp"
+#include "Converter.hpp"
+
 void TorchParameters::initialise(std::shared_ptr<Constants>& consts) {
-	nHI = consts->converter.toCodeUnits(nHI, 0, -3, 0);
 	tmax = consts->converter.toCodeUnits(tmax, 0, 0, 1);
 	dt_max = tmax/10.0;
 	sideLength = consts->converter.toCodeUnits(sideLength, 0, 1, 0);

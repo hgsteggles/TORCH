@@ -1,15 +1,17 @@
 #include "Torch.hpp"
-#include "ProgressBar.hpp"
-#include "GridCell.hpp"
+#include "IO/ProgressBar.hpp"
+#include "Fluid/GridCell.hpp"
 #include "Constants.hpp"
-#include "Logger.hpp"
-#include "Timer.hpp"
+#include "IO/Logger.hpp"
+#include "Misc/Timer.hpp"
+#include "IO/DataReader.hpp"
 
 #include <chrono>
 #include <fstream>
 #include <string>
 #include <iostream>
 #include <assert.h>
+#include <cmath>
 
 #include "selene.h"
 
@@ -21,6 +23,7 @@ void Torch::initialise(TorchParameters p) {
 
 	p.initialise(consts);
 
+	/*
 	mpihandler.serial([&] () {
 		if (p.initialConditions.compare("") != 0) {
 			std::ifstream myfile(p.initialConditions, std::ios_base::in);
@@ -42,6 +45,16 @@ void Torch::initialise(TorchParameters p) {
 		p.nd = 2;
 	else
 		p.nd = 3;
+	*/
+
+	DataParameters datap;
+	if (p.initialConditions.compare("") != 0) {
+		datap = DataReader::readDataParameters(p.initialConditions);
+		p.ncells = datap.ncells;
+		p.sideLength = datap.sideLength;
+		p.nd = datap.nd;
+	}
+
 	consts->nd = p.nd;
 
 	consts->dfloor = p.dfloor;
@@ -52,6 +65,7 @@ void Torch::initialise(TorchParameters p) {
 
 	fluid.initialise(consts, p.getFluidParameters());
 	fluid.initialiseGrid(p.getGridParameters(), p.getStarParameters());
+	fluid.getGrid().currentTime = consts->converter.toCodeUnits(datap.time, 0, 0, 1);
 
 	hydrodynamics.initialise(consts);
 
@@ -74,7 +88,6 @@ void Torch::initialise(TorchParameters p) {
 	thermodynamics.initialise(consts, p.getThermoParameters());
 
 	initialConditions = p.initialConditions;
-	nHI = p.nHI;
 	radiation_on = p.radiation_on;
 	cooling_on = p.cooling_on;
 	debug = p.debug;
@@ -91,26 +104,29 @@ void Torch::initialise(TorchParameters p) {
 
 	if (initialConditions.compare("") == 0)
 		setUpLua("refdata/setup.lua", p.setupID);
-	else
-		setUp(initialConditions);
-}
-
-void Torch::setUp() {
-	for (GridCell& cell : fluid.getGrid().getCells()) {
-		double H = consts->converter.toCodeUnits(consts->converter.PC_2_CM(0.05), 0, 1, 0);
-		double z = (cell.xc[1] - fluid.getStar().xc[1])*fluid.getGrid().dx[1]/H;
-		double rho = nHI*consts->hydrogenMass*std::exp(z);
-		double pre = (consts->specificGasConstant)*rho*radiation.THI;
-		cell.Q[UID::DEN] = rho;
-		cell.Q[UID::PRE] = pre;
-
-		cell.heatCapacityRatio = fluid.heatCapacityRatio;
+	else {
+		//setUp(initialConditions);
+		DataReader::readGrid(p.initialConditions, datap, fluid);
+		Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUp(initialConditionsFile) complete.");
 	}
+	if (p.patchfilename.compare("") != 0)
+		DataReader::patchGrid(p.patchfilename, p.patchoffset, fluid);
+	toCodeUnits();
 	fluid.fixPrimitives();
 	fluid.globalUfromQ();
 
 	radiation.initField(fluid);
-	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUp() complete.");
+}
+
+void Torch::toCodeUnits() {
+	for (GridCell& cell : fluid.getGrid().getCells()) {
+		cell.Q[UID::DEN] = consts->converter.toCodeUnits(cell.Q[UID::DEN], 1, -3, 0);
+		cell.Q[UID::PRE] = consts->converter.toCodeUnits(cell.Q[UID::PRE], 1, -1, -2);
+		for (int idim = 0; idim < consts->nd; ++idim)
+			cell.Q[UID::VEL+idim] = consts->converter.toCodeUnits(cell.Q[UID::VEL+idim], 0, 1, -1);
+		for (int idim = 0; idim < consts->nd; ++idim)
+			cell.GRAV[idim] = consts->converter.toCodeUnits(cell.GRAV[idim], 0, 1, -2);
+	}
 }
 
 void Torch::setUp(std::string filename) {
@@ -134,24 +150,17 @@ void Torch::setUp(std::string filename) {
 				myfile >> ignore;
 
 			myfile >> cell.Q[UID::DEN];
-			cell.Q[UID::DEN] = consts->converter.toCodeUnits(cell.Q[UID::DEN], 1, -3, 0);
 			myfile >> cell.Q[UID::PRE];
-			cell.Q[UID::PRE] = consts->converter.toCodeUnits(cell.Q[UID::PRE], 1, -1, -2);
 			myfile >> cell.Q[UID::HII];
 
 			for (int idim = 0; idim < consts->nd; ++idim) {
 				myfile >> cell.Q[UID::VEL+idim];
-				cell.Q[UID::VEL+idim] = consts->converter.toCodeUnits(cell.Q[UID::VEL+idim], 0, 1, -1);
 			}
 			cell.heatCapacityRatio = fluid.heatCapacityRatio;
 		}
 		myfile.close();
 	});
 
-	fluid.fixPrimitives();
-	fluid.globalUfromQ();
-
-	radiation.initField(fluid);
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUp(initialConditionsFile) complete.");
 }
 
@@ -171,8 +180,6 @@ void Torch::setUpLua(std::string filename, int setupID) {
 			if (setupID != 0)
 				luaState["setup_set"](setupID);
 
-			std::cout << (double)luaState["nHI"] << std::endl;
-
 			for (GridCell& cell : fluid.getGrid().getCells()) {
 				std::array<double, 3> xc, xs;
 				for (int i = 0; i < 3; ++i) {
@@ -185,24 +192,16 @@ void Torch::setUpLua(std::string filename, int setupID) {
 						cell.Q[UID::HII],
 						cell.Q[UID::VEL],
 						cell.Q[UID::VEL+1],
-						cell.Q[UID::VEL+2])
+						cell.Q[UID::VEL+2],
+						cell.GRAV[0],
+						cell.GRAV[1],
+						cell.GRAV[2])
 					= luaState["initialise"](xc[0], xc[1], xc[2], xs[0], xs[1], xs[2]);
-
-				cell.Q[UID::VEL+2] = consts->converter.toCodeUnits(cell.Q[UID::VEL+2], 0, 1, -1);
-				cell.Q[UID::VEL+1] = consts->converter.toCodeUnits(cell.Q[UID::VEL+1], 0, 1, -1);
-				cell.Q[UID::VEL+0] = consts->converter.toCodeUnits(cell.Q[UID::VEL+0], 0, 1, -1);
-				cell.Q[UID::PRE] = consts->converter.toCodeUnits(cell.Q[UID::PRE], 1, -1, -2);
-				cell.Q[UID::DEN] = consts->converter.toCodeUnits(cell.Q[UID::DEN], 1, -3, 0);
 
 				cell.heatCapacityRatio = fluid.heatCapacityRatio;
 			}
 		}
 	});
-
-	fluid.fixPrimitives();
-	fluid.globalUfromQ();
-
-	radiation.initField(fluid);
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUpLua() complete.");
 }
 
@@ -334,6 +333,7 @@ void Torch::hydroStep(double dt, bool hasCalculatedHeatFlux) {
 	hydrodynamics.updateSourceTerms(dt, fluid);
 
 	fluid.advSolution(dt/2.0);
+	fluid.fixSolution();
 
 	// Corrector.
 	fluid.globalQfromU();

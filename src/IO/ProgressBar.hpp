@@ -10,7 +10,6 @@
 #ifndef PROGRESSBAR_HPP_
 #define PROGRESSBAR_HPP_
 
-#include <stdint.h>
 #include <chrono>
 #include <string>
 

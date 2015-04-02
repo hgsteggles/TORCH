@@ -1,8 +1,7 @@
 #include "GridCell.hpp"
 
-#include <stddef.h>
-#include <iostream>
 #include <cmath>
+#include <iostream>
 #include <sstream>
 
 /**
@@ -34,6 +33,7 @@ GridCell::GridCell() {
 			QL[dim][iu] = 0;
 			QR[dim][iu] = 0;
 		}
+		GRAV[dim] = 0;
 	}
 	for (int i = 0; i < UID::N; ++i) {
 		UDOT[i] = 0;
@@ -83,6 +83,7 @@ std::string GridCell::printInfo() const {
 	out << "vel+1 = " << Q[UID::VEL+1] << '\n';
 	out << "vel+2 = " << Q[UID::VEL+2] << '\n';
 	out << "hii = " << Q[UID::HII] << '\n';
+	out << "adv = " << Q[UID::ADV] << '\n';
 
 	for (int i = 0; i < 3; ++i)
 		out << "l_den[" << i << "] = " << QL[i][UID::DEN] << '\n';
@@ -94,6 +95,8 @@ std::string GridCell::printInfo() const {
 	}
 	for (int i = 0; i < 3; ++i)
 		out << "l_hii[" << i << "] = " << QL[i][UID::HII] << '\n';
+	for (int i = 0; i < 3; ++i)
+			out << "l_adv[" << i << "] = " << QL[i][UID::ADV] << '\n';
 
 	for (int i = 0; i < 3; ++i)
 		out << "r_den[" << i << "] = " << QR[i][UID::DEN] << '\n';
@@ -105,6 +108,8 @@ std::string GridCell::printInfo() const {
 	}
 	for (int i = 0; i < 3; ++i)
 		out << "r_hii[" << i << "] = " << QR[i][UID::HII] << '\n';
+	for (int i = 0; i < 3; ++i)
+		out << "r_adv[" << i << "] = " << QR[i][UID::ADV] << '\n';
 
 	out << "u_den = " << U[UID::DEN] << '\n';
 	out << "u_pre = " << U[UID::PRE] << '\n';
@@ -112,6 +117,7 @@ std::string GridCell::printInfo() const {
 	out << "u_vel+1 = " << U[UID::VEL+1] << '\n';
 	out << "u_vel+2 = " << U[UID::VEL+2] << '\n';
 	out << "u_hii = " << U[UID::HII] << '\n';
+	out << "u_adv = " << U[UID::ADV] << '\n';
 	out << "heatCapacityRatio = " << heatCapacityRatio << '\n';
 	out << "tau = " << R[RID::TAU] << '\n';
 	out << "tau_a = " << R[RID::TAU_A] << '\n';
@@ -192,6 +198,7 @@ void UfromQ(FluidArray& u, const FluidArray& q, double gamma, int nd) {
 	}
 	u[UID::PRE] = q[UID::PRE]/(gamma - 1.0) + ke;
 	u[UID::HII] = q[UID::HII]*q[UID::DEN];
+	u[UID::ADV] = q[UID::ADV]*q[UID::DEN];
 }
 
 void QfromU(FluidArray& q, const FluidArray& u, double gamma, int nd) {
@@ -203,6 +210,7 @@ void QfromU(FluidArray& q, const FluidArray& u, double gamma, int nd) {
 	}
 	q[UID::PRE] = (u[UID::PRE] - ke)*(gamma - 1.0);
 	q[UID::HII] = u[UID::HII]/u[UID::DEN];
+	q[UID::ADV] = u[UID::ADV]/u[UID::DEN];
 }
 
 void FfromU(FluidArray& f, const FluidArray& u, double gamma, int nd, int dim) {
@@ -216,6 +224,7 @@ void FfromU(FluidArray& f, const FluidArray& u, double gamma, int nd, int dim) {
 	f[UID::VEL+dim] += pressure;
 	f[UID::PRE] = u[UID::VEL+dim]*(u[UID::PRE] + pressure)/u[UID::DEN];
 	f[UID::HII] = u[UID::VEL+dim]*u[UID::HII]/u[UID::DEN];
+	f[UID::ADV] = u[UID::VEL+dim]*u[UID::ADV]/u[UID::DEN];
 }
 void FfromQ(FluidArray& f, const FluidArray& q, double gamma, int nd, const int dim) {
 	f[UID::DEN] = q[UID::DEN]*q[UID::VEL+dim];
@@ -229,5 +238,6 @@ void FfromQ(FluidArray& f, const FluidArray& q, double gamma, int nd, const int 
 	double g2 = gamma/(gamma - 1.0);
 	f[UID::PRE] = q[UID::VEL+dim]*(g2*q[UID::PRE] + ke);
 	f[UID::HII] = q[UID::DEN]*q[UID::VEL+dim]*q[UID::HII];
+	f[UID::ADV] = q[UID::DEN]*q[UID::VEL+dim]*q[UID::ADV];
 }
 

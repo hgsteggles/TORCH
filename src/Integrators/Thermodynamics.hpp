@@ -16,12 +16,11 @@
 #ifndef THERMODYNAMICS_HPP_
 #define THERMODYNAMICS_HPP_
 
+#include <memory>
+#include <vector>
+
 #include "Integrator.hpp"
 #include "SplineData.hpp"
-
-#include <vector>
-#include <cmath>
-#include <memory>
 
 class Converter;
 class Star;
@@ -74,6 +73,7 @@ private:
 	bool m_isSubcycling = false;
 	double m_thermoHII_Switch = 0;
 	double m_heatingAmplification = 1.0; //!< Heating amplification/reduction hack.
+	double m_coolingFloorTemperature = 300;
 	double m_massFractionH = 0;
 
 	double m_z0 = 0; //!< ISM oxygen abundance.

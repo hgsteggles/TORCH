@@ -1,18 +1,18 @@
 #include "Hydro.hpp"
-#include "Fluid.hpp"
-#include "Grid.hpp"
-#include "GridCell.hpp"
-#include "Boundary.hpp"
-#include "Star.hpp"
-#include "MPI_Wrapper.hpp"
-#include "Constants.hpp"
 
-#include <string>
-#include <limits>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <algorithm>
-#include <iterator>
+#include <stdexcept>
+#include <string>
+
+#include "Fluid/Boundary.hpp"
+#include "Fluid/Fluid.hpp"
+#include "Fluid/Grid.hpp"
+#include "Fluid/GridCell.hpp"
+#include "Fluid/Star.hpp"
+#include "MPI/MPI_Wrapper.hpp"
+#include "Torch/Constants.hpp"
 
 static void printQ(const FluidArray& Q) {
 	std::cout << "density  = " << Q[UID::DEN] << std::endl;
@@ -146,6 +146,11 @@ void Hydrodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 				cell.UDOT[i] -= (cell.rjoin[dim]->area/cell.vol)*cell.rjoin[dim]->F[i];
 				//cell.UDOT[i] -= cell.FIX[i];
 			}
+		}
+
+		for (int i = 0; i < 3; ++i) {
+			cell.UDOT[UID::VEL+i] += cell.GRAV[i];
+			cell.UDOT[UID::PRE] += cell.Q[UID::VEL+i]*cell.GRAV[i];
 		}
 
 		//Geometric.

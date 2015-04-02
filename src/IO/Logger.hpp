@@ -10,14 +10,15 @@
 #ifndef LOGGER_HPP_
 #define LOGGER_HPP_
 
-#include "MPI_Wrapper.hpp"
-
-#include <iostream>
-#include <fstream>
-#include <sstream>
+#include <ctime>
 #include <memory>
-#include <string>
 #include <mutex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <fstream>
+
+#include "../MPI/MPI_Wrapper.hpp"
 
 /**
  * @class LogPolicyInterface
