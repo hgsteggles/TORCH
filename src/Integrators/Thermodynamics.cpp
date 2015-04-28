@@ -24,7 +24,7 @@ Thermodynamics::Thermodynamics()
 void Thermodynamics::initialise(std::shared_ptr<Constants> c, ThermoParameters tp) {
 	m_consts = std::move(c);
 
-	m_isSubcycling = true;
+	m_isSubcycling = tp.thermoSubcycling;
 	m_thermoHII_Switch = tp.thermoHII_Switch;
 	m_heatingAmplification = tp.heatingAmplification;
 	m_massFractionH = tp.massFractionH;
@@ -189,9 +189,9 @@ double Thermodynamics::softLanding(const double rate, const double T) const {
 /**
  * @brief Calculates the cooling and heating rates of gas in a grid cell due to atomic processes.
  *
- * Cooling due to collisionally excited optical lines of ionized metals; collisionally
+ * Cooling due to collisionally excited optical lines of ionised metals; collisionally
  * excited lines of neutral metals; free-free and free-bound transitions of ionized
- * hydrogen; collisionally excited lines of neutral hydrogen; collisional ionization
+ * hydrogen; collisionally excited lines of neutral hydrogen; collisional ionisation
  * equilibrium-cooling; and CLOUDY PDR models.
  * Heating due to ionizing EUV photons; absorption of FUV radiation by dust grains;
  * hard X-rays deep inside the PDR; stellar radiation reprocessed by dense gas (>10^4cm-3)
@@ -261,6 +261,24 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		double rate = cell.T[TID::RATE];
 
 		double dti = std::abs(0.10*cell.U[UID::PRE]/rate);
+
+		// Pressure changes over subcycle therefore temperature does, affecting cooling rate.
+		double mu_inv = m_massFractionH*(cell.Q[UID::HII] + 1.0) + (1.0 - m_massFractionH)*0.25;
+		double pre2temp = 1.0/(mu_inv*m_consts->specificGasConstant*cell.Q[UID::DEN]);
+		double temp2pre = (mu_inv*m_consts->specificGasConstant*cell.Q[UID::DEN]);
+		double rate2dpre = std::min(dt, dti)*(cell.heatCapacityRatio - 1.0);
+		double dpre2rate = 1.0/rate2dpre;
+
+		double pressure = cell.Q[UID::PRE] + rate*rate2dpre;
+		double subcycleT = pressure*pre2temp;
+		// Fix pressure and temperature and heating rate.
+		if (pressure < m_consts->pfloor || subcycleT < m_T_min) {
+			double pfloor = std::max(m_T_min*temp2pre, m_consts->pfloor);
+			rate += (pfloor - pressure)*dpre2rate;
+			subcycleT = pfloor*pre2temp;
+			pressure = pfloor;
+		}
+
 		if (dt > dti) {
 			double dtdti = dt/dti;
 			// Number of subcycle steps and cooling step.
@@ -268,21 +286,6 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 			dti = dt / nsteps;
 			// A step has already been made.
 			--nsteps;
-
-			// Pressure changes over subcycle therefore temperature does, affecting cooling rate.
-			double mu_inv = m_massFractionH*(cell.Q[UID::HII] + 1.0) + (1.0 - m_massFractionH)*0.25;
-			double pre2temp = 1.0/(mu_inv*m_consts->specificGasConstant*cell.Q[UID::DEN]);
-			double temp2pre = (mu_inv*m_consts->specificGasConstant*cell.Q[UID::DEN]);
-			double rate2dpre = dti*(cell.heatCapacityRatio - 1.0);
-			double dpre2rate = 1.0/rate2dpre;
-
-			double pressure = cell.Q[UID::PRE] + rate*rate2dpre;
-			double subcycleT = pressure*pre2temp;
-			// Fix pressure and temperature.
-			if (pressure < m_consts->pfloor || subcycleT < m_T_min) {
-				pressure = std::max(m_T_min*temp2pre, m_consts->pfloor);
-				subcycleT = m_T_min;
-			}
 
 			// Subcycling.
 			for (int i = 0; i < nsteps; ++i) {
@@ -301,7 +304,7 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 				if (pressure < m_consts->pfloor || subcycleT < m_T_min) {
 					double pfloor = std::max(m_T_min*temp2pre, m_consts->pfloor);
 					subcycleRate += (pfloor - pressure)*dpre2rate;
-					subcycleT = m_T_min;
+					subcycleT = pfloor*pre2temp;
 					pressure = pfloor;
 				}
 
@@ -425,7 +428,8 @@ double Thermodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
 	double dt = dt_max;
 	for (GridCell& cell : fluid.getGrid().getCells()) {
 		if (cell.T[TID::RATE] != 0) {
-			double dti = std::abs(cell.U[UID::PRE]/cell.T[TID::RATE]);
+			double frac = m_isSubcycling ? 1.0 : 0.1;
+			double dti = std::abs(frac*cell.U[UID::PRE]/cell.T[TID::RATE]);
 			if (dti < dt) {
 				dt = dti;
 			}

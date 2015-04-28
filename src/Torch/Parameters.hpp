@@ -81,6 +81,7 @@ struct TorchParameters {
 
 	double thermoHII_Switch = 0;
 	double heatingAmplification = 1.0; //!< Heating amplification/reduction hack.
+	bool thermoSubcycling = true;
 
 	double massFractionH = 0; //!< Mass fraction of hydrogen.
 	double heatCapacityRatio = 0;
@@ -137,6 +138,7 @@ struct ThermoParameters {
 	double thermoHII_Switch = 0;
 	double heatingAmplification = 1.0; //!< Heating amplification/reduction hack.
 	double massFractionH = 0;
+	bool thermoSubcycling = true;
 };
 
 struct StarParameters {

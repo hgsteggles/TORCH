@@ -121,6 +121,7 @@ void parseParameters(const std::string& filename, TorchParameters& p, int param_
 
 		parseLuaVariable(luaState["Parameters"]["Thermodynamics"]["thermo_hii_switch"], p.thermoHII_Switch);
 		parseLuaVariable(luaState["Parameters"]["Thermodynamics"]["heating_amplification"], p.heatingAmplification);
+		parseLuaVariable(luaState["Parameters"]["Thermodynamics"]["thermo_subcycling"], p.thermoSubcycling);
 
 		parseLuaVariable(luaState["Parameters"]["Star"]["on"], p.star_on);
 		parseLuaVariable(luaState["Parameters"]["Star"]["cell_position_x"], p.star_position[0]);

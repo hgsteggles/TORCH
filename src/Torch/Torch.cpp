@@ -15,6 +15,16 @@
 
 #include "selene.h"
 
+int stepIDFromFilename(const std::string& filename) {
+	int lastindex = filename.find_last_of(".");
+	std::string rawname = (lastindex != std::string::npos) ? filename.substr(0, lastindex) : filename;
+
+	int underscore_index = rawname.find_last_of("_");
+	std::string stepno_string = (underscore_index != std::string::npos) ? rawname.substr(underscore_index+1) : "-1";
+
+	return std::stoi(stepno_string);
+}
+
 void Torch::initialise(TorchParameters p) {
 	MPIW& mpihandler = MPIW::Instance();
 
@@ -23,35 +33,11 @@ void Torch::initialise(TorchParameters p) {
 
 	p.initialise(consts);
 
-	/*
-	mpihandler.serial([&] () {
-		if (p.initialConditions.compare("") != 0) {
-			std::ifstream myfile(p.initialConditions, std::ios_base::in);
-			if (!myfile)
-				throw std::runtime_error("Torch::initialise: invalid input file " + p.initialConditions + ".");
-			double t;
-			int a, b, c;
-			myfile >> t >> a >> b >> c;
-			p.ncells[0] = a;
-			p.ncells[1] = b;
-			p.ncells[2] = c;
-			myfile.close();
-		}
-	});
-
-	if (p.ncells[1] == 1)
-		p.nd = 1;
-	else if (p.ncells[2] == 1)
-		p.nd = 2;
-	else
-		p.nd = 3;
-	*/
-
 	DataParameters datap;
 	if (p.initialConditions.compare("") != 0) {
 		datap = DataReader::readDataParameters(p.initialConditions);
 		p.ncells = datap.ncells;
-		p.sideLength = datap.sideLength;
+		p.sideLength = consts->converter.toCodeUnits(datap.sideLength, 0, 1, 0);
 		p.nd = datap.nd;
 	}
 
@@ -107,7 +93,8 @@ void Torch::initialise(TorchParameters p) {
 	else {
 		//setUp(initialConditions);
 		DataReader::readGrid(p.initialConditions, datap, fluid);
-		Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUp(initialConditionsFile) complete.");
+		Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::initialise: Grid read from file.");
+		stepstart = stepIDFromFilename(p.initialConditions);
 	}
 	if (p.patchfilename.compare("") != 0)
 		DataReader::patchGrid(p.patchfilename, p.patchoffset, fluid);
@@ -116,6 +103,19 @@ void Torch::initialise(TorchParameters p) {
 	fluid.globalUfromQ();
 
 	radiation.initField(fluid);
+
+	if (p.star_on && p.windCellRadius > 0) {
+		if (fluid.getStar().core == Star::Location::HERE) {
+			double edot = 0.5*fluid.getStar().massLossRate*fluid.getStar().windVelocity*fluid.getStar().windVelocity;
+			double pre = fluid.getGrid().getCells().start_ptr->Q[UID::PRE];
+			double reverse2 = std::sqrt(2.0*edot*fluid.getStar().massLossRate)/(4.0*consts->pi*pre);
+			double reverse = std::sqrt(reverse2)/fluid.getGrid().dx[0];
+			if (reverse < 5 + p.windCellRadius)
+				std::cout << "Warning: reverse shock within or close to wind injection region:" << std::endl;
+				std::cout << "         [rs = " << reverse << ", wir = " << p.windCellRadius << "]" << std::endl;
+		}
+
+	}
 }
 
 void Torch::toCodeUnits() {
@@ -210,14 +210,15 @@ void Torch::run() {
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() initial conditions set up.");
 
 	double initTime = fluid.getGrid().currentTime;
-	ProgressBar progBar = ProgressBar(tmax-initTime, 1, "Marching solution", debug);
+	ProgressBar progBar = ProgressBar(tmax, 1, "Marching solution", debug);
 
 	fluid.globalQfromU();
 	fluid.fixPrimitives();
 
 	//hydrodynamics.fixIC(fluid);
 
-	inputOutput.print2D(std::to_string(0), fluid.getGrid().currentTime, fluid.getGrid());
+	progBar.update(initTime, dt_max, mpihandler.getRank() == 0);
+	inputOutput.print2D(std::to_string((int)(100.0*initTime/tmax + 0.5)), initTime, fluid.getGrid());
 	inputOutput.printSTARBENCH(radiation, hydrodynamics, fluid);
 
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() first data dump complete.");
@@ -234,9 +235,9 @@ void Torch::run() {
 	bool isFinalPrintOn = true;
 	while (fluid.getGrid().currentTime < tmax && !m_isQuitting) {
 		double dt_nextCheckpoint = dt_max;
-		bool print_now = progBar.update(fluid.getGrid().currentTime-initTime, dt_nextCheckpoint, mpihandler.getRank() == 0);
+		bool print_now = progBar.update(fluid.getGrid().currentTime, dt_nextCheckpoint, mpihandler.getRank() == 0);
 		if (print_now) {
-			int step = (int)(100.0*(fluid.getGrid().currentTime-initTime)/(tmax-initTime) + 0.5);
+			int step = (int)(100.0*fluid.getGrid().currentTime/tmax + 0.5);
 			inputOutput.print2D(std::to_string(step), fluid.getGrid().currentTime, fluid.getGrid());
 			thermodynamics.fillHeatingArrays(fluid);
 			inputOutput.printVariables(step, fluid.getGrid().currentTime, fluid.getGrid());

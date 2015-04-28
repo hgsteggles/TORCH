@@ -53,8 +53,8 @@ int Star::getWindCellRadius() const {
 void Star::injectEnergyMomentum(CellContainer& windCells) {
 	if (mdot != 0) {
 		for (GridCell& cell : windCells) {
-			//for (int idim = 0; idim < nd; ++idim)
-			//cell.UDOT[ivel+idim] -= (mdot/cell.U[iden])*cell.U[ivel+idim];
+			//for (int idim = 0; idim < consts->nd; ++idim)
+				//cell.UDOT[UID::VEL+idim] -= (mdot/cell.U[UID::DEN])*cell.U[UID::VEL+idim];
 			cell.UDOT[UID::DEN] += mdot;
 			cell.UDOT[UID::PRE] += edot;
 			cell.UDOT[UID::HII] += (cell.U[UID::HII]/cell.U[UID::DEN])*mdot;
@@ -79,7 +79,7 @@ void Star::fixDensityPressure(CellContainer& windCells) {
 			cell.U[UID::HII] = hii*cell.U[UID::DEN];
 			double ke = 0;
 			for (int idim = 0; idim < consts->nd; ++idim) {
-				cell.U[UID::VEL+idim] = windVelocity*cell.U[UID::DEN]*(cell.xc[idim] - xc[idim])*dx[idim]/sqrt(dist2);
+				cell.U[UID::VEL+idim] = windVelocity*cell.U[UID::DEN]*(cell.xc[idim] - xc[idim])*dx[idim]/std::sqrt(dist2);
 				ke += 0.5*cell.U[UID::VEL+idim]*cell.U[UID::VEL+idim]/cell.U[UID::DEN];
 			}
 			double pre = (consts->specificGasConstant*(1.0 + cell.U[UID::HII]/cell.U[UID::DEN]))*cell.U[UID::DEN]*windTemperature;

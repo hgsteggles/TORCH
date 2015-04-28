@@ -43,6 +43,9 @@ public:
 
 	void setRiemannSolver(std::unique_ptr<RiemannSolver> riemannSolver);
 	void setSlopeLimiter(std::unique_ptr<SlopeLimiter> slopeLimiter);
+
+	bool isQuitting();
+	TorchParameters getRemapParameters();
 private:
 	std::shared_ptr<Constants> consts = nullptr;
 	DataPrinter inputOutput; //!< Module for input/output.
@@ -51,6 +54,7 @@ private:
 	Radiation radiation;
 	Thermodynamics thermodynamics;
 
+	TorchParameters remapParameters;
 	std::string initialConditions = "";
 	std::vector<ComponentID> activeComponents;
 	bool radiation_on = false;
@@ -64,6 +68,7 @@ private:
 	double pfloor = 0;
 	double tfloor = 0;
 	long steps = 0;
+	long stepstart = 0;
 	int stepCounter = 0;
 	int m_customPrintID = 0;
 

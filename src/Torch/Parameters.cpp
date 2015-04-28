@@ -70,6 +70,7 @@ ThermoParameters TorchParameters::getThermoParameters() {
 	tpar.thermoHII_Switch = thermoHII_Switch;
 	tpar.heatingAmplification = heatingAmplification;
 	tpar.massFractionH = massFractionH;
+	tpar.thermoSubcycling = thermoSubcycling;
 
 	return tpar;
 }

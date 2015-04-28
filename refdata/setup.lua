@@ -20,7 +20,8 @@ function initialise(x, y, z, xs, ys, zs)
 	local R2 = x*x + dy*dy
 	local R = math.sqrt(R2)
 
-	local den = n0*hydrogenMass*math.pow(1 + R2/rc2, -alpha)
+	--local den = n0*hydrogenMass*math.pow(1 + R2/rc2, -alpha)
+	local den = nHI*hydrogenMass
 	local pre = specificGasConstant*den*T
 
 	local hii = 0
@@ -32,8 +33,8 @@ function initialise(x, y, z, xs, ys, zs)
 	local g_coeff = -2.0*n0*hydrogenMass*specificGasConstant*T*alpha/rc2
 	local g_r = g_coeff*R*math.pow(1 + R2/rc2, -alpha-1.0)
 
-	local grav0 = g_r*x/R
-	local grav1 = -g_r*dy/R
+	local grav0 = 0
+	local grav1 = 0
 	local grav2 = 0
 
 	return den, pre, hii, v0, v1, v2, grav0, grav1, grav2
