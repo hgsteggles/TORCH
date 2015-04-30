@@ -43,7 +43,7 @@ private:
 class HartenLaxLeerContactSolver : public RiemannSolver {
 public:
 	HartenLaxLeerContactSolver(int nd);
-	void solve(FluidArray& F, const FluidArray& Q_l, const FluidArray& Q_r, double a_l2, double a_r2, double gamma, int dim) const;
+	virtual void solve(FluidArray& F, const FluidArray& Q_l, const FluidArray& Q_r, double a_l2, double a_r2, double gamma, int dim) const;
 };
 
 /**
@@ -56,7 +56,7 @@ public:
 class HartenLaxLeerSolver : public RiemannSolver {
 public:
 	HartenLaxLeerSolver(int nd);
-	void solve(FluidArray& F, const FluidArray& Q_l, const FluidArray& Q_r, double a_l2, double a_r2, double gamma, int dim) const;
+	virtual void solve(FluidArray& F, const FluidArray& Q_l, const FluidArray& Q_r, double a_l2, double a_r2, double gamma, int dim) const;
 };
 
 /**
@@ -69,7 +69,7 @@ public:
 class RotatedHartenLaxLeerSolver : public RiemannSolver {
 public:
 	RotatedHartenLaxLeerSolver(int nd);
-	void solve(FluidArray& F, const FluidArray& Q_l, const FluidArray& Q_r, double a_l2, double a_r2, double gamma, int dim) const;
+	virtual void solve(FluidArray& F, const FluidArray& Q_l, const FluidArray& Q_r, double a_l2, double a_r2, double gamma, int dim) const;
 private:
 	HartenLaxLeerContactSolver m_hllc;
 	HartenLaxLeerSolver m_hll;

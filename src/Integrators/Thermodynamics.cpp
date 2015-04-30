@@ -439,8 +439,8 @@ double Thermodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
 }
 
 void Thermodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
-	for (GridCell& cell : fluid.getGrid().getCells()) {
+	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
 		cell.UDOT[UID::PRE] += cell.T[TID::RATE];
-		cell.T[TID::RATE] = 0;
+		cell.T[TID::RATE] = cell.T[TID::HEAT] = 0;
 	}
 }

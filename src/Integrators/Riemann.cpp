@@ -158,6 +158,18 @@ void rotate(Eigen::Matrix<double, 3, 3> R, std::array<double, UID::N>& v) {
 		v[UID::VEL+i] = vel(i);
 }
 
+Eigen::Matrix<double, 3, 3> getRotationFromA2B(Eigen::Matrix<double, 3, 1> A, Eigen::Matrix<double, 3, 1> B) {
+	Eigen::Matrix<double, 3, 1> v = A.cross(B);
+	double s = v.norm();
+	double c = A.dot(B);
+
+	Eigen::Matrix<double, 3, 3> vx;
+	vx <<   0, -v[2], v[1],
+			v[2], 0, -v[0],
+			-v[1], v[0], 0;
+	return Eigen::Matrix<double, 3, 3>::Identity() + vx + ((1.0-c)/(s*s))*vx*vx;
+}
+
 RotatedHartenLaxLeerSolver::RotatedHartenLaxLeerSolver(int nd)
 	: RiemannSolver(nd)
 	, m_hllc(nd)
@@ -167,12 +179,11 @@ RotatedHartenLaxLeerSolver::RotatedHartenLaxLeerSolver(int nd)
 }
 
 void RotatedHartenLaxLeerSolver::solve(FluidArray& F, const FluidArray& Q_l, const FluidArray& Q_r, double a_l2, double a_r2, double gamma, int dim) const {
-	bool debugger = false;
 	bool pureHLLC = false, pureHLL = false;
 
 	Eigen::Matrix<double, 3, 1> d(dim==0 ? 1 : 0, dim==1 ? 1 : 0, dim==2 ? 1 : 0);
 	Eigen::Matrix<double, 3, 1> n1(Q_r[UID::VEL+0]-Q_l[UID::VEL+0], Q_r[UID::VEL+1]-Q_l[UID::VEL+1], Q_r[UID::VEL+2]-Q_l[UID::VEL+2]);
-	Eigen::Matrix<double, 3, 1> n2, axis1, axis2;
+	Eigen::Matrix<double, 3, 1> n2;
 
 	if (n1(dim) < 0)
 		n1 = -1*n1;
@@ -180,59 +191,51 @@ void RotatedHartenLaxLeerSolver::solve(FluidArray& F, const FluidArray& Q_l, con
 		pureHLLC = true;
 	else {
 		n1.normalize();
-		axis1 = (n1.cross(d));
-		if (axis1.norm() == 0)
+		if (n1.cross(d).norm() == 0)
 			pureHLL = true;
 		else {
 			n2 = (n1.cross(d)).cross(n1);
 			if (n2.norm() == 0)
 				pureHLL = true;
 			else {
+				if (n2(dim) < 0)
+					n2 = -1*n2;
 				n2.normalize();
-				axis2 = (n2.cross(d));
-				if (axis2.norm() == 0)
+				if (n2.cross(d).norm() == 0)
 					pureHLLC = true;
-				else
-					axis2.normalize();
 			}
 		}
 	}
+
 	if (!pureHLLC && !pureHLL) {
 		FluidArray F1, F2;
-		double alpha1 = std::abs(d.dot(n1));
-		double alpha2 = std::abs(d.dot(n2));
-		double beta1 = 	std::sqrt(1.0 - alpha1*alpha1);
-		double beta2 = 	std::sqrt(1.0 - alpha2*alpha2);
-		if (axis1.norm() != 0)
-			axis1.normalize();
-		else
-			std::cout << "ERROR: axis1 is a zero vector." << std::endl;
-
-		Eigen::Matrix<double, 3, 3> R1 = getRotationMatrix(axis1, alpha1, beta1);
 		FluidArray Q_l_R = Q_l;
 		FluidArray Q_r_R = Q_r;
 
+		//Eigen::Matrix<double, 3, 3> R1 = getRotationMatrix(axis1, alpha1, beta1);
+		Eigen::Matrix<double, 3, 3> R1 = getRotationFromA2B(n1, d);
 		rotate(R1, Q_l_R);
 		rotate(R1, Q_r_R);
-
 		m_hll.solve(F1, Q_l_R, Q_r_R, a_l2, a_r2, gamma, dim);
-
-		Eigen::Matrix<double, 3, 3> R1_inv = getInverseRotationMatrix(axis1, alpha1, beta1);
+		//Eigen::Matrix<double, 3, 3> R1_inv = getInverseRotationMatrix(axis1, alpha1, beta1);
+		Eigen::Matrix<double, 3, 3> R1_inv = getRotationFromA2B(d, n1);
 		rotate(R1_inv, Q_l_R);
 		rotate(R1_inv, Q_r_R);
 		rotate(R1_inv, F1);
-		Eigen::Matrix<double, 3, 3> R2 = getRotationMatrix(axis2, alpha2, beta2);
+
+		//Eigen::Matrix<double, 3, 3> R2 = getRotationMatrix(axis2, alpha2, beta2);
+		Eigen::Matrix<double, 3, 3> R2 = getRotationFromA2B(n2, d);
 		rotate(R2, Q_l_R);
 		rotate(R2, Q_r_R);
-
 		m_hllc.solve(F2, Q_l_R, Q_r_R, a_l2, a_r2, gamma, dim);
-
-		Eigen::Matrix<double, 3, 3> R2_inv = getInverseRotationMatrix(axis2, alpha2, beta2);
+		//Eigen::Matrix<double, 3, 3> R2_inv = getInverseRotationMatrix(axis2, alpha2, beta2);
+		Eigen::Matrix<double, 3, 3> R2_inv = getRotationFromA2B(d, n2);
 		rotate(R2_inv, Q_l_R);
 		rotate(R2_inv, Q_r_R);
 		rotate(R2_inv, F2);
+
 		for (int iu = 0; iu < UID::N; ++iu)
-			F[iu] = alpha1*F1[iu] + alpha2*F2[iu];
+			F[iu] = std::abs(d.dot(n1))*F1[iu] + std::abs(d.dot(n2))*F2[iu];
 	}
 	else if (pureHLL)
 		m_hll.solve(F, Q_l, Q_r, a_l2, a_r2, gamma, dim);

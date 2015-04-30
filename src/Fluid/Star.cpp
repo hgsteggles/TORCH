@@ -66,7 +66,6 @@ void Star::injectEnergyMomentum(CellContainer& windCells) {
 void Star::fixDensityPressure(CellContainer& windCells) {
 	if (mdot != 0) {
 		for (GridCell& cell : windCells) {
-			//std::cout << "wind cell: xc[0] = " << cell.xc[0] << std::endl;
 			double dist2 = 0;
 			for (int idim = 0; idim < consts->nd; ++idim)
 				dist2 += (cell.xc[idim] - xc[idim])*(cell.xc[idim] - xc[idim])*dx[idim]*dx[idim];
@@ -75,7 +74,6 @@ void Star::fixDensityPressure(CellContainer& windCells) {
 			double hii = cell.U[UID::HII]/cell.U[UID::DEN];
 
 			cell.U[UID::DEN] = massLossRate/(4.0*consts->pi*dist2*windVelocity);
-			//std::cout << cell.U[iden] << std::endl;
 			cell.U[UID::HII] = hii*cell.U[UID::DEN];
 			double ke = 0;
 			for (int idim = 0; idim < consts->nd; ++idim) {
