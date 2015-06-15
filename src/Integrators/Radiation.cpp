@@ -295,7 +295,7 @@ void Radiation::preTimeStepCalculations(Fluid& fluid) const {
 		double photoion = n_H*(1.0-cell.Q[UID::HII])*A_pi*excessEnergy;
 		double recombination = recombinationCoolingRate(n_H, cell.Q[UID::HII], T);
 		double collisions = cell.Q[UID::HII]*(1.0-cell.Q[UID::HII])*n_H*n_H*collisionalIonisationRate(T);
-		cell.H[HID::RHII] = recombination;
+		cell.H[HID::RHII] = -recombination;
 		double rate = photoion - recombination - collisions;
 		if (T < 300 && rate < 0.0)
 			rate = std::min(0.0, rate*(T-100)/(300-100)); //"Soft landing" to equilibrium neutral gas temperature

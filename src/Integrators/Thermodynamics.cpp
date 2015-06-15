@@ -136,6 +136,8 @@ double Thermodynamics::neutralMolecularLineCooling(const double nH, const double
  * @brief Cubic spline interpolation of the collisional excitation cooling rate of HI.
  * The spline is fit in log-log space, and the slopes off the end of the fit are also logarithmic, so we take the log of T, get
  * log10(rate), and then return exp10() of the rate.
+ * @param nH Hydrogen number density.
+ * @param HIIFRAC Fraction of hydrogen gas that is ionised.
  * @param T Gas temperature.
  * @return Collisional excitation cooling rate of HI.
  */
@@ -149,6 +151,8 @@ double Thermodynamics::collisionalExcitationHI(const double nH, const double HII
 /**
  * Cubic spline interpolation of the recombination cooling rate of HII.
  * Free–free and free–bound transitions of ionised hydrogen (Henney et al. 2009, eq. A11).
+ * @param nH Hydrogen number density.
+ * @param HIIFRAC Fraction of hydrogen gas that is ionised.
  * @param T Gas temperature.
  * @return Recombination cooling rate of HII.
  */
@@ -197,7 +201,7 @@ double Thermodynamics::softLanding(const double rate, const double T) const {
  * hard X-rays deep inside the PDR; stellar radiation reprocessed by dense gas (>10^4cm-3)
  * and absorbed by dust; and cosmic ray particles.
  *
- * @param star The star heating its surroundings.
+ * @param fluid The fluid.
  */
 void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
 	if (fluid.getStar().on)

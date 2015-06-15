@@ -1,0 +1,16 @@
+#!/bin/bash
+
+gunzipkeep() {
+    if [ -f "$1" ] ; then
+        gunzip -c $1 > "${1%.gz}"
+    fi
+}
+
+export -f gunzipkeep
+
+if [ "$1" == "" ] || [ "$2" == "" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] ; then
+	echo "usage: "$0" <data_set> <directory_name>"
+else
+	parallel --gnu gunzipkeep ::: $2/$1_*.txt.gz
+	echo $0": unzipped "$2"/"$1"_*.txt.gz files"
+fi
