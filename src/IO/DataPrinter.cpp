@@ -1,6 +1,5 @@
 #include "DataPrinter.hpp"
 #include "Fluid/Fluid.hpp"
-#include "Fluid/GridFactory.hpp"
 #include "Integrators/Radiation.hpp"
 #include "Integrators/Hydro.hpp"
 #include "Torch/Constants.hpp"
@@ -27,7 +26,7 @@ void DataPrinter::initialise(std::shared_ptr<Constants> c, std::string output_di
 	printing_on = dir2D != "";
 }
 
-void DataPrinter::printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydro, const Fluid& fluid) {
+void DataPrinter::printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydro, Fluid& fluid) {
 	MPIW& mpihandler = MPIW::Instance();
 	const Grid& grid = fluid.getGrid();
 	for (int i = (int)printTimes.size()-1; i >= 0 ; --i) {
@@ -40,7 +39,7 @@ void DataPrinter::printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydr
 				if (!out)
 					throw std::runtime_error("DataPrinter::printStarbench: unable to open" + os.str());
 				out << std::setprecision(10) << std::fixed;
-				for (GridCell& cell : grid.getCells()){
+				for (const GridCell& cell : grid.getIterable("GridCells")){
 					double x1 = 0, x2 = 0, v1 = 0, v2 = 0;
 					if (consts->nd > 1) {
 						x1 = consts->converter.CM_2_PC(consts->converter.fromCodeUnits(cell.xc[1]*grid.dx[1], 0, 1, 0));
@@ -116,7 +115,7 @@ void DataPrinter::printBinary2D(const int step, const double t, const Grid& grid
 	const int nbuff = grid.coreCells[0]*grid.coreCells[1]*grid.coreCells[2]*ncols;
 	double* buff = new double[nbuff];
 	int i = 0;
-	for (GridCell& cell : grid.getCells()) {
+	for (const GridCell& cell : grid.getIterable("GridCells")){
 		for (int id = 0; id < consts->nd; ++id)
 			buff[i++] = cell.xc[id];
 		buff[i++] = cell.Q[UID::DEN];
@@ -164,7 +163,7 @@ void DataPrinter::print2D(const std::string& append_name, const double t, const 
 			file << grid.ncells[1] << '\n';
 			file << grid.ncells[2] << '\n';
 		}
-		for (GridCell& cell : grid.getCells()) {
+		for (const GridCell& cell : grid.getIterable("GridCells")){
 			for (int idim = 0; idim < consts->nd; ++idim)
 				file << consts->converter.fromCodeUnits(cell.xc[idim]*grid.dx[idim], 0, 1, 0) << '\t';
 			file << consts->converter.fromCodeUnits(cell.Q[UID::DEN], 1, -3, 0);
@@ -174,6 +173,7 @@ void DataPrinter::print2D(const std::string& append_name, const double t, const 
 				file << '\t' << consts->converter.fromCodeUnits(cell.Q[UID::VEL+idim], 0, 1, -1);
 			file << '\n';
 		}
+		file.close();
 	});
 }
 
@@ -184,7 +184,7 @@ void DataPrinter::printMinMax(const std::string& filename, const Grid& grid) con
 	double tempQ[MMID::N];
 
 	int i = 0;
-	for (GridCell& cell : grid.getCells()) {
+	for (const GridCell& cell : grid.getIterable("GridCells")){
 		tempQ[MMID::DEN] = cell.Q[UID::DEN];
 		tempQ[MMID::PRE] = cell.Q[UID::PRE];
 		tempQ[MMID::HII] = cell.Q[UID::HII];
@@ -346,7 +346,7 @@ void DataPrinter::printHeating(const int step, const double t, const Grid& grid)
 			file << grid.ncells[1] << '\n';
 			file << grid.ncells[2] << '\n';
 		}
-		for (GridCell& cell : grid.getCells()) {
+		for (const GridCell& cell : grid.getIterable("GridCells")){
 			for (int idim = 0; idim < consts->nd; ++idim)
 				file << cell.xc[idim] << '\t';
 			file << consts->converter.fromCodeUnits(cell.H[0], 1, -1, -3);
@@ -377,7 +377,7 @@ void DataPrinter::printVariables(const int step, const double t, const Grid& gri
 			file << grid.ncells[1] << '\n';
 			file << grid.ncells[2] << '\n';
 		}
-		for (GridCell& cell : grid.getCells()) {
+		for (const GridCell& cell : grid.getIterable("GridCells")){
 			for (int idim = 0; idim < consts->nd; ++idim)
 				file << cell.xc[idim] << '\t';
 			file << cell.H[0];
@@ -408,7 +408,7 @@ void DataPrinter::printVariable(const int step, const double t, const Grid& grid
 			file << grid.ncells[1] << '\n';
 			file << grid.ncells[2] << '\n';
 		}
-		for (GridCell& cell : grid.getCells()) {
+		for (const GridCell& cell : grid.getIterable("GridCells")){
 			for (int idim = 0; idim < consts->nd; ++idim)
 				file << cell.xc[idim] << '\t';
 			file << cell.H[0] << '\n';
@@ -418,7 +418,7 @@ void DataPrinter::printVariable(const int step, const double t, const Grid& grid
 
 void DataPrinter::printWeights(const Grid& grid) const {
 	std::ofstream ofile("tmp/weights.dat", std::ios::app);
-	for (GridCell& cell : grid.getCells()) {
+	for (const GridCell& cell : grid.getIterable("GridCells")){
 		ofile << "{ ";
 		for (int i = 0; i < 3; ++i) {
 			if (cell.xc[i] < 10)
@@ -431,18 +431,18 @@ void DataPrinter::printWeights(const Grid& grid) const {
 		ofile << std::fixed << std::setprecision(3);
 		for (int i = 0; i < 4; ++i) {
 			std::ostringstream os;
-			if (cell.NN[i] != NULL) {
-				double diff = cell.NN[i]->xc[0]-cell.xc[0];
+			if (cell.neighbourIDs[i] != -1) {
+				double diff = grid.getCell(cell.neighbourIDs[i]).xc[0]-cell.xc[0];
 				if (diff > 0)
 					os << "(+x)";
 				else if (diff < 0)
 					os << "(-x)";
-				diff = cell.NN[i]->xc[1]-cell.xc[1];
+				diff = grid.getCell(cell.neighbourIDs[i]).xc[1]-cell.xc[1];
 				if (diff > 0)
 					os << "(+y)";
 				else if (diff < 0)
 					os << "(-y)";
-				diff = cell.NN[i]->xc[2]-cell.xc[2];
+				diff = grid.getCell(cell.neighbourIDs[i]).xc[2]-cell.xc[2];
 				if (diff > 0)
 					os << "(+z)";
 				else if (diff < 0)
@@ -459,7 +459,7 @@ void DataPrinter::printWeights(const Grid& grid) const {
 		}
 		ofile << "} = { ";
 		for (int i = 0; i < 4; ++i)
-			ofile << cell.NN_weights[i] << " ";
+			ofile << cell.neighbourWeights[i] << " ";
 		ofile << "}\n";
 	}
 	ofile.close();

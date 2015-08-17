@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <iostream>
 
 /**
  * @brief Calculates second derivatives of an interpolating function.
@@ -110,8 +111,10 @@ double LinearSplineData::interpolate(double x) const {
 		rate = m_y[m_x.size()-1] * std::pow( x/m_x[m_x.size()-1], m_maxSlope );
 	else if ( x < m_x[0])
 		rate = m_y[0] * std::pow(x/m_x[0], m_minSlope);
-	else
+	else {
 		rate = splint(m_x, m_y, m_y2, x);
+
+	}
 	return rate;
 }
 

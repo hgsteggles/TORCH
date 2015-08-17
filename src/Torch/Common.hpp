@@ -13,8 +13,6 @@
 #include <stddef.h>
 #include <array>
 
-#include "Fluid/Container.hpp"
-
 class Boundary;
 class GridCell;
 class GridJoin;
@@ -36,7 +34,7 @@ struct HID {
 };
 
 enum class Geometry : unsigned int {CARTESIAN, CYLINDRICAL, SPHERICAL};
-enum class Condition : unsigned int {FREE, REFLECTING, OUTFLOW, INFLOW, PERIODIC};
+enum class Condition : unsigned int {FREE, REFLECTING, OUTFLOW, INFLOW, PERIODIC, PARTITION};
 enum class Scheme : unsigned int {IMPLICIT, IMPLICIT2, EXPLICIT};
 enum class Coupling : unsigned int {TWO_TEMP_ISOTHERMAL, NON_EQUILIBRIUM, OFF};
 
@@ -49,9 +47,6 @@ using Coords = std::array<int, 3>;
 
 using Vec3 = std::array<double, 3>;
 using Coords = std::array<int, 3>;
-using BoundaryVec = std::array<Boundary*, 3>;
 using ConditionVec = std::array<Condition, 3>;
-using CellContainer = IntrusiveContainer<GridCell>;
-using JoinContainer = IntrusiveContainer<GridJoin>;
 
 #endif // COMMON_HPP_

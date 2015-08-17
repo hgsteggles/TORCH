@@ -30,11 +30,11 @@ Torch/Constants \
 Torch/Converter \
 Torch/Parameters \
 Fluid/Fluid \
-Fluid/GridFactory \
+Fluid/GridCellCollection \
 Fluid/Grid \
-Fluid/Boundary \
 Fluid/GridCell \
 Fluid/Star \
+Fluid/PartitionManager \
 Integrators/Hydro \
 Integrators/Riemann \
 Integrators/SlopeLimiter \

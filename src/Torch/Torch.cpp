@@ -105,9 +105,12 @@ void Torch::initialise(TorchParameters p) {
 	radiation.initField(fluid);
 
 	if (p.star_on && p.windCellRadius > 0) {
-		if (fluid.getStar().core == Star::Location::HERE) {
-			double edot = 0.5*fluid.getStar().massLossRate*fluid.getStar().windVelocity*fluid.getStar().windVelocity;
-			double pre = fluid.getGrid().getCells().start_ptr->Q[UID::PRE];
+		Star& star = fluid.getStar();
+		if (star.core == Star::Location::HERE) {
+			Grid& grid = fluid.getGrid();
+
+			double edot = 0.5*star.massLossRate*star.windVelocity*star.windVelocity;
+			double pre = grid.getCell(grid.locate((int)star.xc[0], (int)star.xc[1], (int)star.xc[2])).Q[UID::PRE];
 			double reverse2 = std::sqrt(2.0*edot*fluid.getStar().massLossRate)/(4.0*consts->pi*pre);
 			double reverse = std::sqrt(reverse2)/fluid.getGrid().dx[0];
 			if (reverse < 5 + p.windCellRadius)
@@ -119,7 +122,7 @@ void Torch::initialise(TorchParameters p) {
 }
 
 void Torch::toCodeUnits() {
-	for (GridCell& cell : fluid.getGrid().getCells()) {
+	for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 		cell.Q[UID::DEN] = consts->converter.toCodeUnits(cell.Q[UID::DEN], 1, -3, 0);
 		cell.Q[UID::PRE] = consts->converter.toCodeUnits(cell.Q[UID::PRE], 1, -1, -2);
 		for (int idim = 0; idim < consts->nd; ++idim)
@@ -145,7 +148,7 @@ void Torch::setUp(std::string filename) {
 			myfile >> ignore >> ignore >> ignore;
 		}
 
-		for (GridCell& cell : fluid.getGrid().getCells()) {
+		for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 			for (int idim = 0; idim < consts->nd; ++idim)
 				myfile >> ignore;
 
@@ -180,7 +183,7 @@ void Torch::setUpLua(std::string filename, int setupID) {
 			if (setupID != 0)
 				luaState["setup_set"](setupID);
 
-			for (GridCell& cell : fluid.getGrid().getCells()) {
+			for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 				std::array<double, 3> xc, xs;
 				for (int i = 0; i < 3; ++i) {
 					xc[i] = consts->converter.fromCodeUnits(cell.xc[i]*fluid.getGrid().dx[i], 0, 1, 0);
@@ -378,7 +381,7 @@ double Torch::fullStep(double dt_nextCheckPoint) {
 
 void Torch::checkValues(std::string componentname) {
 	bool error = false;
-	for (GridCell& cell : fluid.getGrid().getCells()) {
+	for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 		for (int i = 0; i < UID::N; ++i) {
 			if (cell.U[i] != cell.U[i] || std::isinf(cell.U[i]) || cell.Q[UID::DEN] == 0 || cell.Q[UID::PRE] == 0) {
 				error = true;
@@ -389,7 +392,7 @@ void Torch::checkValues(std::string componentname) {
 			break;
 	}
 	if (error) {
-		for (GridCell& cell : fluid.getGrid().getCells()) {
+		for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 			if (std::abs(cell.Q[UID::VEL+0]) > 1e50 || std::abs(cell.Q[UID::VEL+1]) > 1e50) {
 				std::cout << '\n' << componentname << " produced an error.\n";
 				cell.printInfo();

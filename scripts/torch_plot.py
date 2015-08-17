@@ -189,7 +189,7 @@ class TorchPlotter:
 		vi = self.tdat.interpolate(self.tdat.get_var('vel1'), 'nearest')
 		max_vel = ui.max()
 		max_vel = max(max_vel, vi.max())
-		ax.quiver(self.tdat.xi[0][::e,::e], self.tdat.xi[1][::e,::e], ui[::e,::e], vi[::e,::e], pivot='mid', units='inches', color='r', scale=0.2*max_vel*self.cells_per_inch/e)
+		ax.quiver(self.tdat.xi[0][::e,::e], self.tdat.xi[1][::e,::e], ui[::e,::e], vi[::e,::e], pivot='mid', units='inches', color='r', scale=0.8*max_vel*self.cells_per_inch/e)
 	
 	def save_plot(self, outputfile, ax=None):
 		self.fig.tight_layout()
@@ -198,6 +198,41 @@ class TorchPlotter:
 		else:
 			extent = ax.get_window_extent().transformed(self.fig.dpi_scale_trans.inverted())
 			self.fig.savefig(outputfile, format=self.figformat, dpi=self.dpi, bbox_inches=extent, pad_inches=0)
+
+	def single(self, vtype, var, var_min, var_max, color_map, detail="all"):
+		axpad = 0.35
+		cbloc = "top"
+		cbmode = "each"
+		if detail == "some" or detail == "none":
+			axpad = 0
+			cbloc = "right"
+			cbmode = "single"
+
+		grid = AxesGrid(self.fig, 111, nrows_ncols = (1, 1),
+				axes_pad = axpad,
+				label_mode = "L", 
+				share_all = True, 
+				cbar_location=cbloc,
+				cbar_mode=cbmode, 
+				cbar_size="6%", 
+				cbar_pad="0%")
+		if detail != "none":
+			grid[0].set_xlabel('r / pc')
+			grid[0].set_ylabel('z / pc')
+		else:
+			grid[0].get_xaxis().set_visible(False)
+			grid[0].get_yaxis().set_visible(False)
+		im = self.image(var, var_min, var_max, color_map, grid[0])
+		if detail != "some" and detail != "none":
+			grid.cbar_axes[0].colorbar(im)
+		if detail == "some" or detail == "none":
+			grid.cbar_axes[0].colorbar(im)
+			grid.cbar_axes[0].toggle_label(False)
+			ts = 0.001
+			grid[0].text(ts, 1-ts, vtype, fontsize=10, color='red', horizontalalignment='left', verticalalignment='top', transform = grid[0].transAxes)
+		if detail == "none":
+			grid.cbar_axes[0].get_yaxis().set_visible(False)
+		return grid[0]
 
 	def twobytwo(self, vtypes, vs, vsminmax, color_map, detail="all"):
 		axpad = 0.35

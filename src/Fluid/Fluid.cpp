@@ -4,10 +4,10 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <iostream>
 
 #include "Torch/Constants.hpp"
 #include "GridCell.hpp"
-#include "GridFactory.hpp"
 
 Star::Location calcContainingCore(int x, int xl, int xr, int rank) {
 	Star::Location containing_core = Star::Location::HERE;
@@ -25,8 +25,9 @@ void Fluid::initialise(std::shared_ptr<Constants> c, FluidParameters fp) {
 }
 
 void Fluid::initialiseGrid(GridParameters gp, StarParameters sp) {
-	grid = GridFactory::createGrid(consts, gp, sp.position, sp.windCellRadius);
+	grid.initialise(consts, gp);
 
+	// Is the star on this processor's grid or to left or right?
 	Star::Location containing_core = Star::Location::HERE;
 	if (sp.position[0] < grid.getLeftX())
 		containing_core = Star::Location::LEFT;
@@ -34,7 +35,25 @@ void Fluid::initialiseGrid(GridParameters gp, StarParameters sp) {
 		containing_core = Star::Location::RIGHT;
 
 	star.initialise(consts, sp, containing_core, grid.dx);
-	star.setWindCells(grid.getWindCells());
+
+	grid.buildCausal(sp.position);
+
+	int starCellID = grid.locate(sp.position[0], sp.position[1], sp.position[2]);
+	// Setup causal-wind/causal-nonwind ordered indices.
+	for (int cellID : grid.getCausalIndices()) {
+		GridCell& cell = grid.getCell(cellID);
+
+		double dist2 = 0;
+		for (int idim = 0; idim < consts->nd; ++idim)
+			dist2 += ((int)cell.xc[idim] - sp.position[idim])*(cell.xc[idim] - sp.position[idim]);
+		if (dist2 <= sp.windCellRadius*sp.windCellRadius || cellID == starCellID) {
+			grid.addOrderedIndex("CausalWind", cellID);
+		}
+		else
+			grid.addOrderedIndex("CausalNonWind", cellID);
+	}
+
+	star.setWindCells(grid);
 }
 
 /*
@@ -59,7 +78,7 @@ double Fluid::calcSoundSpeed(double gamma, double pre, double den) {
 }
 
 void Fluid::advSolution(const double dt) {
-	for (GridCell& cell : grid.getCells()) {
+	for (GridCell& cell : grid.getIterable("GridCells")) {
 		for (int i = 0; i < UID::N; ++i) {
 			cell.U[i] += dt*cell.UDOT[i];
 			cell.UDOT[i] = 0;
@@ -68,7 +87,7 @@ void Fluid::advSolution(const double dt) {
 }
 
 void Fluid::fixSolution() {
-	for (GridCell& cell : grid.getCells()) {
+	for (GridCell& cell : grid.getIterable("GridCells")) {
 		if (!std::isfinite(cell.U[UID::DEN]) || !std::isfinite(cell.U[UID::PRE]))
 			throw std::runtime_error("Fluid::fixSolution(): Density = " + std::to_string(cell.U[UID::DEN]) + ", Energy =" + std::to_string(cell.U[UID::PRE]));
 
@@ -117,7 +136,7 @@ void Fluid::fixSolution() {
 }
 
 void Fluid::fixPrimitives() {
-	for (GridCell& cell : getGrid().getCells()) {
+	for (GridCell& cell : grid.getIterable("GridCells")) {
 		cell.Q[UID::HII] = std::max(std::min(cell.Q[UID::HII], 1.0), 0.0);
 		cell.Q[UID::ADV] = std::max(std::min(cell.Q[UID::ADV], 1.0), 0.0);
 		cell.Q[UID::DEN] = std::max(cell.Q[UID::DEN], consts->dfloor);
@@ -130,30 +149,30 @@ void Fluid::fixPrimitives() {
 	}
 }
 
-void Fluid::globalWfromU() const {
-	for (GridCell& cell : grid.getCells())
+void Fluid::globalWfromU(){
+	for (GridCell& cell : grid.getIterable("GridCells"))
 		std::copy(std::begin(cell.U), std::end(cell.U), std::begin(cell.W));
 }
 
-void Fluid::globalUfromW() const {
-	for(GridCell& cell : grid.getCells())
+void Fluid::globalUfromW() {
+	for(GridCell& cell : grid.getIterable("GridCells"))
 		std::copy(std::begin(cell.W), std::end(cell.W), std::begin(cell.U));
 }
 
-void Fluid::globalQfromU() const {
-	for(GridCell& cell : grid.getCells())
+void Fluid::globalQfromU() {
+	for(GridCell& cell : grid.getIterable("GridCells"))
 		QfromU(cell.Q, cell.U, cell.heatCapacityRatio, consts->nd);
 }
 
-void Fluid::globalUfromQ() const {
-	for(GridCell& cell : grid.getCells())
+void Fluid::globalUfromQ() {
+	for(GridCell& cell : grid.getIterable("GridCells"))
 		UfromQ(cell.U, cell.Q, cell.heatCapacityRatio, consts->nd);
 }
 
 double Fluid::max(UID::ID id) const {
 	double ret = 0;
 	bool first = false;
-	for (GridCell& cell : grid.getCells()) {
+	for (const GridCell& cell : grid.getIterable("GridCells")) {
 		if (first) {
 			first = false;
 			ret = cell.Q[id];
@@ -167,7 +186,7 @@ double Fluid::max(UID::ID id) const {
 
 double Fluid::maxTemperature() const {
 	double ret = 0;
-	for (GridCell& cell : grid.getCells()) {
+	for (const GridCell& cell : grid.getIterable("GridCells")) {
 		double T = calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]);
 		ret = T > ret ? T : ret;
 	}
@@ -176,7 +195,7 @@ double Fluid::maxTemperature() const {
 
 double Fluid::minTemperature() const {
 	double ret = 1.0e20;
-	for (GridCell& cell : grid.getCells()) {
+	for (const GridCell& cell : grid.getIterable("GridCells")) {
 		double T = calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]);
 		ret = T < ret ? T : ret;
 	}

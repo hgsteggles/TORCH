@@ -97,13 +97,11 @@ public:
 private:
 	std::shared_ptr<Constants> m_consts = nullptr;
 	//Hummer (1994) parameters.
-	std::unique_ptr<LinearSplineData> m_recombinationHII_CoolingRates;
-	std::unique_ptr<LinearSplineData> m_recombinationHII_RecombRates;
+	std::unique_ptr<LinearSplineData> m_recombinationHII_CoolingRates = nullptr;
+	std::unique_ptr<LinearSplineData> m_recombinationHII_RecombRates = nullptr;
 
 	//Initialization methods.
 	int getRayPlane(Vec3& xc, Vec3& xs) const;
-	// TODO fluid should have this member.
-	void calculateNearestNeighbours(Fluid& fluid) const;
 	double cellPathLength(Vec3& xc, Vec3& sc, Vec3& dx) const;
 	double shellVolume(double ds, double r_sqrd) const;
 	void initRecombinationHummer(const Converter& converter);
@@ -119,7 +117,7 @@ private:
 	double calc_dtau(double nHI, double ds) const;
 
 	//Update methods.
-	void updateTauSC(bool average, GridCell& cell, double dist2) const;
+	void updateTauSC(bool average, GridCell& cell, Fluid& fluid, double dist2) const;
 	void update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const;
 
 	//Integration methods.

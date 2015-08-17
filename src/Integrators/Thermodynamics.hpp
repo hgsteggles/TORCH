@@ -49,7 +49,7 @@ public:
 	virtual void integrate(double dt, Fluid& fluid) const;
 	virtual void updateSourceTerms(double dt, Fluid& fluid) const;
 
-	void fillHeatingArrays(const Fluid& fluid);
+	void fillHeatingArrays(Fluid& fluid);
 private:
 	void initCollisionalExcitationHI(const Converter& scale);
 	void initRecombinationHII(const Converter& scale);
@@ -65,8 +65,8 @@ private:
 	double cosmicRayHeating(const double nH) const;
 	double softLanding(const double rate, const double T) const;
 
-	void updateColDen(GridCell& cell, const double dist2) const;
-	void rayTrace(const Fluid& fluid) const;
+	void updateColDen(GridCell& cell, Fluid& fluid, const double dist2) const;
+	void rayTrace(Fluid& fluid) const;
 
 	std::shared_ptr<Constants> m_consts = nullptr;
 

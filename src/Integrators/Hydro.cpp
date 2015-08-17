@@ -6,7 +6,6 @@
 #include <stdexcept>
 #include <string>
 
-#include "Fluid/Boundary.hpp"
 #include "Fluid/Fluid.hpp"
 #include "Fluid/Grid.hpp"
 #include "Fluid/GridCell.hpp"
@@ -28,7 +27,7 @@ Hydrodynamics::Hydrodynamics()
 { }
 
 void Hydrodynamics::preTimeStepCalculations(Fluid& fluid) const {
-	for (GridCell& cell : fluid.getGrid().getCells())
+	for (GridCell& cell : fluid.getGrid().getIterable("GridCells"))
 		cell.setSoundSpeed(fluid.calcSoundSpeed(cell.heatCapacityRatio, cell.Q[UID::PRE], cell.Q[UID::DEN]));
 }
 
@@ -39,7 +38,7 @@ void Hydrodynamics::initialise(std::shared_ptr<Constants> c) {
 }
 
 void Hydrodynamics::integrate(double dt, Fluid& fluid) const {
-	updateBoundaries(fluid);
+	fluid.getGrid().applyBCs();
 	calcFluxes(fluid);
 }
 
@@ -60,28 +59,18 @@ void Hydrodynamics::piecewiseLinear(FluidArray& Q_l, FluidArray& Q_c, FluidArray
 }
 
 void Hydrodynamics::reconstruct(Fluid& fluid) const {
-	// Gridcells.
-	for (GridCell& cell : fluid.getGrid().getCells()){
+	for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 		for (int dim = 0; dim < m_consts->nd; ++dim) {
-			GridCell* left = cell.ljoin[dim]->lcell;
-			GridCell* right = cell.rjoin[dim]->rcell;
-			piecewiseLinear(left->Q, cell.Q, right->Q, cell.QL[dim], cell.QR[dim]);
+			GridCell& left = fluid.getGrid().left(dim, cell);
+			GridCell& right = fluid.getGrid().right(dim, cell);
+			piecewiseLinear(left.Q, cell.Q, right.Q, cell.QL[dim], cell.QR[dim]);
 		}
 	}
-	// Left Boundaries.
-	for (int dim = 0; dim < m_consts->nd; dim++) {
-		for (GridCell* cptr : fluid.getGrid().getLeftBoundaries()[dim]->getGhostCells()) {
-			GridCell* left = cptr->left[dim];
-			GridCell* right = cptr->rjoin[dim]->rcell;
-			piecewiseLinear(left->Q, cptr->Q, right->Q, cptr->QL[dim], cptr->QR[dim]);
-		}
-	}
-	// Right Boundaries.
-	for (int dim = 0; dim < m_consts->nd; dim++) {
-		for (GridCell* cptr : fluid.getGrid().getRightBoundaries()[dim]->getGhostCells()) {
-			GridCell* left = cptr->ljoin[dim]->lcell;
-			GridCell* right = cptr->right[dim];
-			piecewiseLinear(left->Q, cptr->Q, right->Q, cptr->QL[dim], cptr->QR[dim]);
+	for (int dim = 0; dim < m_consts->nd; ++dim) {
+		for (GridCell& cell : fluid.getGrid().getIterable("GhostCells"+std::to_string(dim))) {
+			GridCell& left = fluid.getGrid().left(dim, cell);
+			GridCell& right = fluid.getGrid().right(dim, cell);
+			piecewiseLinear(left.Q, cell.Q, right.Q, cell.QL[dim], cell.QR[dim]);
 		}
 	}
 }
@@ -96,7 +85,7 @@ double Hydrodynamics::soundSpeed(const double pre, const double den, const doubl
 
 double Hydrodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
 	double tmin = dt_max;
-	for (GridCell& cell : fluid.getGrid().getCells()){
+	for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 		double inv_t = 0;
 		double ss = soundSpeed(cell.Q[UID::PRE], cell.Q[UID::DEN], fluid.heatCapacityRatio);
 		for (int dim = 0; dim < m_consts->nd; ++dim)
@@ -109,21 +98,29 @@ double Hydrodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
 }
 
 void Hydrodynamics::calcFluxes(Fluid& fluid) const {
-	if (fluid.getGrid().spatialOrder == 1)
+	Grid& grid = fluid.getGrid();
+
+	if (grid.spatialOrder == 1)
 		reconstruct(fluid);
 	for (int dim = 0; dim < m_consts->nd; ++dim){
-		for (GridJoin& join  : fluid.getGrid().getJoins(dim)) {
+		for (GridJoin& join  : grid.getJoins(dim)) {
+			GridCell& left = grid.joinedLeft(join);
+			GridCell& right = grid.joinedRight(join);
 			if (fluid.getGrid().spatialOrder == 1) {
+				if (left.QR[dim][UID::DEN] <= 1e-20 || right.QL[dim][UID::DEN] <= 1e-20) {
+					std::cout << "left: " << left.xc[0] << " " << left.xc[1] << " " << left.xc[2] << std::endl;
+					std::cout << "right: " << right.xc[0] << " " << right.xc[1] << " " << right.xc[2] << std::endl;
+				}
 				//characteristicWaveSpeeds(S_l, S_r, join.lcell->QR[dim], join.rcell->QL[dim], join.lcell->heatCapacityRatio, dim);
-				double a_l2 = soundSpeedSqrd(join.lcell->QR[dim][UID::PRE], join.lcell->QR[dim][UID::DEN], join.lcell->heatCapacityRatio);
-				double a_r2 = soundSpeedSqrd(join.rcell->QL[dim][UID::PRE], join.rcell->QL[dim][UID::DEN], join.rcell->heatCapacityRatio);
-				m_riemannSolver->solve(join.F, join.lcell->QR[dim], join.rcell->QL[dim], a_l2, a_r2, join.lcell->heatCapacityRatio, dim);
+				double a_l2 = soundSpeedSqrd(left.QR[dim][UID::PRE], left.QR[dim][UID::DEN], left.heatCapacityRatio);
+				double a_r2 = soundSpeedSqrd(right.QL[dim][UID::PRE], right.QL[dim][UID::DEN], right.heatCapacityRatio);
+				m_riemannSolver->solve(join.F, left.QR[dim], right.QL[dim], a_l2, a_r2, left.heatCapacityRatio, dim);
 			}
 			else if (fluid.getGrid().spatialOrder == 0) {
-				//characteristicWaveSpeeds(S_l, S_r, join.lcell->Q, join.rcell->Q, join.lcell->heatCapacityRatio, dim);
-				double a_l2 = soundSpeedSqrd(join.lcell->Q[UID::PRE], join.lcell->Q[UID::DEN], join.lcell->heatCapacityRatio);
-				double a_r2 = soundSpeedSqrd(join.rcell->Q[UID::PRE], join.rcell->Q[UID::DEN], join.rcell->heatCapacityRatio);
-				m_riemannSolver->solve(join.F, join.lcell->Q, join.rcell->Q, a_l2, a_r2, join.lcell->heatCapacityRatio, dim);
+				//characteristicWaveSpeeds(S_l, S_r, left.Q, right.Q, left.heatCapacityRatio, dim);
+				double a_l2 = soundSpeedSqrd(left.Q[UID::PRE], left.Q[UID::DEN], left.heatCapacityRatio);
+				double a_r2 = soundSpeedSqrd(right.Q[UID::PRE], right.Q[UID::DEN], right.heatCapacityRatio);
+				m_riemannSolver->solve(join.F, left.Q, right.Q, a_l2, a_r2, left.heatCapacityRatio, dim);
 			}
 			else {
 				throw std::runtime_error("Hydrodynamics::calcFluxes: invalid order(=" + std::to_string(fluid.getGrid().spatialOrder) + "). Valid orders = {0, 1}.");
@@ -136,14 +133,16 @@ void Hydrodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 	bool rtp = (fluid.getGrid().geometry == Geometry::SPHERICAL);
 	bool rzp = (fluid.getGrid().geometry == Geometry::CYLINDRICAL);
 
-	for (GridCell& cell : fluid.getGrid().getCells()) {
+	Grid& grid = fluid.getGrid();
+
+	for (GridCell& cell : grid.getIterable("GridCells")) {
 		//Fluxes.
 		for (int dim = 0; dim < m_consts->nd; ++dim) {
 			for (int i = 0; i < UID::N; ++i) {
-				if (cell.ljoin[dim] == nullptr || cell.rjoin[dim] == nullptr)
+				if (!grid.joinExists(dim, cell.ljoinID) || !grid.joinExists(dim, cell.rjoinID))
 					throw std::runtime_error("Hydrodynamics::updateSourceTerms: ljoin[dim] or rjoin[dim] is nullptr." + cell.printInfo());
-				cell.UDOT[i] += (cell.ljoin[dim]->area/cell.vol)*cell.ljoin[dim]->F[i];
-				cell.UDOT[i] -= (cell.rjoin[dim]->area/cell.vol)*cell.rjoin[dim]->F[i];
+				cell.UDOT[i] += (grid.leftJoin(dim, cell).area/cell.vol)*grid.leftJoin(dim, cell).F[i];
+				cell.UDOT[i] -= (grid.rightJoin(dim, cell).area/cell.vol)*grid.rightJoin(dim, cell).F[i];
 				//cell.UDOT[i] -= cell.FIX[i];
 			}
 		}
@@ -160,8 +159,8 @@ void Hydrodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 		}
 		else if (rtp) {
 			double r, area1, area2;
-			area1 = cell.rjoin[0]->area;
-			area2 = cell.ljoin[0]->area;
+			area1 = grid.rightJoin(0, cell).area;
+			area2 = grid.leftJoin(0, cell).area;
 			r = cell.vol/(area1 - area2);
 			cell.UDOT[UID::VEL+0] += cell.Q[UID::PRE]/r;
 		}
@@ -169,20 +168,5 @@ void Hydrodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 	}
 
 	if (fluid.getStar().on)
-		fluid.getStar().injectEnergyMomentum((fluid.getGrid().getWindCells()));
-}
-
-void Hydrodynamics::updateBoundaries(Fluid& fluid) const {
-	if (MPIW::Instance().getRank()%2 == 0) {
-		fluid.getGrid().getLeftBoundaries()[0]->applyBC();
-		fluid.getGrid().getRightBoundaries()[0]->applyBC();
-	}
-	else {
-		fluid.getGrid().getRightBoundaries()[0]->applyBC();
-		fluid.getGrid().getLeftBoundaries()[0]->applyBC();
-	}
-	for (int i = 1; i < m_consts->nd; ++i) {
-		fluid.getGrid().getRightBoundaries()[i]->applyBC();
-		fluid.getGrid().getLeftBoundaries()[i]->applyBC();
-	}
+		fluid.getStar().injectEnergyMomentum(grid);
 }

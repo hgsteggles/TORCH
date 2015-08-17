@@ -42,10 +42,10 @@ public:
 	void initialiseGrid(GridParameters gp, StarParameters sp);
 
 	// Conversion Methods.
-	void globalWfromU() const;
-	void globalUfromW() const;
-	void globalQfromU() const;
-	void globalUfromQ() const;
+	void globalWfromU();
+	void globalUfromW();
+	void globalQfromU();
+	void globalUfromQ();
 
 	void advSolution(const double dt);
 	void fixSolution();

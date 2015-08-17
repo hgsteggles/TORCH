@@ -36,10 +36,10 @@ for i in range(4):
 	if log == True and torchData.appropriate_to_log(vs_types[i]):
 		vs[i] = torchData.safe_log10(vs[i])
 
-vsminmax = [[-3.08, 6.49],
-			[-12.59, -7.04],
+vsminmax = [[2.49, 6.89],
+			[-10.41, -7.09],
 			[2   , 4   ],
-			[0.49, 8.15]]
+			[0.49, 4.16]]
 
 ### Plotting
 plotter = TorchPlotter(torchData, plot_size, figformat, DPI)
@@ -61,6 +61,8 @@ grid.cbar_axes[0].set_xlabel(r"$\mathregular{log_{10}(n_H}$ / $\mathregular{cm^{
 grid.cbar_axes[1].set_xlabel(r"$\mathregular{log_{10}(P}$ / $\mathregular{Ba)}$")
 grid.cbar_axes[2].set_xlabel(r"$\mathregular{log_{10}(n_{HII}}$ / $\mathregular{cm^{-3})}$")
 grid.cbar_axes[3].set_xlabel(r"$\mathregular{log_{10}(T}$ / $\mathregular{K})$")
+
+plotter.add_quiver(5, grid[2])
 
 ###	Save figure.
 plotter.save_plot(outputfile)

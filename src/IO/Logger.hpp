@@ -66,7 +66,8 @@ template< typename log_policy >
 class Logger {
 public:
 	static Logger& Instance() {
-		static Logger instance( "torch.log", MPIW::Instance().getRank() == 0 );
+		std::string filename = "log/torch.log" + std::to_string(MPIW::Instance().getRank());
+		static Logger instance( filename, true );
 		return instance;
 	}
 

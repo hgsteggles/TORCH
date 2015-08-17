@@ -1,10 +1,11 @@
 #include "Grid.hpp"
 
+#include "IO/ProgressBar.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-
-#include "Boundary.hpp"
+#include <iostream>
 
 
 static int safe_round(double val) {
@@ -17,68 +18,36 @@ static int safe_round(double val) {
 Grid::Grid()
 { }
 
-Grid::Grid(Grid&& o)
-{
-	ncells = o.ncells;
-	coreCells = o.coreCells;
-	m_leftX = o.m_leftX;
-	m_rightX = o.m_rightX;
-	leftBoundaryPos = o.leftBoundaryPos;
-	rightBoundaryPos = o.rightBoundaryPos;
-	currentTime = o.currentTime;
-	deltatime = o.deltatime;
-	dx = o.dx;
-	geometry = o.geometry;
-	spatialOrder = o.spatialOrder;
-	sideLength = o.sideLength;
-	std::swap(m_cells, o.m_cells);
-	for (int i = 0; i < 3; ++i) {
-		std::swap(m_joins[i], o.m_joins[i]);
-		std::swap(m_leftBoundaries[i], o.m_leftBoundaries[i]);
-		std::swap(m_rightBoundaries[i], o.m_rightBoundaries[i]);
+GridCell& Grid::getCell(int id) {
+	if (id < 0 || id >= m_cells.size()) {
+		std::cout << std::endl;
+		std::cout << std::endl;
+		std::cout << "ERROR: OUT OF BOUNDS" << std::endl;
+		std::cout << std::endl;
+		std::cout << std::endl;
+		throw std::runtime_error("Grid::getCell: out of bounds.");
 	}
+	return m_cells[id];
 }
 
-Grid& Grid::operator=(Grid&& o) {
-	ncells = o.ncells;
-	coreCells = o.coreCells;
-	m_leftX = o.m_leftX;
-	m_rightX = o.m_rightX;
-	leftBoundaryPos = o.leftBoundaryPos;
-	rightBoundaryPos = o.rightBoundaryPos;
-	currentTime = o.currentTime;
-	deltatime = o.deltatime;
-	dx = o.dx;
-	geometry = o.geometry;
-	spatialOrder = o.spatialOrder;
-	sideLength = o.sideLength;
-	std::swap(m_cells, o.m_cells);
-	for (int i = 0; i < 3; ++i) {
-		std::swap(m_joins[i], o.m_joins[i]);
-		std::swap(m_leftBoundaries[i], o.m_leftBoundaries[i]);
-		std::swap(m_rightBoundaries[i], o.m_rightBoundaries[i]);
+const GridCell& Grid::getCell(int id) const {
+	if (id < 0 || id >= m_cells.size()) {
+		std::cout << std::endl;
+		std::cout << std::endl;
+		std::cout << "ERROR: OUT OF BOUNDS" << std::endl;
+		std::cout << std::endl;
+		std::cout << std::endl;
+		throw std::runtime_error("Grid::getCell: out of bounds.");
 	}
-	return *this;
+	return m_cells[id];
 }
 
-Grid::~Grid() {
-	m_cells.getAll().dispose();
+Looper Grid::getIterable(const std::string& name) {
+	return m_cellCollection.getIterable(name);
+}
 
-	for (JoinContainer& join_dim : m_joins) {
-		join_dim.dispose();
-	}
-	for (Boundary* bptr : m_leftBoundaries) {
-		if (bptr != nullptr) {
-			delete bptr;
-			bptr = nullptr;
-		}
-	}
-	for (Boundary* bptr : m_rightBoundaries) {
-		if (bptr != nullptr) {
-			delete bptr;
-			bptr = nullptr;
-		}
-	}
+ConstLooper Grid::getIterable(const std::string& name) const {
+	return m_cellCollection.getIterable(name);
 }
 
 int Grid::getLeftX() const {
@@ -97,312 +66,900 @@ void Grid::setRightX(int x) {
 	m_rightX = x;
 }
 
-CellContainer& Grid::getCells() {
-	return m_cells.getAll();
+std::vector<GridCell>& Grid::getCells() {
+	return m_cells;
 }
 
-CellContainer& Grid::getWindCells() {
-	return m_cells.getFirst();
-}
-
-CellContainer& Grid::getCausalCells() {
-	return m_cells.getSecond();
-}
-
-JoinContainer& Grid::getJoins(int dim) {
+std::vector<GridJoin>& Grid::getJoins(int dim) {
 	return m_joins[dim];
 }
 
-std::array<Boundary*, 3>& Grid::getLeftBoundaries() {
-	return m_leftBoundaries;
+const std::vector<GridCell>& Grid::getCells() const {
+	return m_cells;
 }
 
-std::array<Boundary*, 3>& Grid::getRightBoundaries() {
-	return m_rightBoundaries;
-}
-
-const CellContainer& Grid::getCells() const {
-	return m_cells.getAll();
-}
-
-const CellContainer& Grid::getWindCells() const {
-	return m_cells.getFirst();
-}
-
-const CellContainer& Grid::getCausalCells() const {
-	return m_cells.getSecond();
-}
-
-const JoinContainer& Grid::getJoins(int dim) const {
+const std::vector<GridJoin>& Grid::getJoins(int dim) const {
 	return m_joins[dim];
 }
 
-const std::array<Boundary*, 3>& Grid::getLeftBoundaries() const {
-	return m_leftBoundaries;
+PartitionManager& Grid::getPartitionManager() {
+	return partition;
 }
 
-const std::array<Boundary*, 3>& Grid::getRightBoundaries() const {
-	return m_rightBoundaries;
+std::vector<int>& Grid::getCausalIndices() {
+	return m_causalIndices;
 }
 
-/**
- * @brief Traverses over GridCells via GridCell::right and GridCell::left in 1D.
- * @param dim
- * The dimension to traverse along (0, 1, 2).
- * @param dxc
- * No. of GridCells to traverse over. Passing 1 would return the adjacent GridCell.
- * @param cptr
- * GridCell to start traversing from.
- * @return The GridCell traversed to. Will return <code> nullptr </code> if it doesn't exist.
- */
-GridCell* Grid::traverse1D(const int dim, const int dxc, GridCell* cptr) {
-	GridCell* newcptr = cptr;
-	int adxc = std::abs(dxc);
-	for (int i = 0; i < adxc && newcptr != nullptr; ++i)
-		newcptr = (dxc > 0) ? newcptr->right[dim] : newcptr->left[dim];
-	return newcptr;
+std::vector<int>& Grid::getOrderedIndices(const std::string& name) {
+	if (orderedIndices.find(name) == orderedIndices.end())
+		std::cout << name << " not found..." << std::endl;
+	return (std::vector<int>&)orderedIndices[name];
 }
 
-/**
- * @brief Traverses over GridCells via GridCell::right and GridCell::left in 3D.
- * blach
- * @param d1
- * Direction 1.
- * @param d2
- * Direction 2.
- * @param d3
- * Direction 3.
- * @param dc1
- * No. of GridCells to traverse along direction d1.
- * @param dc2
- * No. of GridCells to traverse along direction d2.
- * @param dc3
- * No. of GridCells to traverse along direction d3.
- * @param cptr
- * Pointer to the GridCell to start from.
- * @return The GridCell traversed to. Will return <code> nullptr </code> if it doesn't exist.
- */
-GridCell* Grid::traverse3D(const int d1, const int d2, const int d3, const int dc1, const int dc2, const int dc3, GridCell* cptr) {
-	return traverse1D(d3, dc3, traverse1D(d2, dc2, traverse1D(d1, dc1, cptr)));
+void Grid::addOrderedIndex(const std::string& name, int index) {
+	std::vector<int>& order = (std::vector<int>&)orderedIndices[name];
+	order.push_back(index);
 }
 
-/**
- * @brief Traverses over GridCells via GridCell::rjoin and GridCell::ljoin in 1D.
- * @param dim
- * The dimension to traverse along (0, 1, 2).
- * @param dc
- * No. of GridCells to traverse over. Passing 1 would return the adjacent GridCell.
- * @param cptr
- * Pointer to the GridCell to start from.
- * @return The GridCell traversed to. Will return <code> nullptr </code> if it doesn't exist.
- */
-GridCell* Grid::traverseOverJoins1D(const int dim, const int dxc, GridCell* cptr) {
-	GridCell* newcptr = cptr;
-	for(int i = 0; i < abs(dxc) && newcptr != nullptr; ++i){
-		if (dxc > 0 && newcptr->rjoin[dim] != nullptr)
-			newcptr = newcptr->rjoin[dim]->rcell;
-		else if (dxc < 0 && newcptr->ljoin[dim] != nullptr)
-			newcptr = newcptr->ljoin[dim]->lcell;
-		else
-			newcptr = nullptr;
-	}
-	return newcptr;
+bool Grid::cellExists(int id) const {
+	return id >= 0 && id < m_cells.size();
 }
 
-/**
- * @brief Traverses over GridCells via GridCell::rjoin and GridCell::ljoin in 1D.
- * @param d1
- * Direction 1.
- * @param d2
- * Direction 2.
- * @param d3
- * Direction 3.
- * @param dc1
- * No. of GridCells to traverse along direction d1.
- * @param dc2
- * No. of GridCells to traverse along direction d2.
- * @param dc3
- * No. of GridCells to traverse along direction d3.
- * @param cptr
- * Pointer to the GridCell to start traversing from.
- * @return The GridCell traversed to. Will return <code> nullptr </code> if it doesn't exist.
- */
-GridCell* Grid::traverseOverJoins3D(const int d1, const int d2, const int d3, const int dc1, const int dc2, const int dc3, GridCell* cptr) {
-	GridCell* newcptr = traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d1, dc1, cptr)));
-	if (newcptr == nullptr)
-		newcptr = traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d3, dc3, cptr)));
-	if (newcptr == nullptr)
-		newcptr = traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d2, dc2, cptr)));
-	if (newcptr == nullptr)
-		newcptr = traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d3, dc3, cptr)));
-	if (newcptr == nullptr)
-		newcptr = traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d1, dc1, cptr)));
-	if (newcptr == nullptr)
-		newcptr = traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d2, dc2, cptr)));
-	return newcptr;
+int Grid::left(int dim, int fromCellID) {
+	return m_cells[fromCellID].leftID[dim];
 }
 
-/**
- * @brief Provides the next GridCell along a path that traverses a 2D plane which includes the passed GridCell.
- * @param plane
- * The dimension normal to the plane.
- * @param cptr
- * Pointer to previous GridCell.
- * @return Pointer to next GridCell. If there are no more GridCells on this path then <code> nullptr </code> is returned.
- */
-GridCell* Grid::nextCell2D(const int plane, GridCell* cptr) {
-	GridCell* newcptr = nullptr;
-	if ((int)(cptr->xc[(plane+2)%3]+1)%2 != 0)
-		newcptr = traverse1D((plane+1)%3, 1, cptr);
+int Grid::right(int dim, int fromCellID) {
+	return m_cells[fromCellID].rightID[dim];
+}
+
+int Grid::ghostLeft(int dim, int fromCellID) {
+	int joinID = m_cells[fromCellID].ljoinID[dim];
+	if (joinID != -1)
+		return m_joins[dim][joinID].lcellID;
 	else
-		newcptr = traverse1D((plane+1)%3, -1, cptr);
-	if (newcptr == nullptr)
-		newcptr = traverse1D((plane+2)%3, 1, cptr);
-	return newcptr;
+		return -1;
 }
 
-/**
- * @brief Provides next GridCell along a specific path.
- * The path starts from srcptr and traverses along the positive or negative x direction (sign of dxc) until a
- * <code> nullptr </code> pointer is encountered. The next GridCell in this case would be along the y direction
- * (specified by dyc) from a GridCell that has the x and z coordinates of the srcptr and the y coordinate of the
- * previous GridCell. At some point traversing in the y direction will encounter a nullptr pointer a so step is
- * taken in the z direction starting from a GridCell with x and y coordinates of the GridCell pointed to
- * by srcptr and z coordinate of the previous GridCell. E.g. (dxc,dyc,dzc)=(1,1,1) leads to all GridCell with
- * x,y,z coordinate equal to or greater than the GridCell pointed to by srcptr being sampled along this route.
- *
- * @param srcptr
- * The GridCell that traversal in all directions starts from.
- * @param cptr
- * Pointer to previous GridCell.
- * @param dxc
- * GridCell to traverse in the x direction at every step.
- * @param dyc
- * GridCells to traverse in the y direction at every step.
- * @param dyz
- * GridCells to traverse in the z direction at every step.
- * @return Pointer to next GridCell. If there are no more GridCells on this path then <code> nullptr </code> is returned.
- */
-GridCell* Grid::nextSnake(GridCell* cptr, GridCell* srcptr, const int dxc, const int dyc, const int dyz, int nd) {
-	GridCell* newcptr = traverse1D(0, dxc, cptr);
-	if (newcptr == nullptr && nd > 1) {
-		newcptr = traverse1D(1, safe_round(cptr->xc[1] - srcptr->xc[1]) + dyc, srcptr);
-		newcptr = traverse1D(2, safe_round(cptr->xc[2] - srcptr->xc[2]), newcptr);
+int Grid::ghostRight(int dim, int fromCellID) {
+	return m_joins[dim][m_cells[fromCellID].rjoinID[dim]].rcellID;
+}
+
+GridCell& Grid::left(int dim, GridCell& fromCell) {
+	return m_cells[fromCell.leftID[dim]];
+}
+
+GridCell& Grid::right(int dim, GridCell& fromCell) {
+	return m_cells[fromCell.rightID[dim]];
+}
+
+GridCell& Grid::ghostLeft(int dim, GridCell& fromCell) {
+	return m_cells[m_joins[dim][fromCell.ljoinID[dim]].lcellID];
+}
+
+GridCell& Grid::ghostRight(int dim, GridCell& fromCell) {
+	return m_cells[m_joins[dim][fromCell.rjoinID[dim]].rcellID];
+}
+
+GridCell& Grid::joinedLeft(GridJoin& join) {
+	return m_cells[join.lcellID];
+}
+
+GridCell& Grid::joinedRight(GridJoin& join) {
+	return m_cells[join.rcellID];
+}
+
+GridJoin& Grid::leftJoin(int dim, GridCell& fromCell) {
+	return m_joins[dim][fromCell.ljoinID[dim]];
+}
+
+GridJoin& Grid::rightJoin(int dim, GridCell& fromCell) {
+	return m_joins[dim][fromCell.rjoinID[dim]];
+}
+
+int Grid::flatIndex(int ci, int cj, int ck) {
+	return ci + coreCells[0]*(cj + coreCells[1]*ck);
+}
+
+Coords Grid::unflatCoords(int flat_index) {
+	Coords coords;
+	coords[2] = (int)(0.5 + flat_index/(coreCells[0]*coreCells[1]));
+	coords[1] = (int)(0.5 + (flat_index - coords[2]*coreCells[0]*coreCells[1])/coreCells[0]);
+	coords[0] = flat_index - coreCells[0]*(coords[1] + coreCells[1]*coords[2]);
+	return coords;
+}
+
+int Grid::traverse1D(int dim, const int dxc, int fromCellID) {
+	int id = fromCellID;
+	int adxc = std::abs(dxc);
+	for (int i = 0; i < adxc && id != -1; ++i) {
+		id = dxc > 0 ? m_cells[id].rightID[dim] : m_cells[id].leftID[dim];
 	}
-	if (newcptr == nullptr && nd > 2)
-		newcptr = traverse1D(2, safe_round(cptr->xc[2] - srcptr->xc[2]) + dyz, srcptr);
-	return newcptr;
+	return id;
 }
 
-/**
- * @brief Provides next GridCell along a causal path from a specified GridCell.
- * @param cptr
- * Pointer to previous GridCell.
- * @param srcptr
- * Pointer to the first GridCell along the path.
- * @return Pointer to next GridCell. If there are no more GridCells on this path then <code> nullptr </code> is returned.
- */
-GridCell* Grid::nextCausal(GridCell* cptr, GridCell* srcptr, int nd) {
+int Grid::traverse3D(const int d1, const int d2, const int d3, const int dc1, const int dc2, const int dc3, int fromCellID) {
+	return traverse1D(d3, dc3, traverse1D(d2, dc2, traverse1D(d1, dc1, fromCellID)));
+}
+
+int Grid::traverseOverJoins1D(const int dim, const int dxc, int fromCellID) {
+	int id = fromCellID;
+	for(int i = 0; i < abs(dxc) && id != -1; ++i){
+		if (dxc > 0 && m_cells[id].rjoinID[dim] != -1)
+			id = ghostRight(dim, id);
+		else if (dxc < 0 && m_cells[id].ljoinID[dim] != 0)
+			id = ghostLeft(dim, id);
+		else
+			id = -1;
+	}
+	return id;
+}
+
+int Grid::traverseOverJoins3D(const int d1, const int d2, const int d3, const int dc1, const int dc2, const int dc3, int fromCellID) {
+	int id = traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d1, dc1, fromCellID)));
+	if (id == -1) {
+		id = traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d3, dc3, fromCellID)));
+		if (id == -1) {
+			id = traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d2, dc2, id)));
+			if (id == -1) {
+				id = traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d3, dc3, fromCellID)));
+				if (id == -1) {
+					id = traverseOverJoins1D(d2, dc2, traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d1, dc1, fromCellID)));
+					if (id == -1)
+						id = traverseOverJoins1D(d3, dc3, traverseOverJoins1D(d1, dc1, traverseOverJoins1D(d2, dc2, fromCellID)));
+				}
+			}
+		}
+	}
+	return id;
+}
+
+int Grid::nextCell2D(const int plane, int fromCellID) {
+	int id = fromCellID;
+	Coords coords = unflatCoords(id);
+	if ((int)(m_cells[id].xc[(plane+2)%3]+1)%2 != 0) {
+		if (coords[(plane+1)%3] != coreCells[(plane+1)%3] - 1)
+			id = traverse1D((plane+1)%3, 1, fromCellID);
+		else
+			id = -1;
+	}
+	else {
+		if (coords[(plane+1)%3] != 0)
+			id = traverse1D((plane+1)%3, -1, fromCellID);
+		else
+			id = -1;
+	}
+	if (id == -1 && coords[(plane+2)%3] != coreCells[(plane+2)%3] - 1)
+		id = traverse1D((plane+2)%3, 1, fromCellID);
+	return id;
+}
+
+int Grid::nextSnake(int fromCellID, int sourceCellID, const int dxc, const int dyc, const int dyz, int nd) {
+	int id = traverse1D(0, dxc, fromCellID);
+	if (id == -1 && nd > 1) {
+		id = traverse1D(1, safe_round(m_cells[fromCellID].xc[1] - m_cells[sourceCellID].xc[1]) + dyc, sourceCellID);
+		id = traverse1D(2, safe_round(m_cells[fromCellID].xc[2] - m_cells[sourceCellID].xc[2]), id);
+	}
+	if (id == -1 && nd > 2)
+		id = traverse1D(2, safe_round(m_cells[fromCellID].xc[2] - m_cells[sourceCellID].xc[2]) + dyz, sourceCellID);
+	return id;
+}
+
+int Grid::locate(int cx, int cy, int cz) {
+	int cx_mod = cx - getLeftX();
+
+	if (cx_mod >= getLeftX() && cx_mod < getRightX() && cy >= 0 && cy < coreCells[1] && cz >= 0 && cz < coreCells[2])
+		return flatIndex(cx_mod, cy, cz);
+	else
+		return -1;
+}
+
+Coords Grid::nearestCoord(const Coords& original) {
+	Coords nearest = original;
+	nearest[0] = std::min(std::max(getLeftX(), nearest[0]), getRightX() - 1);
+	nearest[1] = std::min(std::max(0, nearest[1]), coreCells[1] - 1);
+	nearest[2] = std::min(std::max(0, nearest[2]), coreCells[2] - 1);
+	return nearest;
+}
+
+bool Grid::withinGrid(const Coords& coords) {
+	return coords[0] >= getLeftX() && coords[0] < getRightX() && coords[1] >= 0 && coords[1] < coreCells[1] && coords[2] >= 0 && coords[2] < coreCells[2];
+}
+
+bool Grid::joinExists(int dim, std::array<int, 3>& joinIDs) {
+	return joinIDs[dim] >= 0 && joinIDs[dim] < m_joins[dim].size();
+}
+
+Coords Grid::nextSnakeCoords(const Coords& fromCoords, const Coords& sourceCoords, const int dxc, const int dyc, const int dzc) {
+	Coords nextCoords;
+	if (fromCoords[0] + dxc >= getLeftX() && fromCoords[0] + dxc < getRightX()) {
+		nextCoords[0] = fromCoords[0] + dxc;
+		nextCoords[1] = fromCoords[1];
+		nextCoords[2] = fromCoords[2];
+	}
+	else if (fromCoords[1] + dyc >= 0 && fromCoords[1] + dyc < coreCells[1]) {
+		nextCoords[0] = sourceCoords[0];
+		nextCoords[1] = fromCoords[1] + dyc;
+		nextCoords[2] = fromCoords[2];
+	}
+	else if (fromCoords[2] + dzc >= 0 && fromCoords[2] + dzc < coreCells[2]) {
+		nextCoords[0] = sourceCoords[0];
+		nextCoords[1] = sourceCoords[1];
+		nextCoords[2] = fromCoords[2] + dzc;
+	}
+	else {
+		nextCoords[0] = -1;
+		nextCoords[1] = -1;
+		nextCoords[2] = -1;
+	}
+
+	return nextCoords;
+}
+
+Coords Grid::nextCausalCoords(const Coords& fromCoords, const Coords& sourceCoords) {
 	int dir[3] = {0,0,0};
 	for (int i = 0; i < 3; ++i){
-		if ((int)cptr->xc[i] != (int)srcptr->xc[i])
-			dir[i] = (cptr->xc[i]-srcptr->xc[i])/std::fabs(cptr->xc[i]-srcptr->xc[i]);
+		if (fromCoords[i] != sourceCoords[i])
+			dir[i] = (fromCoords[i]-sourceCoords[i])/std::fabs(fromCoords[i]-sourceCoords[i]);
 		else
 			dir[i] = 1;
 	}
-	GridCell* beginptr = srcptr;
-	if(dir[0] < 0 && dir[1] > 0 && dir[2] > 0)
-		beginptr = srcptr->left[0];
-	if(dir[0] > 0 && dir[1] < 0 && dir[2] > 0)
-		beginptr = srcptr->left[1];
-	if(dir[0] > 0 && dir[1] > 0 && dir[2] < 0)
-		beginptr = srcptr->left[2];
-	if(dir[0] < 0 && dir[1] < 0 && dir[2] > 0)
-		beginptr = srcptr->left[0]->left[1];
-	if(dir[0] < 0 && dir[1] > 0 && dir[2] < 0)
-		beginptr = srcptr->left[0]->left[2];
-	if(dir[0] > 0 && dir[1] < 0 && dir[2] < 0)
-		beginptr = srcptr->left[1]->left[2];
-	if(dir[0] < 0 && dir[1] < 0 && dir[2] < 0)
-		beginptr = srcptr->left[0]->left[1]->left[2];
+	Coords beginCoords = sourceCoords;
+	for (int i = 0; i < 3; ++i) {
+		if (dir[i] < 0)
+			beginCoords[i] -= 1;
+	}
 
-	GridCell* newcptr = nextSnake(cptr, beginptr, dir[0], dir[1], dir[2], nd);
+	//std::cout << dir[0] << " " << dir[1] << " " << dir[2] << std::endl;
 
-	if(newcptr == nullptr && dir[0] == 1 && dir[1] == 1 && dir[2] == 1) {
-		newcptr = traverse3D(0, 1, 2, -1, 0, 0, srcptr);
+	Coords nextCoords = nextSnakeCoords(fromCoords, beginCoords, dir[0], dir[1], dir[2]);
+
+	if (!withinGrid(nextCoords) && dir[0] == 1 && dir[1] == 1 && dir[2] == 1) {
+		nextCoords = sourceCoords;
+		nextCoords[0] -= 1;
 		dir[0] = -1;
 	}
-	if(newcptr == nullptr && dir[0] == -1 && dir[1] == 1 && dir[2] == 1 && nd > 1) {
-		newcptr = traverse3D(0, 1, 2, 0, -1, 0, srcptr);
+	if (!withinGrid(nextCoords) && dir[0] == -1 && dir[1] == 1 && dir[2] == 1 && m_consts->nd > 1) {
+		nextCoords = sourceCoords;
+		nextCoords[1] -= 1;
 		dir[0] = 1;
 		dir[1] = -1;
 	}
-	if(newcptr == nullptr && dir[0] == 1 && dir[1] == -1 && dir[2] == 1 && nd > 1) {
-		newcptr = traverse3D(0, 1, 2, -1, -1, 0, srcptr);
+	if (!withinGrid(nextCoords) && dir[0] == 1 && dir[1] == -1 && dir[2] == 1 && m_consts->nd > 1) {
+		nextCoords = sourceCoords;
+		nextCoords[0] -= 1;
+		nextCoords[1] -= 1;
 		dir[0] = -1;
 	}
-	if(newcptr == nullptr && dir[0] == -1 && dir[1] == -1 && dir[2] == 1 && nd > 2) {
-		newcptr = traverse3D(0, 1, 2, 0, 0, -1, srcptr);
+	if (!withinGrid(nextCoords) && dir[0] == -1 && dir[1] == -1 && dir[2] == 1 && m_consts->nd > 2) {
+		nextCoords = sourceCoords;
+		nextCoords[2] -= 1;
 		dir[0] = 1;
 		dir[1] = 1;
 		dir[2] = -1;
 	}
-	if(newcptr == nullptr && dir[0] == 1 && dir[1] == 1 && dir[2] == -1 && nd > 2) {
-		newcptr = traverse3D(0, 1, 2, -1, 0, -1, srcptr);
+	if (!withinGrid(nextCoords) && dir[0] == 1 && dir[1] == 1 && dir[2] == -1 && m_consts->nd > 2) {
+		nextCoords = sourceCoords;
+		nextCoords[0] -= 1;
+		nextCoords[2] -= 1;
 		dir[0] = -1;
 	}
-	if(newcptr == nullptr && dir[0] == -1 && dir[1] == 1 && dir[2] == -1 && nd > 2) {
-		newcptr = traverse3D(0, 1, 2, 0, -1, -1, srcptr);
+	if (!withinGrid(nextCoords) && dir[0] == -1 && dir[1] == 1 && dir[2] == -1 && m_consts->nd > 2) {
+		nextCoords = sourceCoords;
+		nextCoords[1] -= 1;
+		nextCoords[2] -= 1;
 		dir[0] = 1;
 		dir[1] = -1;
 	}
-	if(newcptr == nullptr && dir[0] == 1 && dir[1] == -1 && dir[2] == -1 && nd > 2) {
-		newcptr = traverse3D(0, 1, 2, -1, -1, -1, srcptr);
+	if (!withinGrid(nextCoords) && dir[0] == 1 && dir[1] == -1 && dir[2] == -1 && m_consts->nd > 2) {
+		nextCoords = sourceCoords;
+		nextCoords[0] -= 1;
+		nextCoords[1] -= 1;
+		nextCoords[2] -= 1;
 		dir[0] = -1;
 	}
-	return newcptr;
+
+	return nextCoords;
 }
 
-/**
- * @brief Locates GridCell at the specified grid coordinates.
- * @param x
- * x grid coordinate.
- * @param y
- * y grid coordinate.
- * @param z
- * z grid coordinate.
- * @return The located GridCell if it exists. If not then <code> nullptr </code>.
- */
-GridCell* Grid::locate(const Coords& x, GridCell* const fromCell) {
-	GridCell* cptr = fromCell;
-	for (int dim = 0; dim < 3; ++dim) {
-		for (int i = 0; (cptr != nullptr) && ((int)(cptr->xc[dim]) != x[dim]); ++i)
-			cptr = cptr->right[dim];
+int Grid::nextCausal(int fromCellID, int sourceCellID, int nd) {
+	int dir[3] = {0,0,0};
+	for (int i = 0; i < 3; ++i){
+		if ((int)m_cells[fromCellID].xc[i] != (int)m_cells[sourceCellID].xc[i])
+			dir[i] = (m_cells[fromCellID].xc[i]-m_cells[sourceCellID].xc[i])/std::fabs(m_cells[fromCellID].xc[i]-m_cells[sourceCellID].xc[i]);
+		else
+			dir[i] = 1;
 	}
-	return cptr;
+	int beginID = sourceCellID;
+	if(dir[0] < 0 && dir[1] > 0 && dir[2] > 0)
+		beginID = m_cells[sourceCellID].leftID[0];
+	if(dir[0] > 0 && dir[1] < 0 && dir[2] > 0)
+		beginID = m_cells[sourceCellID].leftID[1];
+	if(dir[0] > 0 && dir[1] > 0 && dir[2] < 0)
+		beginID = m_cells[sourceCellID].leftID[2];
+	if(dir[0] < 0 && dir[1] < 0 && dir[2] > 0)
+		beginID = m_cells[m_cells[sourceCellID].leftID[0]].leftID[1];
+	if(dir[0] < 0 && dir[1] > 0 && dir[2] < 0)
+		beginID = m_cells[m_cells[sourceCellID].leftID[0]].leftID[2];
+	if(dir[0] > 0 && dir[1] < 0 && dir[2] < 0)
+		beginID = m_cells[m_cells[sourceCellID].leftID[1]].leftID[2];
+	if(dir[0] < 0 && dir[1] < 0 && dir[2] < 0)
+		beginID = m_cells[m_cells[m_cells[sourceCellID].leftID[0]].leftID[1]].leftID[2];
+
+	int id = nextSnake(fromCellID, beginID, dir[0], dir[1], dir[2], nd);
+
+	if (id == -1 && dir[0] == 1 && dir[1] == 1 && dir[2] == 1) {
+		id = traverse3D(0, 1, 2, -1, 0, 0, sourceCellID);
+		dir[0] = -1;
+	}
+	if (id == -1 && dir[0] == -1 && dir[1] == 1 && dir[2] == 1 && nd > 1) {
+		id = traverse3D(0, 1, 2, 0, -1, 0, sourceCellID);
+		dir[0] = 1;
+		dir[1] = -1;
+	}
+	if (id == -1 && dir[0] == 1 && dir[1] == -1 && dir[2] == 1 && nd > 1) {
+		id = traverse3D(0, 1, 2, -1, -1, 0, sourceCellID);
+		dir[0] = -1;
+	}
+	if (id == -1 && dir[0] == -1 && dir[1] == -1 && dir[2] == 1 && nd > 2) {
+		id = traverse3D(0, 1, 2, 0, 0, -1, sourceCellID);
+		dir[0] = 1;
+		dir[1] = 1;
+		dir[2] = -1;
+	}
+	if (id == -1 && dir[0] == 1 && dir[1] == 1 && dir[2] == -1 && nd > 2) {
+		id = traverse3D(0, 1, 2, -1, 0, -1, sourceCellID);
+		dir[0] = -1;
+	}
+	if (id == -1 && dir[0] == -1 && dir[1] == 1 && dir[2] == -1 && nd > 2) {
+		id = traverse3D(0, 1, 2, 0, -1, -1, sourceCellID);
+		dir[0] = 1;
+		dir[1] = -1;
+	}
+	if (id == -1 && dir[0] == 1 && dir[1] == -1 && dir[2] == -1 && nd > 2) {
+		id = traverse3D(0, 1, 2, -1, -1, -1, sourceCellID);
+		dir[0] = -1;
+	}
+	return id;
+}
+
+void Grid::weakLink(const int dim, int lcellID, int rcellID) {
+	if (lcellID != -1 && rcellID != -1) {
+		m_joins[dim].emplace_back();
+		m_cells[rcellID].ljoinID[dim] = m_joins[dim].size() - 1;
+		m_cells[lcellID].rjoinID[dim] = m_joins[dim].size() - 1;
+
+		GridJoin& join = m_joins[dim][m_joins[dim].size() - 1];
+
+		join.rcellID = rcellID;
+		join.lcellID = lcellID;
+
+		for (int i = 0; i < 3; ++i)
+			join.xj[i] = m_cells[join.rcellID].xc[i];
+		join.xj[dim] = m_cells[join.rcellID].xc[dim] - 0.5;
+		join.area = computeJoinArea(join.xj, dim, dx, geometry, m_consts->nd);
+	}
+}
+
+void Grid::link(const int dim, int lcellID, int rcellID) {
+	if (lcellID != -1 && rcellID != -1) {
+		m_cells[rcellID].leftID[dim] = lcellID;
+		m_cells[lcellID].rightID[dim] = rcellID;
+
+		weakLink(dim, lcellID, rcellID);
+	}
+}
+
+static int calcCoreCells(int nx, int nproc, int iproc) {
+	int ncells = nx/nproc;
+	int cells_left = nx - nproc*ncells;
+	if (nproc - iproc <= cells_left)
+		++ncells;
+	return ncells;
+}
+
+static int calcLeftBoundaryPosition(int nx, int nproc, int iproc) {
+	int start_xc = 0;
+	for (int oproc = 0; oproc < iproc; ++oproc)
+		start_xc += calcCoreCells(nx, nproc, oproc);
+	return start_xc;
+}
+
+void Grid::initialise(std::shared_ptr<Constants> consts, const GridParameters& gp) {
+	m_consts = std::move(consts);
+	MPIW& mpihandler = MPIW::Instance();
+	int rproc = mpihandler.getRank();
+	int nproc = mpihandler.nProcessors();
+
+	ncells = gp.ncells;
+	sideLength = gp.sideLength;
+	spatialOrder = gp.spatialOrder;
+	geometry = m_consts->geometryParser.parseEnum(gp.geometry);
+	for (int i = 0; i < m_consts->nd; ++i)
+		dx[i] = gp.sideLength/(double)gp.ncells[0];
+
+	coreCells = gp.ncells;
+	coreCells[0] = calcCoreCells(gp.ncells[0], nproc, rproc);
+	if (coreCells[0] == 0) {
+		throw std::runtime_error("Grid::initialise: zero cells in processor (" +  std::to_string(mpihandler.getRank()) + ").");
+	}
+
+	// Set Grid wall locations.
+	setLeftX(calcLeftBoundaryPosition(ncells[0], nproc, rproc));
+	setRightX(getLeftX()+coreCells[0]);
+
+	m_cellCollection.start("AllCells");
+	m_cellCollection.start("GridCells");
+	buildCells();
+	m_cellCollection.stop("GridCells");
+
+	for (GridCell& cell : m_cells)
+		cell.vol = computeCellVolume(cell.xc[0], dx, geometry, m_consts->nd);
+
+	// Parse boundary condition into enum.
+	std::pair<std::array<Condition, 3>, std::array<Condition, 3>> leftRightBC;
+	for (int i = 0; i < 3; ++i) {
+		leftRightBC.first[i] = m_consts->conditionParser.parseEnum(gp.leftBC[i]);
+		leftRightBC.second[i] = m_consts->conditionParser.parseEnum(gp.rightBC[i]);
+	}
+
+	// Initialise partition manager.
+	if (mpihandler.nproc > 1)
+		partition.initialise(coreCells[1]*coreCells[2]*(spatialOrder+1)*(UID::N + 1));
+
+	// Build the boundaries.
+	buildBoundaries(leftRightBC.first, leftRightBC.first);
+
+	// Link the boundaries to the Grid.
+	m_cellCollection.start("GhostCells");
+	for (int dim = 0; dim < m_boundaries.size()/2; ++dim) {
+		m_cellCollection.start("GhostCells"+std::to_string(dim));
+		boundaryLink(m_boundaries[2*dim + 0]);
+		boundaryLink(m_boundaries[2*dim + 1]);
+		m_cellCollection.stop("GhostCells"+std::to_string(dim));
+	}
+	m_cellCollection.stop("GhostCells");
+	m_cellCollection.stop("AllCells");
+	m_cellCollection.start("DeepGhostCells");
+	MPIW::Instance().barrier();
+	MPIW::Instance().serial([&] () {
+		for (Bound& boundary : m_boundaries)
+			boundaryLinkDeeper(boundary);
+	});
+	m_cellCollection.stop("DeepGhostCells");
+}
+
+void Grid::buildCells() {
+	int proc_rank = MPIW::Instance().getRank();
+
+	ProgressBar progBar = ProgressBar(100, 5, "Building Grid3D", false);
+
+	for (int index = 0; index < coreCells[0]*coreCells[1]*coreCells[2]; ++index){
+		double dummy;
+		progBar.update((100*index/(double)(coreCells[0]*coreCells[1]*coreCells[2])), dummy, proc_rank == 0);
+
+		m_cellCollection.add();
+		Coords nextCoords = unflatCoords(index);
+		for (int i = 0; i < 3; ++i)
+			m_cells[index].xc[i] = nextCoords[i];
+		for (int i = 0; i < m_consts->nd; ++i)
+			m_cells[index].xc[i] += 0.5;
+		m_cells[index].xc[0] += getLeftX();
+	}
+	for (int i = 0; i < coreCells[0]; ++i) {
+		for (int j = 0; j < coreCells[1]; ++j) {
+			for (int k = 0; k < coreCells[2]; ++k) {
+				if (i > 0)
+					link(0, flatIndex(i-1, j, k), flatIndex(i, j, k));
+				if (j > 0)
+					link(1, flatIndex(i, j-1, k), flatIndex(i, j, k));
+				if (k > 0)
+					link(2, flatIndex(i, j, k-1), flatIndex(i, j, k));
+			}
+		}
+	}
+
+	progBar.end(proc_rank == 0);
+}
+
+void Grid::buildCausal(const Coords& sourceCoords) {
+	Coords startCoords = nearestCoord(sourceCoords);
+
+	for (Coords c = startCoords; withinGrid(c); c = nextCausalCoords(c, startCoords)) {
+		m_causalIndices.push_back(flatIndex(c[0]-getLeftX(), c[1], c[2]));
+		GridCell& cell = m_cells[m_causalIndices[m_causalIndices.size()-1]];
+	}
+}
+
+void Grid::buildBoundaries(const std::array<Condition, 3>& leftBC, const std::array<Condition, 3>& rightBC) {
+	MPIW& mpihandler = MPIW::Instance();
+	int nproc = mpihandler.nProcessors();
+	int rproc = mpihandler.getRank();
+
+	int left_rank = (rproc - 1 < 0) ? rproc - 1 + nproc : rproc - 1;
+	int right_rank = (rproc + 1 >= nproc) ? rproc + 1 - nproc : rproc + 1;
+	bool periodic_and_mpi = nproc > 1 && leftBC[0] == Condition::PERIODIC && rightBC[0] == Condition::PERIODIC;
+
+	if (m_consts->nd > 0) {
+		if (mpihandler.getRank() != 0 || periodic_and_mpi)
+			m_boundaries.push_back(Bound(0, Condition::PARTITION, left_rank));
+		else
+			m_boundaries.push_back(Bound(0, leftBC[0]));
+		if (rproc != nproc - 1 || periodic_and_mpi)
+			m_boundaries.push_back(Bound(3, Condition::PARTITION, right_rank));
+		else
+			m_boundaries.push_back(Bound(3, rightBC[0]));
+	}
+	if (m_consts->nd > 1) {
+		m_boundaries.push_back(Bound(1, leftBC[1]));
+		m_boundaries.push_back(Bound(4, rightBC[1]));
+	}
+	if (m_consts->nd > 2) {
+		m_boundaries.push_back(Bound(2, leftBC[2]));
+		m_boundaries.push_back(Bound(5, rightBC[2]));
+	}
+}
+
+void Grid::boundaryLink(Bound& boundary) {
+	int dim = boundary.face%3;
+	bool isLeft = boundary.face < 3;
+	int linkCellID = isLeft ? 0 : flatIndex(dim == 0 ? coreCells[0]-1 : 0, dim == 1 ? coreCells[1]-1 : 0, dim == 2 ? coreCells[2]-1 : 0);
+
+	if (boundary.condition == Condition::PARTITION)
+		m_cellCollection.start(isLeft ? "LeftPartitionCells" : "RightPartitionCells");
+	while (linkCellID != -1) {
+		int ghostCellID = m_cellCollection.add();
+		GridCell& ghostCell = m_cells[ghostCellID];
+		boundary.ghostCellIDs.push_back(ghostCellID);
+
+		for (int idim = 0; idim < 3; ++idim)
+			ghostCell.xc[idim] = m_cells[linkCellID].xc[idim];
+		ghostCell.xc[dim] += isLeft ? -1 : 1;
+
+		link(dim, isLeft ? ghostCellID : linkCellID, isLeft ?  linkCellID : ghostCellID);
+
+		linkCellID = nextCell2D(dim, linkCellID);
+	}
+	if (boundary.condition == Condition::PARTITION)
+		m_cellCollection.stop(isLeft ? "LeftPartitionCells" : "RightPartitionCells");
+}
+
+void Grid::boundaryLinkDeeper(Bound& boundary ) {
+	int dim = boundary.face%3;
+	bool isLeft = boundary.face < 3;
+
+	for (int ghostCellID : boundary.ghostCellIDs) {
+		int currGhostID = ghostCellID;
+
+		for (int ig = 0; ig < spatialOrder; ++ig) {
+			int oldGhostID = currGhostID;
+			currGhostID = m_cellCollection.add();
+			m_cells[currGhostID].xc[0] = -100;
+
+			if (isLeft)
+				m_cells[oldGhostID].leftID[dim] = currGhostID;
+			else
+				m_cells[oldGhostID].rightID[dim] = currGhostID;
+		}
+	}
+}
+
+void Grid::applyBCs() {
+	for (Bound& boundary : m_boundaries) {
+		int dim = boundary.face%3;
+
+		switch(boundary.condition) {
+			case(Condition::FREE):
+				if (boundary.face < 3) {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						GridCell& cell = m_cells[right(dim, ghostCellID)];
+
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = left(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							for(int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				else {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						GridCell& cell = m_cells[left(dim, ghostCellID)];
+
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = right(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							for(int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				break;
+			case(Condition::INFLOW):
+				if (boundary.face < 3) {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						GridCell& cell = m_cells[right(dim, ghostCellID)];
+
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = left(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							for(int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							if (cell.Q[UID::VEL+dim] < 0)
+								ghost.Q[UID::VEL+dim] = -1.0*cell.Q[UID::VEL+dim];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				else {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						GridCell& cell = m_cells[left(dim, ghostCellID)];
+
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = right(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							for (int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							if (cell.Q[UID::VEL+dim] > 0)
+								ghost.Q[UID::VEL+dim] = -1.0*cell.Q[UID::VEL+dim];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				break;
+			case(Condition::OUTFLOW):
+				if (boundary.face < 3) {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						GridCell& cell = m_cells[right(dim, ghostCellID)];
+
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = left(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							for (int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							if (cell.Q[UID::VEL+dim] > 0)
+								ghost.Q[UID::VEL+dim] = -1.0*cell.Q[UID::VEL+dim];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				else {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						GridCell& cell = m_cells[left(dim, ghostCellID)];
+
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = right(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							for (int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							if(cell.Q[UID::VEL+dim] < 0)
+								ghost.Q[UID::VEL+dim] = -1.0*cell.Q[UID::VEL+dim];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				break;
+			case(Condition::PERIODIC):
+				if (boundary.face < 3) {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						Coords cellCoords = unflatCoords(right(dim, ghostCellID));
+						cellCoords[dim] += coreCells[dim] - 1;
+
+						int currCellID = flatIndex(cellCoords[0], cellCoords[1], cellCoords[2]);
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = left(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							GridCell& cell = m_cells[currCellID];
+							for(int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+							currCellID = left(dim, currCellID);
+						}
+					}
+				}
+				else {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						Coords cellCoords = unflatCoords(left(dim, ghostCellID));
+						cellCoords[dim] -= coreCells[dim] - 1;
+
+						int currCellID = flatIndex(cellCoords[0], cellCoords[1], cellCoords[2]);
+						for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = right(dim, currGhostID)) {
+							GridCell& ghost = m_cells[currGhostID];
+							GridCell& cell = m_cells[currCellID];
+							for(int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+							currCellID = right(dim, currCellID);
+						}
+					}
+				}
+				break;
+			case(Condition::REFLECTING):
+				if (boundary.face < 3) {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						for (int currGhostID = ghostCellID, currCellID = right(dim, ghostCellID); currGhostID != -1; currGhostID = left(dim, currGhostID)) {
+							currCellID = right(dim, currCellID);
+							GridCell& ghost = m_cells[currGhostID];
+							GridCell& cell = m_cells[currCellID];
+
+							for (int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+
+							ghost.Q[UID::VEL+dim] = -cell.Q[UID::VEL+dim];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				else {
+					for (int ghostCellID : boundary.ghostCellIDs) {
+						for (int currGhostID = ghostCellID, currCellID = left(dim, ghostCellID); currGhostID != -1; currGhostID = right(dim, currGhostID)) {
+							currCellID = left(dim, currCellID);
+							GridCell& ghost = m_cells[currGhostID];
+							GridCell& cell = m_cells[currCellID];
+							for(int iu = 0; iu < UID::N; iu++)
+								ghost.Q[iu] = cell.Q[iu];
+							ghost.Q[UID::VEL+dim] = -cell.Q[UID::VEL+dim];
+							ghost.heatCapacityRatio = cell.heatCapacityRatio;
+						}
+					}
+				}
+				break;
+			case(Condition::PARTITION):
+				MPIW& mpihandler = MPIW::Instance();
+				int id = 0;
+				partition.resetBuffer();
+
+				for (int ghostCellID : boundary.ghostCellIDs) {
+					int currCellID = ghostCellID;
+					for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = boundary.face < 3 ? left(dim, currGhostID) : right(dim, currGhostID)) {
+						currCellID = boundary.face < 3 ? right(dim, currCellID) : left(dim, currCellID);
+						GridCell& cell = m_cells[currCellID];
+						for (int iu = 0; iu < UID::N; ++iu)
+							partition.addSendItem(cell.Q[iu]);
+						//if (mpihandler.rank == 1)
+							//std::cout << "( " << cell.xc[0] << " " << cell.xc[1] << " ): " << cell.Q[UID::DEN] << " " << cell.Q[UID::PRE] << std::endl;
+						partition.addSendItem(cell.heatCapacityRatio);
+					}
+				}
+
+				bool isPeriodic = (mpihandler.getRank() == 0 && boundary.face == 0) || (mpihandler.getRank() == mpihandler.nProcessors()-1 && boundary.face == 3);
+				SendID tag = isPeriodic ? SendID::PERIODIC_MSG : SendID::PARTITION_MSG;
+
+				partition.exchangeData(boundary.targetProcessor, tag);
+
+				id = 0;
+				for (int ghostCellID : boundary.ghostCellIDs) {
+					for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = (boundary.face < 3) ? left(dim, currGhostID) : right(dim, currGhostID)) {
+						GridCell& ghost = m_cells[currGhostID];
+						for (int iu = 0; iu < UID::N; ++iu)
+							ghost.Q[iu] = partition.getRecvItem();
+						//if (mpihandler.rank == 0)
+						//std::cout << "( " << ghost.xc[0] << " " << ghost.xc[1] << " ): " << ghost.Q[UID::DEN] << " " << ghost.Q[UID::PRE] << std::endl;
+						ghost.heatCapacityRatio = partition.getRecvItem();
+
+					}
+				}
+				//mpihandler.barrier();
+				//exit(0);
+				break;
+		}
+	}
 }
 
 /**
- * @brief Locates the GridCell nearest to the passed coordinates given a Grid's first and last GridCell.
- * @param x
- * @param firstLastCell
- * @return The located GridCell if it exists. If not then <code> nullptr </code>.
+ * @brief Calculates the area between two GridCell objects given its location and the geometry of Grid3D.
+ * @param xj
+ * Coordinates of the GridJoin between the two GridCell objects.
+ * @param dim
+ * Direction normal to the face of the GridJoin.
+ * @return The area.
  */
-GridCell* Grid::getNearestCell(const Coords& x, const GridCellPair& firstLastCell) {
-	Coords search_x = x;
-	if (x[0] < safe_round(firstLastCell.first->xc[0]))
-		search_x[0] = firstLastCell.first->xc[0];
-	else if (x[0] > safe_round(firstLastCell.second->xc[0]))
-		search_x[0] = firstLastCell.second->xc[0];
-	if (x[1] < safe_round(firstLastCell.first->xc[1]))
-		search_x[1] = firstLastCell.first->xc[1];
-	else if (x[1] > safe_round(firstLastCell.second->xc[1]))
-		search_x[1] = firstLastCell.second->xc[1];
-	if (x[2] < safe_round(firstLastCell.first->xc[2]))
-		search_x[2] = firstLastCell.first->xc[2];
-	else if (x[2] > safe_round(firstLastCell.second->xc[2]))
-		search_x[2] = firstLastCell.second->xc[2];
-	return locate(search_x, firstLastCell.first);
+double Grid::computeJoinArea(const Vec3& xj, const int dim, const Vec3& dx, Geometry geometry, int nd) {
+	double PI = 3.14159265359;
+	double area = 0, r1, r2;
+	if (geometry == Geometry::CARTESIAN) {
+		area = 1.0;
+		for (int i = 0; i < nd; ++i) {
+			if (i != dim)
+				area *= dx[i];
+		}
+	}
+	else if (geometry == Geometry::CYLINDRICAL){
+		/* Cylindrical polars (ND <= 2) */
+		if (dim == 0) {
+			r1 = xj[0]*dx[0];
+			area = 2.0*PI*r1;
+			if (nd >= 2)
+				area *= dx[1];
+		}
+		else if (dim == 1) {
+			r1 = xj[0]*dx[0] - 0.5*dx[0];
+			r2 = xj[0]*dx[0] + 0.5*dx[0];
+			area = PI*(r2 - r1)*(r2 + r1);
+		}
+	}
+	else if (geometry == Geometry::SPHERICAL) {
+		/* Spherical polars (ND = 1 only) */
+		r1 = xj[0]*dx[0];
+		area = 4.0*PI*r1*r1;
+	}
+	return area;
 }
 
+/**
+ * @brief Calculates the volume of a GridCell given its location and the geometry of Grid3D.
+ * @param cptr
+ * The GridCell object for which the volume will be calculated.
+ */
+double Grid::computeCellVolume(double rc, const Vec3& dx, Geometry geometry, int nd) {
+	double PI = 3.14159265359;
+	double volume = 0, r1, r2;
+	if (geometry == Geometry::CARTESIAN) {
+		/* Cartesian */
+		volume = 1.0;
+		for (int i = 0; i < nd; ++i)
+			volume *= dx[i];
+	}
+	else if (geometry == Geometry::CYLINDRICAL) {
+		/* Cylindrical polars (ND <= 2) */
+		r2 = rc*dx[0] + 0.5*dx[0];
+		r1 = rc*dx[0] - 0.5*dx[0];
+		volume = PI*(r2 - r1)*(r2 + r1);
+		if (nd >= 2)
+			volume *= dx[1];
+	}
+	else if (geometry == Geometry::SPHERICAL) {
+		/* Spherical polars (ND = 1 only) */
+		r2 = rc*dx[0] + 0.5*dx[0];
+		r1 = rc*dx[0] - 0.5*dx[0];
+		volume = 4.0*PI*(r2 - r1)*(r2*r2 + r1*r2 + r1*r1)/3.0;
+	}
+	return volume;
+}
 
+int Grid::getRayPlane(const Vec3& xc, const Vec3& xs) const {
+	int plane = 0;
+	double dxcs_max = 0;
+	for (int i = 0; i < m_consts->nd; ++i) {
+		double dxcs = fabs(xc[i] - xs[i]);
+		if (dxcs > dxcs_max) {
+			dxcs_max = dxcs;
+			plane = i;
+		}
+	}
+	return plane;
+}
+
+void Grid::calculateNearestNeighbours(const std::array<double, 3>& star_pos) {
+	for (int index = 0; index < coreCells[0]*coreCells[1]*coreCells[2]; ++index) {
+
+		int plane = getRayPlane(m_cells[index].xc, star_pos);
+		int irot[3] = {(plane+1)%3, (plane+2)%3, (plane%3)};
+		double d[3] = {0.0, 0.0, 0.0};
+		for(int i = 0; i < 3; i++)
+			d[i] = m_cells[index].xc[irot[i]] - star_pos[irot[i]];
+		int s[3] = {d[0] < -1.0/10.0 ? -1 : 1, d[1] < -1.0/10.0 ? -1 : 1, d[2] < -1.0/10.0 ? -1 : 1};
+		int LR[3] = {std::abs(d[0]) < 1.0/10.0 ? 0 : s[0], std::abs(d[1]) < 1.0/10.0 ? 0 : s[1], std::abs(d[2]) < 1.0/10.0 ? 0 : s[2]};
+		m_cells[index].neighbourIDs[0] = traverse3D(irot[0], irot[1], irot[2], 0, 0, -LR[2], index);
+		m_cells[index].neighbourIDs[1] = traverse3D(irot[0], irot[1], irot[2], 0, -LR[1], -LR[2], index);
+		m_cells[index].neighbourIDs[2] = traverse3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], index);
+		m_cells[index].neighbourIDs[3] = traverse3D(irot[0], irot[1], irot[2], -LR[0], -LR[1], -LR[2], index);
+		if (m_cells[index].neighbourIDs[0] == -1)
+			m_cells[index].neighbourIDs[0] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], 0, 0, -LR[2], index);
+		if (m_cells[index].neighbourIDs[1] == -1)
+			m_cells[index].neighbourIDs[1] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], 0, -LR[1], -LR[2], index);
+		if (m_cells[index].neighbourIDs[2] == -1)
+			m_cells[index].neighbourIDs[2] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], index);
+		if (m_cells[index].neighbourIDs[3] == -1)
+			m_cells[index].neighbourIDs[3] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], -LR[1], -LR[2], index);
+
+		double ic[3] = {(int)m_cells[index].xc[irot[0]]-0.5*(s[2]*d[0]/d[2]),	(int)m_cells[index].xc[irot[1]]-0.5*(s[2]*d[1]/d[2]),	(int)m_cells[index].xc[irot[2]]-0.5*(s[2])};
+		double delta[2] = {std::abs(2.0*ic[0]-2.0*(int)m_cells[index].xc[irot[0]]+s[0]), std::abs(2.0*ic[1]-2.0*(int)m_cells[index].xc[irot[1]]+s[1])};
+		m_cells[index].neighbourWeights[0] = (std::abs(d[2]) > 0.9) ? delta[0]*delta[1] : 0;
+		m_cells[index].neighbourWeights[1] = ((std::abs(d[1]) > 0.9) && (std::abs(d[2]) > 0.9)) ? delta[0]*(1.0-delta[1]) : 0;
+		m_cells[index].neighbourWeights[2] = ((std::abs(d[0]) > 0.9) && (std::abs(d[2]) > 0.9)) ? (1.0-delta[0])*delta[1] : 0;
+		m_cells[index].neighbourWeights[3] = ((std::abs(d[0]) > 0.9) && (std::abs(d[1]) > 0.9) && (std::abs(d[2]) > 0.9)) ? (1.0-delta[0])*(1.0-delta[1]) : 0;
+	}
+}
+
+Bound::Bound(int face, const Condition bcond, int target_proc)
+: face(face)
+, condition(bcond)
+, targetProcessor(target_proc)
+{
+}

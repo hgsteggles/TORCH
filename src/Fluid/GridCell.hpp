@@ -25,7 +25,6 @@
 #include <string>
 
 #include "Torch/Common.hpp"
-#include "Container.hpp"
 
 void UfromQ(FluidArray& u, const FluidArray& q, double gamma, int nd);
 void QfromU(FluidArray& q, const FluidArray& u, double gamma, int nd);
@@ -43,14 +42,11 @@ class GridCell;
  */
 class GridCell {
 public:
-	IntrusiveContainer<GridCell>::intrusive_hook hook;
-	static int s_total; //!< A count of all GridCells created in the program.
-	std::array<GridJoin*, 3> rjoin = std::array<GridJoin*, 3> { nullptr, nullptr, nullptr }; //!< Contains pointers to GridJoins that lie on the right side of this GridCell.
-	std::array<GridJoin*, 3> ljoin = std::array<GridJoin*, 3> { nullptr, nullptr, nullptr }; //!< Contains pointers to GridJoins that lie on the left side of this GridCell.
-	std::array<GridCell*, 3> right = std::array<GridCell*, 3> { nullptr, nullptr, nullptr }; //!< Contains pointers to GridCells that lie on the right side of this GridCell.
-	std::array<GridCell*, 3> left = std::array<GridCell*, 3> { nullptr, nullptr, nullptr }; //!< Contains pointers to GridCells that lie on the left side of this GridCell.
+	std::array<int, 3> rjoinID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridJoins that lie on the right side of this GridCell.
+	std::array<int, 3> ljoinID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridJoins that lie on the left side of this GridCell.
+	std::array<int, 3> rightID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridCells that lie on the right side of this GridCell.
+	std::array<int, 3> leftID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridCells that lie on the left side of this GridCell.
 	std::array<double, 3> GRAV;
-	//GridCell* next; //!< Points to the next GridCell in a list that Grid uses to clean up GridCells.
 	FluidArray UDOT; //!< Contains rate of change of conservative fluid variable values.
 	FluidArray U; //!< Contains conservative fluid variable values.
 	FluidArray Q; //!< Contains primitive fluid variable values.
@@ -58,7 +54,7 @@ public:
 	RadArray R; //!< Contains radiation variable values: optical depth in cell and along path of the ray from source.
 	ThermoArray T; //!< Contains thermadynamic variable values.
 	HeatArray H;
-	Vec3 xc = Vec3{ 0, 0, 0 }; //!< Grid coordinates for this GridCell.
+	Vec3 xc = Vec3{ -10, -10, -10 }; //!< Grid coordinates for this GridCell.
 	Array2D<double, 3, UID::N> QL; //!< Reconstructed states on left faces.
 	Array2D<double, 3, UID::N> QR; //!< Reconstructed states on right faces.
 	double vol = 0; //!< Volume of GridCell.
@@ -66,12 +62,11 @@ public:
 	double shellVol = 0;
 	double heatCapacityRatio = 0;
 	double m_soundSpeed = 0;
-	std::array<GridCell*, 4> NN = std::array<GridCell*, 4> { nullptr, nullptr, nullptr, nullptr };
-	std::array<double, 4> NN_weights = std::array<double, 4> { 0, 0, 0, 0 };
+	std::array<int, 4> neighbourIDs = std::array<int, 4> { -1, -1, -1, -1 };
+	std::array<double, 4> neighbourWeights = std::array<double, 4> { 0, 0, 0, 0 };
 
 	//Structors.
 	GridCell();
-	~GridCell();
 
 	void setSoundSpeed(double a);
 	double getSoundSpeed() const;
@@ -104,12 +99,9 @@ public:
 class GridJoin{
 public:
 	GridJoin();
-	~GridJoin();
 
-	IntrusiveContainer<GridJoin>::intrusive_hook hook;
-	static int s_total; //!< A count of all GridJoins created in the program.
-	GridCell* lcell = nullptr; //!< Pointer to GridCell on the left.
-	GridCell* rcell = nullptr; //!< Pointer to GridCell on the right.
+	int lcellID = -1; //!< Pointer to GridCell on the left.
+	int rcellID = -1; //!< Pointer to GridCell on the right.
 	FluidArray F; //!< Contains flux to be added to GridJoin::rcell and subtracted from GridJoin::lcell fluid variables (GridCell::U).
 	Vec3 xj = Vec3{ 0, 0, 0}; //!< The grid coordinates of the GridJoin in a Grid.
 	double area = 0; //!< The area of the GridJoin.

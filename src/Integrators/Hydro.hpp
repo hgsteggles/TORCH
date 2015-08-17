@@ -67,8 +67,6 @@ public:
 
 	void calcFluxes(Fluid& fluid) const;
 	void fixIC(Fluid& fluid) const;
-	//Integration methods.
-	void updateBoundaries(Fluid& fluid) const;
 
 private:
 	std::shared_ptr<Constants> m_consts = nullptr;

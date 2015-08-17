@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iostream>
 
 #include "MPI/MPI_Wrapper.hpp"
 #include "Torch/Constants.hpp"
 #include "GridCell.hpp"
+#include "Grid.hpp"
 
 void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location containing_core, const Vec3& delta_x) {
 	consts = std::move(c);
@@ -37,10 +39,12 @@ void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location 
 	windTemperature = sp.windTemperature;
 }
 
-void Star::setWindCells(const CellContainer& cells) {
+void Star::setWindCells(Grid& grid) {
 	double volume = 0;
-	for (GridCell& cell : cells)
-		volume += cell.vol;
+	std::vector<int>& list = grid.getOrderedIndices("CausalWind");
+
+	for (int cellID : grid.getOrderedIndices("CausalWind"))
+		volume += grid.getCell(cellID).vol;
 	volume = MPIW::Instance().sum(volume);
 	mdot = massLossRate/volume;
 	edot = 0.5*mdot*windVelocity*windVelocity;
@@ -50,9 +54,10 @@ int Star::getWindCellRadius() const {
 	return windCellRadius;
 }
 
-void Star::injectEnergyMomentum(CellContainer& windCells) {
+void Star::injectEnergyMomentum(Grid& grid) {
 	if (mdot != 0) {
-		for (GridCell& cell : windCells) {
+		for (int cellID : grid.getOrderedIndices("CausalWind")) {
+			GridCell& cell = grid.getCell(cellID);
 			//for (int idim = 0; idim < consts->nd; ++idim)
 				//cell.UDOT[UID::VEL+idim] -= (mdot/cell.U[UID::DEN])*cell.U[UID::VEL+idim];
 			cell.UDOT[UID::DEN] += mdot;
@@ -63,9 +68,11 @@ void Star::injectEnergyMomentum(CellContainer& windCells) {
 	}
 }
 
-void Star::fixDensityPressure(CellContainer& windCells) {
+void Star::fixDensityPressure(Grid& grid) {
 	if (mdot != 0) {
-		for (GridCell& cell : windCells) {
+		for (int cellID : grid.getOrderedIndices("CausalWind")) {
+			GridCell& cell = grid.getCell(cellID);
+
 			double dist2 = 0;
 			for (int idim = 0; idim < consts->nd; ++idim)
 				dist2 += (cell.xc[idim] - xc[idim])*(cell.xc[idim] - xc[idim])*dx[idim]*dx[idim];

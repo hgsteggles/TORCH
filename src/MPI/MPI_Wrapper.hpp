@@ -38,9 +38,9 @@ public:
 	static MPIW& Instance() {
 		return Instance(0, 0);
 	}
-	int rank; //!< Rank of the process.
-	int nproc; //!< Number of processors running this program.
-	std::string proc_name; //!< Name of the processor.
+	int rank = 0; //!< Rank of the process.
+	int nproc = 1; //!< Number of processors running this program.
+	std::string proc_name = ""; //!< Name of the processor.
 
 	~MPIW();
 

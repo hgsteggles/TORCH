@@ -69,6 +69,7 @@ DataParameters DataReader::readDataParameters(const std::string& filename) {
 
 void DataReader::readGrid(const std::string& filename, const DataParameters& dp, Fluid& fluid) {
 	MPIW& mpihandler = MPIW::Instance();
+	Grid& grid = fluid.getGrid();
 
 	mpihandler.serial([&] () {
 		if (filename.compare("") != 0) {
@@ -105,9 +106,9 @@ void DataReader::readGrid(const std::string& filename, const DataParameters& dp,
 				if (xc[0] < fluid.getGrid().getLeftX() || xc[0] > fluid.getGrid().getRightX())
 					continue;
 
-				GridCell* cptr = Grid::locate(xc, fluid.getGrid().getCells().getStartPointer());
-				if (cptr) {
-					GridCell& cell = *cptr;
+				int cellID = grid.locate((int)xc[0], (int)xc[1], (int)xc[2]);
+				if (cellID != -1) {
+					GridCell& cell = grid.getCell(cellID);
 
 					cell.Q[UID::DEN] = density;
 					cell.Q[UID::PRE] = pressure;
@@ -125,6 +126,7 @@ void DataReader::readGrid(const std::string& filename, const DataParameters& dp,
 
 void DataReader::patchGrid(const std::string& filename, const std::array<int, 3>& offset, Fluid& fluid ) {
 	MPIW& mpihandler = MPIW::Instance();
+	Grid& grid = fluid.getGrid();
 
 	DataParameters dp = readDataParameters(filename);
 
@@ -175,9 +177,9 @@ void DataReader::patchGrid(const std::string& filename, const std::array<int, 3>
 				if (xc[0] < fluid.getGrid().getLeftX() || xc[0] > fluid.getGrid().getRightX())
 					continue;
 
-				GridCell* cptr = Grid::locate(xc, fluid.getGrid().getCells().getStartPointer());
-				if (cptr) {
-					GridCell& cell = *cptr;
+				int cellID = grid.locate((int)xc[0], (int)xc[1], (int)xc[2]);
+				if (cellID != -1) {
+					GridCell& cell = grid.getCell(cellID);
 					cell.Q[UID::DEN] = 0;
 					cell.Q[UID::PRE] = 0;
 					cell.Q[UID::HII] = 0;
@@ -214,9 +216,9 @@ void DataReader::patchGrid(const std::string& filename, const std::array<int, 3>
 				if (xc[0] < fluid.getGrid().getLeftX() || xc[0] > fluid.getGrid().getRightX())
 					continue;
 
-				GridCell* cptr = Grid::locate(xc, fluid.getGrid().getCells().getStartPointer());
-				if (cptr) {
-					GridCell& cell = *cptr;
+				int cellID = grid.locate((int)xc[0], (int)xc[1], (int)xc[2]);
+				if (cellID != -1) {
+					GridCell& cell = grid.getCell(cellID);
 					cell.Q[UID::DEN] += density/r;
 					cell.Q[UID::PRE] += pressure/r;
 					cell.Q[UID::HII] += hii/r;

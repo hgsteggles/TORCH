@@ -6,8 +6,8 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+#include <iostream>
 
-#include "Fluid/Boundary.hpp"
 #include "Fluid/Fluid.hpp"
 #include "Fluid/Grid.hpp"
 #include "Fluid/GridCell.hpp"
@@ -75,46 +75,17 @@ int Radiation::getRayPlane(Vec3& xc, Vec3& xs) const {
 	return plane;
 }
 
-void Radiation::calculateNearestNeighbours(Fluid& fluid) const {
-	for (GridCell& cell : fluid.getGrid().getCells()) {
-		int plane = getRayPlane(cell.xc, fluid.getStar().xc);
-		int irot[3] = {(plane+1)%3, (plane+2)%3, (plane%3)};
-		double d[3] = {0.0, 0.0, 0.0};
-		for(int i = 0; i < 3; i++)
-			d[i] = cell.xc[irot[i]] - fluid.getStar().xc[irot[i]];
-		int s[3] = {d[0] < -1.0/10.0 ? -1 : 1, d[1] < -1.0/10.0 ? -1 : 1, d[2] < -1.0/10.0 ? -1 : 1};
-		int LR[3] = {std::abs(d[0]) < 1.0/10.0 ? 0 : s[0], std::abs(d[1]) < 1.0/10.0 ? 0 : s[1], std::abs(d[2]) < 1.0/10.0 ? 0 : s[2]};
-		cell.NN[0] = Grid::traverse3D(irot[0], irot[1], irot[2], 0, 0, -LR[2], &cell);
-		cell.NN[1] = Grid::traverse3D(irot[0], irot[1], irot[2], 0, -LR[1], -LR[2], &cell);
-		cell.NN[2] = Grid::traverse3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], &cell);
-		cell.NN[3] = Grid::traverse3D(irot[0], irot[1], irot[2], -LR[0], -LR[1], -LR[2], &cell);
-		if (cell.NN[0] == nullptr)
-			cell.NN[0] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], 0, 0, -LR[2], &cell);
-		if (cell.NN[1] == nullptr)
-			cell.NN[1] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], 0, -LR[1], -LR[2], &cell);
-		if (cell.NN[2] == nullptr)
-			cell.NN[2] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], 0, -LR[2], &cell);
-		if (cell.NN[3] == nullptr)
-			cell.NN[3] = Grid::traverseOverJoins3D(irot[0], irot[1], irot[2], -LR[0], -LR[1], -LR[2], &cell);
-
-		double ic[3] = {(int)cell.xc[irot[0]]-0.5*(s[2]*d[0]/d[2]),	(int)cell.xc[irot[1]]-0.5*(s[2]*d[1]/d[2]),	(int)cell.xc[irot[2]]-0.5*(s[2])};
-		double delta[2] = {std::abs(2.0*ic[0]-2.0*(int)cell.xc[irot[0]]+s[0]), std::abs(2.0*ic[1]-2.0*(int)cell.xc[irot[1]]+s[1])};
-		cell.NN_weights[0] = (std::abs(d[2]) > 0.9) ? delta[0]*delta[1] : 0;
-		cell.NN_weights[1] = ((std::abs(d[1]) > 0.9) && (std::abs(d[2]) > 0.9)) ? delta[0]*(1.0-delta[1]) : 0;
-		cell.NN_weights[2] = ((std::abs(d[0]) > 0.9) && (std::abs(d[2]) > 0.9)) ? (1.0-delta[0])*delta[1] : 0;
-		cell.NN_weights[3] = ((std::abs(d[0]) > 0.9) && (std::abs(d[1]) > 0.9) && (std::abs(d[2]) > 0.9)) ? (1.0-delta[0])*(1.0-delta[1]) : 0;
-	}
-}
-
 void Radiation::initField(Fluid& fluid) const {
 	static bool time = 0;
-	calculateNearestNeighbours(fluid);
+	Grid& grid = fluid.getGrid();
+
+	grid.calculateNearestNeighbours(fluid.getStar().xc);
 	if (time == 0) {
-		for (GridCell& cell : fluid.getGrid().getCells()){
-			cell.ds = cellPathLength(cell.xc, fluid.getStar().xc, fluid.getGrid().dx);
+		for (GridCell& cell : grid.getIterable("GridCells")){
+			cell.ds = cellPathLength(cell.xc, fluid.getStar().xc, grid.dx);
 			double r_sqrd = 0;
 			for(int i = 0; i < m_consts->nd; ++i)
-				r_sqrd += (cell.xc[i] - fluid.getStar().xc[i])*(cell.xc[i] - fluid.getStar().xc[i])*fluid.getGrid().dx[i]*fluid.getGrid().dx[i];
+				r_sqrd += (cell.xc[i] - fluid.getStar().xc[i])*(cell.xc[i] - fluid.getStar().xc[i])*grid.dx[i]*grid.dx[i];
 			cell.shellVol = shellVolume(cell.ds, r_sqrd);
 			double nH = massFractionH*cell.Q[UID::DEN]/m_consts->hydrogenMass;
 			cell.R[RID::DTAU] = calc_dtau((1.0 - cell.Q[UID::HII])*nH, cell.ds);
@@ -252,6 +223,8 @@ double Radiation::recombinationRateCoefficient(double T) const {
  * @return Recombination cooling rate of HII.
  */
 double Radiation::recombinationCoolingRate(double nH, double HIIFRAC, double T) const {
+	if (T == 0)
+		std::cout << "BOB" << std::endl;
 	double rate = m_recombinationHII_CoolingRates->interpolate(T);
 	return HIIFRAC*HIIFRAC*nH*nH*m_consts->boltzmannConst*T*rate;
 }
@@ -286,7 +259,10 @@ double Radiation::HIIfracRate(double A_pi, double A_ci, double A_rr, double nH, 
 }
 
 void Radiation::preTimeStepCalculations(Fluid& fluid) const {
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+	Grid& grid = fluid.getGrid();
+	for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+		GridCell& cell = grid.getCell(cellID);
+
 		double n_H = (massFractionH*cell.Q[UID::DEN]/m_consts->hydrogenMass);
 		double excessEnergy = fluid.getStar().photonEnergy - m_consts->rydbergEnergy;
 		double T = fluid.calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]);
@@ -320,10 +296,13 @@ void Radiation::preTimeStepCalculations(Fluid& fluid) const {
 }
 
 double Radiation::calculateTimeStep(double dt_max, Fluid& fluid) const {
+	Grid& grid = fluid.getGrid();
 	static bool once = false;
 	double dt = dt_max, dtc, dt1, dt2, dt3, dt4;
 	if (fluid.getStar().on) {
-		for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+		for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+			GridCell& cell = grid.getCell(cellID);
+
 			dtc = dt1 = dt2 = dt3 = dt4 = dt_max;
 			if (coupling == Coupling::NON_EQUILIBRIUM) {
 				if (cell.R[RID::HEAT] != 0)
@@ -370,14 +349,15 @@ double Radiation::calculateTimeStep(double dt_max, Fluid& fluid) const {
 	return dt;
 }
 
-void Radiation::updateTauSC(bool average, GridCell& cell, double dist2) const {
+void Radiation::updateTauSC(bool average, GridCell& cell, Fluid& fluid, double dist2) const {
+	Grid& grid = fluid.getGrid();
 	if(dist2 > 0.95){
 		double tau[4] = {0.0, 0.0, 0.0, 0.0};
 		double w_raga[4];
 		for(int i = 0; i < 4; ++i) {
-			if (cell.NN[i] != nullptr)
-				tau[i] = cell.NN[i]->R[average ? RID::TAU_A : RID::TAU]+cell.NN[i]->R[average ? RID::DTAU_A : RID::DTAU];
-			w_raga[i] = cell.NN_weights[i]/std::max(tau0, tau[i]);
+			if (grid.cellExists(cell.neighbourIDs[i]))
+				tau[i] = grid.getCell(cell.neighbourIDs[i]).R[average ? RID::TAU_A : RID::TAU]+grid.getCell(cell.neighbourIDs[i]).R[average ? RID::DTAU_A : RID::DTAU];
+			w_raga[i] = cell.neighbourWeights[i]/std::max(tau0, tau[i]);
 		}
 		double sum_w = w_raga[0]+w_raga[1]+w_raga[2]+w_raga[3];
 		double newtau = 0.0;
@@ -392,6 +372,9 @@ void Radiation::updateTauSC(bool average, GridCell& cell, double dist2) const {
 }
 
 void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
+	Grid& grid = fluid.getGrid();
+	Star& star = fluid.getStar();
+
 	if(!isStar(cell, fluid.getStar())){
 		double n_H = massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
 		double A_pi = 0;
@@ -440,9 +423,9 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 					out << cell.printInfo();
 					if (cell.R[RID::TAU] != cell.R[RID::TAU]) {
 						out << "Radiation::calculate_HIIfrac(): tau is NaN.\n";
-						for (GridCell* nptr : cell.NN) {
-							if (nptr != nullptr)
-								out << nptr->printInfo();
+						for (int neighbourID : cell.neighbourIDs) {
+							if (grid.cellExists(neighbourID))
+								out << grid.getCell(neighbourID).printInfo();
 						}
 					}
 					throw std::runtime_error(out.str());
@@ -497,8 +480,11 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 }
 
 void Radiation::rayTrace(Fluid& fluid) const {
+	Grid& grid = fluid.getGrid();
 	if (fluid.getStar().on) {
-		for (GridCell& cell : fluid.getGrid().getWindCells()) {
+		for (int cellID : grid.getOrderedIndices("CausalWind")) {
+			GridCell& cell = grid.getCell(cellID);
+
 			cell.R[RID::TAU] = 0;
 			cell.R[RID::TAU_A] = 0;
 			cell.R[RID::DTAU] = 0;
@@ -508,13 +494,14 @@ void Radiation::rayTrace(Fluid& fluid) const {
 		}
 		bool average = true;
 		/** Causally loop over cells in grid */
-		for (GridCell& cell : fluid.getGrid().getCausalCells()) {
-			//for(GridCell* cptr = grid.fcell; cptr != nullptr; cptr = cell.next){
+		for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+			GridCell& cell = grid.getCell(cellID);
+
 			double dist2 = 0;
 			for (int i = 0; i < m_consts->nd; ++i)
 				dist2 += (cell.xc[i] - fluid.getStar().xc[i])*(cell.xc[i] - fluid.getStar().xc[i]);
 			/** Calculate column densities */
-			updateTauSC(average==false, cell, dist2);
+			updateTauSC(average==false, cell, fluid, dist2);
 			double nH = massFractionH*cell.Q[UID::DEN]/m_consts->hydrogenMass;
 			cell.R[RID::DTAU] = calc_dtau((1.0 - cell.Q[UID::HII])*nH, cell.ds);
 			cell.R[RID::DTAU_A] = calc_dtau((1.0 - cell.R[RID::HII_A])*nH, cell.ds);
@@ -524,51 +511,51 @@ void Radiation::rayTrace(Fluid& fluid) const {
 
 void Radiation::transferRadiation2(double dt, Fluid& fluid) const {
 	MPIW& mpihandler = MPIW::Instance();
-	if (fluid.getStar().on) {
-		/** Wait for column densities */
-		if(fluid.getStar().core != Star::Location::HERE) {
-			Partition* part = nullptr;
-			if (fluid.getStar().core == Star::Location::LEFT)
-				part = static_cast<Partition*>(fluid.getGrid().getLeftBoundaries()[0]);
-			else
-				part = static_cast<Partition*>(fluid.getGrid().getRightBoundaries()[1]);
-			part->recvData(SendID::RADIATION_MSG);
+	Grid& grid = fluid.getGrid();
+	Star& star = fluid.getStar();
 
-			for (GridCell* ghostcell : part->getGhostCells()) {
-				ghostcell->R[RID::DTAU] = part->getRecvItem();
-				ghostcell->R[RID::TAU] = part->getRecvItem();
+	if (star.on) {
+		PartitionManager& partition = grid.getPartitionManager();
+		/** Wait for column densities */
+		if (star.core != Star::Location::HERE) {
+			int source = star.core == Star::Location::LEFT ? mpihandler.rank - 1 : mpihandler.rank + 1;
+			partition.recvData(source, SendID::RADIATION_MSG);
+
+			for (GridCell& ghost : grid.getIterable(star.core == Star::Location::LEFT ? "LeftPartitionCells" : "RightPartitionCells")) {
+				ghost.R[RID::DTAU] = partition.getRecvItem();
+				ghost.R[RID::TAU] = partition.getRecvItem();
 			}
 		}
 		/** Calculate column densities */
 		rayTrace(fluid);
 		/** Send column densities to processor on left */
-		if(!(mpihandler.getRank() == 0 || fluid.getStar().core == Star::Location::LEFT)) {
-			Partition* part = static_cast<Partition*>(fluid.getGrid().getLeftBoundaries()[0]);
-
-			for (GridCell* ghostcell : part->getGhostCells()) {
-				GridCell* cptr = ghostcell->rjoin[0]->rcell;
-				part->addSendItem(cptr->R[RID::DTAU]);
-				part->addSendItem(cptr->R[RID::TAU]);
+		if (!(mpihandler.getRank() == 0 || star.core == Star::Location::LEFT)) {
+			for (GridCell& ghost : grid.getIterable("LeftPartitionCells")) {
+				GridCell& cell = grid.right(0, ghost);
+				partition.addSendItem(cell.R[RID::DTAU]);
+				partition.addSendItem(cell.R[RID::TAU]);
 			}
-			part->sendData(SendID::RADIATION_MSG);
+			int destination = mpihandler.rank - 1;
+			partition.sendData(destination, SendID::RADIATION_MSG);
 		}
 		/** Send column densities to processor on right */
-		if(!(mpihandler.getRank() == mpihandler.nProcessors()-1 || fluid.getStar().core == Star::Location::RIGHT)) {
-			Partition* part = static_cast<Partition*>(fluid.getGrid().getRightBoundaries()[0]);
-
-			for (GridCell* ghostcell : part->getGhostCells()) {
-				GridCell* cptr = ghostcell->ljoin[0]->lcell;
-				part->addSendItem(cptr->R[RID::DTAU]);
-				part->addSendItem(cptr->R[RID::TAU]);
+		if (!(mpihandler.getRank() == mpihandler.nProcessors()-1 || star.core == Star::Location::RIGHT)) {
+			for (GridCell& ghost : grid.getIterable("RightPartitionCells")) {
+				GridCell& cell = grid.left(0, ghost);
+				partition.addSendItem(cell.R[RID::DTAU]);
+				partition.addSendItem(cell.R[RID::TAU]);
 			}
-			part->sendData(SendID::RADIATION_MSG);
+			int destination = mpihandler.rank + 1;
+			partition.sendData(destination, SendID::RADIATION_MSG);
 		}
-		for (GridCell& cell : fluid.getGrid().getCausalCells())
+		for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+			GridCell& cell = grid.getCell(cellID);
 			update_HIIfrac(dt, cell, fluid);
+		}
 	}
 	else {
 		double HII_dummy = 0, HII;
-		for (GridCell& cell : fluid.getGrid().getCells()) {
+		for (GridCell& cell : grid.getIterable("GridCells")) {
 			HII = cell.Q[UID::HII];
 			HII_dummy = HII;
 			double n_H = massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
@@ -583,25 +570,27 @@ void Radiation::transferRadiation2(double dt, Fluid& fluid) const {
 
 void Radiation::transferRadiation(double dt, Fluid& fluid) const {
 	MPIW& mpihandler = MPIW::Instance();
+	Grid& grid = fluid.getGrid();
+	Star& star = fluid.getStar();
+
 	if (fluid.getStar().on) {
+		PartitionManager& partition = grid.getPartitionManager();
+		partition.resetBuffer();
 		/** Wait for column densities */
 		if (fluid.getStar().core != Star::Location::HERE) {
-			Partition* part = nullptr;
-			if (fluid.getStar().core == Star::Location::LEFT)
-				part = static_cast<Partition*>(fluid.getGrid().getLeftBoundaries()[0]);
-			else
-				part = static_cast<Partition*>(fluid.getGrid().getRightBoundaries()[1]);
-			part->recvData(SendID::RADIATION_MSG);
+			int source = star.core == Star::Location::LEFT ? mpihandler.rank - 1 : mpihandler.rank + 1;
+			partition.recvData(source, SendID::RADIATION_MSG);
 
-			for (GridCell* ghostcell : part->getGhostCells()) {
-				ghostcell->R[RID::DTAU] = part->getRecvItem();
-				ghostcell->R[RID::TAU] = part->getRecvItem();
-				ghostcell->R[RID::DTAU_A] = part->getRecvItem();
-				ghostcell->R[RID::TAU_A] = part->getRecvItem();
+			for (GridCell& ghost : grid.getIterable(star.core == Star::Location::LEFT ? "LeftPartitionCells" : "RightPartitionCells")) {
+				ghost.R[RID::DTAU] = partition.getRecvItem();
+				ghost.R[RID::TAU] = partition.getRecvItem();
+				ghost.R[RID::DTAU_A] = partition.getRecvItem();
+				ghost.R[RID::TAU_A] = partition.getRecvItem();
 			}
 		}
 		/** Causal ray tracing and integrating for HII fraction */
-		for (GridCell& cell : fluid.getGrid().getWindCells()) {
+		for (int cellID : grid.getOrderedIndices("CausalWind")) {
+			GridCell& cell = grid.getCell(cellID);
 			cell.R[RID::TAU] = 0;
 			cell.R[RID::TAU_A] = 0;
 			cell.R[RID::DTAU] = 0;
@@ -610,47 +599,47 @@ void Radiation::transferRadiation(double dt, Fluid& fluid) const {
 			cell.R[RID::HII_A] = 1;
 		}
 		bool average = true;
-		for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+		for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+			GridCell& cell = grid.getCell(cellID);
+
 			double dist2 = 0;
 			for (int i = 0; i < m_consts->nd; ++i)
 				dist2 += (cell.xc[i] - fluid.getStar().xc[i])*(cell.xc[i] - fluid.getStar().xc[i]);
-			updateTauSC(average==false, cell, dist2);
-			updateTauSC(average==true, cell, dist2);
+			updateTauSC(average==false, cell, fluid, dist2);
+			updateTauSC(average==true, cell, fluid, dist2);
 			update_HIIfrac(dt, cell, fluid);
 			double nH = massFractionH*cell.Q[UID::DEN]/m_consts->hydrogenMass;
 			cell.R[RID::DTAU] = calc_dtau((1.0 - cell.Q[UID::HII])*nH, cell.ds);
 			cell.R[RID::DTAU_A] = calc_dtau((1.0 - cell.R[RID::HII_A])*nH, cell.ds);
 		}
 		/** Send column densities to processor on left */
-		if(!(mpihandler.getRank() == 0 || fluid.getStar().core == Star::Location::LEFT)) {
-			Partition* part = static_cast<Partition*>(fluid.getGrid().getLeftBoundaries()[0]);
-
-			for (GridCell* ghostcell : part->getGhostCells()) {
-				GridCell* cptr = ghostcell->rjoin[0]->rcell;
-				part->addSendItem(cptr->R[RID::DTAU]);
-				part->addSendItem(cptr->R[RID::TAU]);
-				part->addSendItem(cptr->R[RID::DTAU_A]);
-				part->addSendItem(cptr->R[RID::TAU_A]);
+		if (!(mpihandler.getRank() == 0 || fluid.getStar().core == Star::Location::LEFT)) {
+			for (GridCell& ghost : grid.getIterable("LeftPartitionCells")) {
+				GridCell& cell = grid.right(0, ghost);
+				partition.addSendItem(cell.R[RID::DTAU]);
+				partition.addSendItem(cell.R[RID::TAU]);
+				partition.addSendItem(cell.R[RID::DTAU_A]);
+				partition.addSendItem(cell.R[RID::TAU_A]);
 			}
-			part->sendData(SendID::RADIATION_MSG);
+			int destination = mpihandler.rank - 1;
+			partition.sendData(destination, SendID::RADIATION_MSG);
 		}
 		/** Send column densities to processor on right */
-		if(!(mpihandler.getRank() == mpihandler.nProcessors()-1 || fluid.getStar().core == Star::Location::RIGHT)) {
-			Partition* part = static_cast<Partition*>(fluid.getGrid().getRightBoundaries()[0]);
-
-			for (GridCell* ghostcell : part->getGhostCells()) {
-				GridCell* cptr = ghostcell->ljoin[0]->lcell;
-				part->addSendItem(cptr->R[RID::DTAU]);
-				part->addSendItem(cptr->R[RID::TAU]);
-				part->addSendItem(cptr->R[RID::DTAU_A]);
-				part->addSendItem(cptr->R[RID::TAU_A]);
+		if (!(mpihandler.getRank() == mpihandler.nProcessors()-1 || fluid.getStar().core == Star::Location::RIGHT)) {
+			for (GridCell& ghost : grid.getIterable("RightPartitionCells")) {
+				GridCell& cell = grid.left(0, ghost);
+				partition.addSendItem(cell.R[RID::DTAU]);
+				partition.addSendItem(cell.R[RID::TAU]);
+				partition.addSendItem(cell.R[RID::DTAU_A]);
+				partition.addSendItem(cell.R[RID::TAU_A]);
 			}
-			part->sendData(SendID::RADIATION_MSG);
+			int destination = mpihandler.rank + 1;
+			partition.sendData(destination, SendID::RADIATION_MSG);
 		}
 	}
 	else {
 		double HII_dummy = 0, HII;
-		for (GridCell& cell : fluid.getGrid().getCells()) {
+		for (GridCell& cell : grid.getIterable("AllCells")) {
 			HII = cell.Q[UID::HII];
 			HII_dummy = HII;
 			double n_H = massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
@@ -664,9 +653,9 @@ void Radiation::transferRadiation(double dt, Fluid& fluid) const {
 }
 
 void Radiation::updateSourceTerms(double dt, Fluid& fluid) const {
-	//std::cout << "niter_avg = " << niter_tot/niter_num << '\n';
+	Grid& grid = fluid.getGrid();
 	if (fluid.getStar().on) {
-		for (GridCell& cell : fluid.getGrid().getCells()) {
+		for (GridCell& cell : grid.getIterable("GridCells")) {
 			if (coupling == Coupling::TWO_TEMP_ISOTHERMAL) {
 				double HII_new = cell.Q[UID::HII];
 				double mu_inv_new = massFractionH*(HII_new + 1.0) + (1.0 - massFractionH)*0.25;

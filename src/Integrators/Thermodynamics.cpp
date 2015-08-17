@@ -5,8 +5,8 @@
 #include <cmath>
 #include <complex>
 #include <utility>
+#include <iostream>
 
-#include "Fluid/Boundary.hpp"
 #include "Fluid/Fluid.hpp"
 #include "Fluid/Grid.hpp"
 #include "Fluid/GridCell.hpp"
@@ -207,7 +207,11 @@ void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
 	if (fluid.getStar().on)
 		rayTrace(fluid);
 
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+	Grid& grid = fluid.getGrid();
+
+	for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+		GridCell& cell = grid.getCell(cellID);
+
 		if (cell.Q[UID::ADV] < m_thermoHII_Switch) {
 			cell.T[TID::RATE] = 0;
 			continue;
@@ -222,7 +226,7 @@ void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
 		double F_FUV = 0;
 		if (fluid.getStar().on) {
 			for (int id = 0; id < m_consts->nd; ++id)
-				rsqrd += (cell.xc[id]-fluid.getStar().xc[id])*(cell.xc[id]-fluid.getStar().xc[id])*fluid.getGrid().dx[id]*fluid.getGrid().dx[id];
+				rsqrd += (cell.xc[id]-fluid.getStar().xc[id])*(cell.xc[id]-fluid.getStar().xc[id])*grid.dx[id]*grid.dx[id];
 			F_FUV = fluxFUV(0.5*fluid.getStar().photonRate, rsqrd);
 		}
 		double tau = cell.T[TID::COL_DEN];
@@ -252,7 +256,11 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 	if (!m_isSubcycling)
 		return;
 
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+	Grid& grid = fluid.getGrid();
+
+	for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+		GridCell& cell = grid.getCell(cellID);
+
 		if (cell.Q[UID::ADV] < m_thermoHII_Switch) {
 			cell.T[TID::RATE] = 0;
 			continue;
@@ -320,14 +328,15 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 	}
 }
 
-void Thermodynamics::updateColDen(GridCell& cell, const double dist2) const {
+void Thermodynamics::updateColDen(GridCell& cell, Fluid& fluid, const double dist2) const {
+	Grid& grid = fluid.getGrid();
 	if (dist2 > 0.95*0.95) {
 		double colden[4] = {0.0, 0.0, 0.0, 0.0};
 		double w_raga[4];
 		for(int i = 0; i < 4; ++i) {
-			if (cell.NN[i] != nullptr)
-				colden[i] = cell.NN[i]->T[TID::COL_DEN]+cell.NN[i]->T[TID::DCOL_DEN];
-			w_raga[i] = colden[i] == 0 ? 0 : cell.NN_weights[i]/colden[i];
+			if (cell.neighbourIDs[i] != -1)
+				colden[i] = grid.getCell(cell.neighbourIDs[i]).T[TID::COL_DEN]+grid.getCell(cell.neighbourIDs[i]).T[TID::DCOL_DEN];
+			w_raga[i] = colden[i] == 0 ? 0 : cell.neighbourWeights[i]/colden[i];
 		}
 		double sum_w = w_raga[0]+w_raga[1]+w_raga[2]+w_raga[3];
 
@@ -345,62 +354,69 @@ void Thermodynamics::updateColDen(GridCell& cell, const double dist2) const {
 	}
 }
 
-void Thermodynamics::rayTrace(const Fluid& fluid) const {
+void Thermodynamics::rayTrace(Fluid& fluid) const {
 	MPIW& mpihandler = MPIW::Instance();
+	Grid& grid = fluid.getGrid();
+	Star& star = fluid.getStar();
+	PartitionManager& partition = grid.getPartitionManager();
+	partition.resetBuffer();
 
 	if (fluid.getStar().core != Star::Location::HERE) {
-		Partition* part = nullptr;
-		if (fluid.getStar().core == Star::Location::LEFT)
-			part = static_cast<Partition*>(fluid.getGrid().getLeftBoundaries()[0]);
-		else
-			part = static_cast<Partition*>(fluid.getGrid().getRightBoundaries()[1]);
-		part->recvData(SendID::THERMO_MSG);
+		int source = (star.core == Star::Location::LEFT) ? mpihandler.rank - 1 : mpihandler.rank + 1;
+		partition.recvData(source, SendID::THERMO_MSG);
 
-		for (GridCell* ghostcell : part->getGhostCells()) {
-			ghostcell->T[TID::COL_DEN] = part->getRecvItem();
-			ghostcell->T[TID::DCOL_DEN] = part->getRecvItem();
+		for (GridCell& ghost : grid.getIterable(star.core == Star::Location::LEFT ? "LeftPartitionCells" : "RightPartitionCells")) {
+			ghost.T[TID::COL_DEN] = partition.getRecvItem();
+			ghost.T[TID::DCOL_DEN] = partition.getRecvItem();
 		}
 	}
-	for (GridCell& cell : fluid.getGrid().getWindCells()) {
+	for (int cellID : grid.getOrderedIndices("CausalWind")) {
+		GridCell& cell = grid.getCell(cellID);
+
 		double dist2 = 0;
 		for (int i = 0; i < m_consts->nd; ++i)
 			dist2 += (cell.xc[i] - fluid.getStar().xc[i])*(cell.xc[i] - fluid.getStar().xc[i]);
-		updateColDen(cell, dist2);
+		updateColDen(cell, fluid, dist2);
 	}
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+	for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+		GridCell& cell = grid.getCell(cellID);
+
 		double dist2 = 0;
 		for (int i = 0; i < m_consts->nd; ++i)
 			dist2 += (cell.xc[i] - fluid.getStar().xc[i])*(cell.xc[i] - fluid.getStar().xc[i]);
-		updateColDen(cell, dist2);
+		updateColDen(cell, fluid, dist2);
 	}
 	// Send column densities to processor on left.
 	if(!(mpihandler.getRank() == 0 || fluid.getStar().core == Star::Location::LEFT)) {
-		Partition* part = static_cast<Partition*>(fluid.getGrid().getLeftBoundaries()[0]);
-
-		for (GridCell* ghostcell : part->getGhostCells()) {
-			GridCell* cptr = ghostcell->rjoin[0]->rcell;
-			part->addSendItem(cptr->T[TID::COL_DEN]);
-			part->addSendItem(cptr->T[TID::DCOL_DEN]);
+		for (GridCell& ghost : grid.getIterable("LeftPartitionCells")) {
+			GridCell& cell = grid.right(0, ghost);
+			partition.addSendItem(cell.T[TID::COL_DEN]);
+			partition.addSendItem(cell.T[TID::DCOL_DEN]);
 		}
-		part->sendData(SendID::THERMO_MSG);
+		int destination = mpihandler.rank - 1;
+		partition.sendData(destination, SendID::THERMO_MSG);
 	}
 	// Send column densities to processor on right.
 	if(!(mpihandler.getRank() == mpihandler.nProcessors()-1 || fluid.getStar().core == Star::Location::RIGHT)) {
-		Partition* part = static_cast<Partition*>(fluid.getGrid().getRightBoundaries()[0]);
-
-		for (GridCell* ghostcell : part->getGhostCells()) {
-			GridCell* cptr = ghostcell->ljoin[0]->lcell;
-			part->addSendItem(cptr->T[TID::COL_DEN]);
-			part->addSendItem(cptr->T[TID::DCOL_DEN]);
+		for (GridCell& ghost : grid.getIterable("RightPartitionCells")) {
+			GridCell& cell = grid.left(0, ghost);
+			partition.addSendItem(cell.T[TID::COL_DEN]);
+			partition.addSendItem(cell.T[TID::DCOL_DEN]);
 		}
-		part->sendData(SendID::THERMO_MSG);
+		int destination = mpihandler.rank + 1;
+		partition.sendData(destination, SendID::THERMO_MSG);
 	}
 }
 
-void Thermodynamics::fillHeatingArrays(const Fluid& fluid) {
+void Thermodynamics::fillHeatingArrays(Fluid& fluid) {
 	if (fluid.getStar().on)
 		rayTrace(fluid);
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+
+	Grid& grid = fluid.getGrid();
+
+	for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+		GridCell& cell = grid.getCell(cellID);
+
 		double nH = m_massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
 		double HIIFRAC = cell.Q[UID::HII];
 		double ne = HIIFRAC*nH;
@@ -410,7 +426,7 @@ void Thermodynamics::fillHeatingArrays(const Fluid& fluid) {
 		double F_FUV = 0;
 		if (fluid.getStar().on) {
 			for (int id = 0; id < m_consts->nd; ++id)
-				rsqrd += (cell.xc[id]-fluid.getStar().xc[id])*(cell.xc[id]-fluid.getStar().xc[id])*fluid.getGrid().dx[id]*fluid.getGrid().dx[id];
+				rsqrd += (cell.xc[id]-fluid.getStar().xc[id])*(cell.xc[id]-fluid.getStar().xc[id])*grid.dx[id]*grid.dx[id];
 			F_FUV = fluxFUV(0.5*fluid.getStar().photonRate, rsqrd);
 		}
 		double tau = cell.T[TID::COL_DEN];
@@ -429,8 +445,9 @@ void Thermodynamics::fillHeatingArrays(const Fluid& fluid) {
 }
 
 double Thermodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
+	Grid& grid = fluid.getGrid();
 	double dt = dt_max;
-	for (GridCell& cell : fluid.getGrid().getCells()) {
+	for (GridCell& cell : grid.getCells()) {
 		if (cell.T[TID::RATE] != 0) {
 			double frac = m_isSubcycling ? 1.0 : 0.1;
 			double dti = std::abs(frac*cell.U[UID::PRE]/cell.T[TID::RATE]);
@@ -443,7 +460,9 @@ double Thermodynamics::calculateTimeStep(double dt_max, Fluid& fluid) const {
 }
 
 void Thermodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
+	Grid& grid = fluid.getGrid();
+	for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
+		GridCell& cell = grid.getCell(cellID);
 		cell.UDOT[UID::PRE] += cell.T[TID::RATE];
 		cell.T[TID::RATE] = cell.T[TID::HEAT] = 0;
 	}

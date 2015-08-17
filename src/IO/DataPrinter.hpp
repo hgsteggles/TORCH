@@ -44,7 +44,7 @@ public:
 
 	//Output.
 	void freqPrint(const Radiation& rad, const Grid& grid) const;
-	void printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydro, const Fluid& fluid);
+	void printSTARBENCH(const Radiation& rad, const Hydrodynamics& hydro, Fluid& fluid);
 	void printBinary2D(const int step, const double t, const Grid& grid) const;
 	void print2D(const std::string& append_name, const double t, const Grid& grid) const;
 	void printMinMax(const std::string& filename, const Grid& grid) const;

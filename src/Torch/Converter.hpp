@@ -34,7 +34,7 @@ public:
 
 	void printInfo();
 private:
-	double M, L, T;
+	double M = 0, L = 0, T = 0;
 	double convertCodeUnits(const double val, const double mass_index, const double length_index, const double time_index, const bool& from) const;
 };
 

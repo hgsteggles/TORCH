@@ -100,7 +100,7 @@ int StreambufGZ::flush_buffer() {
 }
 
 int StreambufGZ::overflow( int c) { // used for output buffer only
-	if ( ! ( mode & std::ios::out || mode & std::ios::app) || ! opened)
+	if ( ! ( (mode & std::ios::out) || (mode & std::ios::app)) || ! opened)
 		return EOF;
 	if (c != EOF) {
 		*pptr() = c;

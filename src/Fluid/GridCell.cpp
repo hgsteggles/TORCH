@@ -11,17 +11,7 @@
 GridJoin::GridJoin() {
 	for(int i = 0; i < UID::N; ++i)
 		F[i] = 0;
-	s_total++;
 }
-
-/**
- * @brief The Gridjoin destructor.
- */
-GridJoin::~GridJoin() {
-	s_total--;
-}
-
-int GridJoin::s_total = 0;
 
 /**
  * @brief Default GridCell constructor.
@@ -47,15 +37,6 @@ GridCell::GridCell() {
 		T[i] = 0;
 	for (int i = 0; i < HID::N; ++i)
 		H[i] = 0;
-	s_total++;
-}
-
-/**
- * @brief GridCell destructor.
- * Does NOT delete objects that this GridCell object points to.
- */
-GridCell::~GridCell() {
-	s_total--;
 }
 
 void GridCell::setSoundSpeed(double a) {
@@ -123,31 +104,23 @@ std::string GridCell::printInfo() const {
 	out << "tau_a = " << R[RID::TAU_A] << '\n';
 	out << "dtau = " << R[RID::DTAU] << '\n';
 	out << "dtau_a = " << R[RID::DTAU_A] << '\n';
-	out << "NN[0] = " << NN[0] << '\n';
-	out << "NN[1] = " << NN[1] << '\n';
-	out << "NN[2] = " << NN[2] << '\n';
-	out << "NN[3] = " << NN[3] << '\n';
-	out << "NN_weights[0] = " << NN_weights[0] << '\n';
-	out << "NN_weights[1] = " << NN_weights[1] << '\n';
-	out << "NN_weights[2] = " << NN_weights[2] << '\n';
-	out << "NN_weights[3] = " << NN_weights[3] << '\n';
-	out << "ljoin[0] = " << ljoin[0] << '\n';
-	out << "ljoin[1] = " << ljoin[1] << '\n';
-	out << "ljoin[2] = " << ljoin[2] << '\n';
-	out << "rjoin[0] = " << rjoin[0] << '\n';
-	out << "rjoin[1] = " << rjoin[1] << '\n';
-	out << "rjoin[2] = " << rjoin[2] << '\n';
-	out << "left[0] = " << left[0] << '\n';
-	out << "left[1] = " << left[1] << '\n';
-	out << "left[2] = " << left[2] << '\n';
-	out << "right[0] = " << right[0] << '\n';
-	out << "right[1] = " << right[1] << '\n';
-	out << "right[2] = " << right[2] << '\n';
+	out << "NN[0] = " << neighbourIDs[0] << '\n';
+	out << "NN[1] = " << neighbourIDs[1] << '\n';
+	out << "NN[2] = " << neighbourIDs[2] << '\n';
+	out << "NN[3] = " << neighbourIDs[3] << '\n';
+	for (int i = 0; i < 4; ++i)
+		out << "NN_weights[" << i << "] = " << neighbourWeights[i] << '\n';
+	for (int i = 0; i < 3; ++i)
+		out << "ljoinID[" << i << "] = " << ljoinID[i] << '\n';
+	for (int i = 0; i < 3; ++i)
+		out << "rjoinID[" << i << "] = " << rjoinID[i] << '\n';
+	for (int i = 0; i < 3; ++i)
+		out << "leftID[" << i << "] = " << leftID[i] << '\n';
+	for (int i = 0; i < 3; ++i)
+		out << "rightID[" << i << "] = " << rightID[i] << '\n';
 
 	return out.str();
 }
-
-int GridCell::s_total = 0;
 
 /**
  * @brief Setter for GridCell::U.

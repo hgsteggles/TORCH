@@ -13,25 +13,20 @@ RS = 0.35*PC2CM
 
 n0 = nHI*math.pow(1 + RS*RS/rc2, alpha)
 
-
+pre0 = specificGasConstant*nHI*hydrogenMass*T
 
 function initialise(x, y, z, xs, ys, zs)
 	local dy = RS + (ys - y)
 	local R2 = x*x + dy*dy
 	local R = math.sqrt(R2)
 
-	--local den = n0*hydrogenMass*math.pow(1 + R2/rc2, -alpha)
-	local den = nHI*hydrogenMass
-	local pre = specificGasConstant*den*T
+	local den = n0*hydrogenMass*math.pow(1 + R2/rc2, -alpha)
+	local pre = pre0
 
 	local hii = 0
 	local v0 = 0
 	local v1 = 0
 	local v2 = 0
-
-
-	local g_coeff = -2.0*n0*hydrogenMass*specificGasConstant*T*alpha/rc2
-	local g_r = g_coeff*R*math.pow(1 + R2/rc2, -alpha-1.0)
 
 	local grav0 = 0
 	local grav1 = 0

@@ -13,8 +13,9 @@ ProgressBar::ProgressBar(double tmax, int cpoint, const std::string msg, bool de
 	, clockLast(clockStart)
 	, smoothing(0.5)
 	, debugging(debug)
+	, speedEMA(Clock::now()-Clock::now())
 {
-	speedEMA = Clock::now()-Clock::now();
+
 }
 
 bool ProgressBar::update(double time_current, double& dt_nextCheckpoint, bool output_on) {

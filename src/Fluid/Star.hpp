@@ -26,7 +26,7 @@
 #include "Torch/Parameters.hpp"
 
 class GridCell;
-class Grid3D;
+class Grid;
 class Constants;
 
 /**
@@ -42,16 +42,15 @@ class Constants;
 class Star {
 public:
 	enum class Location : unsigned int { LEFT, HERE, RIGHT };
-	std::array<double, 3> xc;
+	std::array<double, 3> xc = std::array<double, 3>{ 0, 0, 0 };
 
 	void initialise(std::shared_ptr<Constants> c, StarParameters sp, Location containing_core, const Vec3& delta_x);
 
-	void setWindCells(const CellContainer& cells);
-	const CellContainer& getWindCells() const;
+	void setWindCells(Grid& grid);
 
-	void injectEnergyMomentum(CellContainer& windCells);
+	void injectEnergyMomentum(Grid& grid);
 
-	void fixDensityPressure(CellContainer& windCells);
+	void fixDensityPressure(Grid& grid);
 
 	int getWindCellRadius() const;
 
@@ -66,9 +65,9 @@ public:
 	Location core = Location::HERE;
 
 private:
-	std::shared_ptr<Constants> consts;
-	double mdot;
-	double edot;
+	std::shared_ptr<Constants> consts = nullptr;
+	double mdot = 0;
+	double edot = 0;
 };
 
 #endif // STAR_HPP_

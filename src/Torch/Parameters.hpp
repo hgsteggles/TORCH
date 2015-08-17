@@ -109,11 +109,11 @@ struct GridParameters {
 };
 
 struct DataParameters {
-	double time;
-	std::array<int, 3> ncells; //!< Array holding the number of grid cells along each dimension.
-	int nd;
-	double dx;
-	double sideLength; //!< The side length of the simulation line/square/cube.
+	double time = 0;
+	std::array<int, 3> ncells = std::array<int, 3>{ 0, 0, 0 }; //!< Array holding the number of grid cells along each dimension.
+	int nd = 0;
+	double dx = 0;
+	double sideLength = 0; //!< The side length of the simulation line/square/cube.
 };
 
 struct RadiationParameters {
