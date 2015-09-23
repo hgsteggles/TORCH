@@ -122,6 +122,7 @@ void parseParameters(const std::string& filename, TorchParameters& p, int param_
 		parseLuaVariable(luaState["Parameters"]["Thermodynamics"]["thermo_hii_switch"], p.thermoHII_Switch);
 		parseLuaVariable(luaState["Parameters"]["Thermodynamics"]["heating_amplification"], p.heatingAmplification);
 		parseLuaVariable(luaState["Parameters"]["Thermodynamics"]["thermo_subcycling"], p.thermoSubcycling);
+		parseLuaVariable(luaState["Parameters"]["Thermodynamics"]["min_temp_initial_state"], p.minTempInitialState);
 
 		parseLuaVariable(luaState["Parameters"]["Star"]["on"], p.star_on);
 		parseLuaVariable(luaState["Parameters"]["Star"]["cell_position_x"], p.star_position[0]);
@@ -137,7 +138,7 @@ void parseParameters(const std::string& filename, TorchParameters& p, int param_
 		parseLuaVariable(luaState["Parameters"]["Star"]["wind_velocity"], p.windVelocity);
 		parseLuaVariable(luaState["Parameters"]["Star"]["wind_temperature"], p.windTemperature);
 
-		logger.print<SeverityType::DEBUG>("Star is on: " + p.star_on);
+		logger.print<SeverityType::DEBUG>("Star is on: ", p.star_on);
 	}
 }
 

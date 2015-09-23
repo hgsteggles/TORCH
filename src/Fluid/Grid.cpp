@@ -96,6 +96,10 @@ std::vector<int>& Grid::getOrderedIndices(const std::string& name) {
 	return (std::vector<int>&)orderedIndices[name];
 }
 
+std::vector<Bound>& Grid::getBoundaries() {
+	return m_boundaries;
+}
+
 void Grid::addOrderedIndex(const std::string& name, int index) {
 	std::vector<int>& order = (std::vector<int>&)orderedIndices[name];
 	order.push_back(index);
@@ -508,7 +512,7 @@ void Grid::initialise(std::shared_ptr<Constants> consts, const GridParameters& g
 		partition.initialise(coreCells[1]*coreCells[2]*(spatialOrder+1)*(UID::N + 1));
 
 	// Build the boundaries.
-	buildBoundaries(leftRightBC.first, leftRightBC.first);
+	buildBoundaries(leftRightBC.first, leftRightBC.second);
 
 	// Link the boundaries to the Grid.
 	m_cellCollection.start("GhostCells");

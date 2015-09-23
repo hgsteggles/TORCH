@@ -49,7 +49,10 @@ class TorchData:
 		return None
 
 	def safe_log10(self, var):
-		var[var == 0] = var[var != 0].min()
+		try:
+			var[var == 0] = var[var != 0].min()
+		except ValueError:
+			pass
 		return np.log10(var)
 
 	def get_log10_variable(self, var_name):

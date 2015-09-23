@@ -62,6 +62,7 @@ public:
 	double shellVol = 0;
 	double heatCapacityRatio = 0;
 	double m_soundSpeed = 0;
+	double T_min = 0;
 	std::array<int, 4> neighbourIDs = std::array<int, 4> { -1, -1, -1, -1 };
 	std::array<double, 4> neighbourWeights = std::array<double, 4> { 0, 0, 0, 0 };
 

@@ -28,6 +28,7 @@ void Thermodynamics::initialise(std::shared_ptr<Constants> c, ThermoParameters t
 	m_thermoHII_Switch = tp.thermoHII_Switch;
 	m_heatingAmplification = tp.heatingAmplification;
 	m_massFractionH = tp.massFractionH;
+	m_minTempInitialState = tp.minTempInitialState;
 
 	m_z0 = 5.0e-4;
 	m_excessEnergy = m_consts->converter.toCodeUnits(m_consts->converter.EV_2_ERGS(5), 1, 2, -2);
@@ -96,6 +97,17 @@ void Thermodynamics::initRecombinationHII(const Converter& converter) {
 		dataPairs.push_back(std::make_pair(T, R));
 	}
 	m_recombinationHII_CoolingRates = std::unique_ptr<LinearSplineData>(new LinearSplineData(dataPairs));
+}
+
+void Thermodynamics::initialiseMinTempField(Fluid& fluid) const {
+	if (m_minTempInitialState) {
+		for (GridCell& cell : fluid.getGrid().getIterable("GridCells"))
+			cell.T_min = fluid.calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]);
+	}
+	else {
+		for (GridCell& cell : fluid.getGrid().getIterable("GridCells"))
+			cell.T_min = m_T_min;
+	}
 }
 
 double Thermodynamics::fluxFUV(const double Q_FUV, const double dist_sqrd) const {
@@ -179,13 +191,13 @@ double Thermodynamics::cosmicRayHeating(const double nH) const {
 }
 
 //"Soft landing" to equilibrium neutral gas temperature
-double Thermodynamics::softLanding(const double rate, const double T) const {
+double Thermodynamics::softLanding(const double rate, const double T, const double T_min) const {
 	double result = rate;
 	if (rate < 0.0) {
-		if (T <= m_T_min)
+		if (T <= T_min)
 			result = 0;
-		else if (T <= m_T_soft)
-			result = rate*(T-m_T_min)/(m_T_soft-m_T_min);
+		else if (T <= T_min + 200)
+			result = rate*(T-T_min)/200;
 	}
 	return result;
 }
@@ -246,7 +258,7 @@ void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
 		rate -= collisionalExcitationHI(nH, HIIFRAC, T);
 		rate -= collisionalIonisationEquilibriumCooling(ne, T);
 		rate -= neutralMolecularLineCooling(nH, HIIFRAC, T);
-		rate = softLanding(rate, T);
+		rate = softLanding(rate, T, cell.T_min);
 
 		cell.T[TID::RATE] = m_heatingAmplification*rate;
 	}
@@ -284,8 +296,8 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		double pressure = cell.Q[UID::PRE] + rate*rate2dpre;
 		double subcycleT = pressure*pre2temp;
 		// Fix pressure and temperature and heating rate.
-		if (pressure < m_consts->pfloor || subcycleT < m_T_min) {
-			double pfloor = std::max(m_T_min*temp2pre, m_consts->pfloor);
+		if (pressure < m_consts->pfloor || subcycleT < cell.T_min) {
+			double pfloor = std::max(cell.T_min*temp2pre, m_consts->pfloor);
 			rate += (pfloor - pressure)*dpre2rate;
 			subcycleT = pfloor*pre2temp;
 			pressure = pfloor;
@@ -307,14 +319,14 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 				subcycleRate -= collisionalExcitationHI(nH, HIIFRAC, subcycleT);
 				subcycleRate -= collisionalIonisationEquilibriumCooling(ne, subcycleT);
 				subcycleRate -= neutralMolecularLineCooling(nH, HIIFRAC, subcycleT);
-				subcycleRate = m_heatingAmplification*softLanding(subcycleRate, subcycleT);
+				subcycleRate = m_heatingAmplification*softLanding(subcycleRate, subcycleT, cell.T_min);
 
 				// Update pressure and total heating rate.
 				pressure += subcycleRate*rate2dpre;
 				subcycleT = pressure*pre2temp;
 				// Fix pressure and temperature and heating rate.
-				if (pressure < m_consts->pfloor || subcycleT < m_T_min) {
-					double pfloor = std::max(m_T_min*temp2pre, m_consts->pfloor);
+				if (pressure < m_consts->pfloor || subcycleT < cell.T_min) {
+					double pfloor = std::max(cell.T_min*temp2pre, m_consts->pfloor);
 					subcycleRate += (pfloor - pressure)*dpre2rate;
 					subcycleT = pfloor*pre2temp;
 					pressure = pfloor;

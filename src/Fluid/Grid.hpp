@@ -98,6 +98,8 @@ public:
 	std::vector<int>& getCausalIndices();
 	std::vector<int>& getOrderedIndices(const std::string& name);
 
+	std::vector<Bound>& getBoundaries();
+
 	void addOrderedIndex(const std::string& name, int index);
 
 	int getLeftX() const;

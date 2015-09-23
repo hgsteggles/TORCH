@@ -56,6 +56,7 @@ Parameters = {
 		heating_amplification =      1,
 		thermo_hii_switch =          -1,
 		thermo_subcycling =          true,
+		min_temp_initial_state =     false,
 	},
 	Star = {
 		on =                         true,

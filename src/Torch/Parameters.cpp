@@ -71,6 +71,7 @@ ThermoParameters TorchParameters::getThermoParameters() {
 	tpar.heatingAmplification = heatingAmplification;
 	tpar.massFractionH = massFractionH;
 	tpar.thermoSubcycling = thermoSubcycling;
+	tpar.minTempInitialState = minTempInitialState;
 
 	return tpar;
 }

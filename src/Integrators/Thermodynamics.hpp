@@ -49,6 +49,8 @@ public:
 	virtual void integrate(double dt, Fluid& fluid) const;
 	virtual void updateSourceTerms(double dt, Fluid& fluid) const;
 
+	void initialiseMinTempField(Fluid& fluid) const;
+
 	void fillHeatingArrays(Fluid& fluid);
 private:
 	void initCollisionalExcitationHI(const Converter& scale);
@@ -63,7 +65,7 @@ private:
 	double farUltraVioletHeating(const double nH, const double Av_FUV, const double F_FUV) const;
 	double infraRedHeating(const double nH, const double Av_FUV, const double F_FUV) const;
 	double cosmicRayHeating(const double nH) const;
-	double softLanding(const double rate, const double T) const;
+	double softLanding(const double rate, const double T, const double T_min) const;
 
 	void updateColDen(GridCell& cell, Fluid& fluid, const double dist2) const;
 	void rayTrace(Fluid& fluid) const;
@@ -71,6 +73,7 @@ private:
 	std::shared_ptr<Constants> m_consts = nullptr;
 
 	bool m_isSubcycling = false;
+	bool m_minTempInitialState = false;
 	double m_thermoHII_Switch = 0;
 	double m_heatingAmplification = 1.0; //!< Heating amplification/reduction hack.
 	double m_coolingFloorTemperature = 300;

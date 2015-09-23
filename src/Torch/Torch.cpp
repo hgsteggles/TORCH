@@ -103,6 +103,7 @@ void Torch::initialise(TorchParameters p) {
 	fluid.globalUfromQ();
 
 	radiation.initField(fluid);
+	thermodynamics.initialiseMinTempField(fluid);
 
 	if (p.star_on && p.windCellRadius > 0) {
 		Star& star = fluid.getStar();
@@ -128,7 +129,7 @@ void Torch::toCodeUnits() {
 		for (int idim = 0; idim < consts->nd; ++idim)
 			cell.Q[UID::VEL+idim] = consts->converter.toCodeUnits(cell.Q[UID::VEL+idim], 0, 1, -1);
 		for (int idim = 0; idim < consts->nd; ++idim)
-			cell.GRAV[idim] = consts->converter.toCodeUnits(cell.GRAV[idim], 0, 1, -2);
+			cell.GRAV[idim] = consts->converter.toCodeUnits(cell.GRAV[idim], 1, -2, -2);
 	}
 }
 
@@ -169,6 +170,7 @@ void Torch::setUp(std::string filename) {
 
 void Torch::setUpLua(std::string filename, int setupID) {
 	MPIW& mpihandler = MPIW::Instance();
+	Grid& grid = fluid.getGrid();
 
 	mpihandler.print("Reading lua config file: " + filename);
 
@@ -183,11 +185,11 @@ void Torch::setUpLua(std::string filename, int setupID) {
 			if (setupID != 0)
 				luaState["setup_set"](setupID);
 
-			for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
+			for (GridCell& cell : grid.getIterable("GridCells")) {
 				std::array<double, 3> xc, xs;
 				for (int i = 0; i < 3; ++i) {
-					xc[i] = consts->converter.fromCodeUnits(cell.xc[i]*fluid.getGrid().dx[i], 0, 1, 0);
-					xs[i] = consts->converter.fromCodeUnits(fluid.getStar().xc[i]*fluid.getGrid().dx[i], 0, 1, 0);
+					xc[i] = consts->converter.fromCodeUnits(cell.xc[i]*grid.dx[i], 0, 1, 0);
+					xs[i] = consts->converter.fromCodeUnits(fluid.getStar().xc[i]*grid.dx[i], 0, 1, 0);
 				}
 
 				sel::tie(cell.Q[UID::DEN],
@@ -205,6 +207,22 @@ void Torch::setUpLua(std::string filename, int setupID) {
 			}
 		}
 	});
+
+	// Gravity at boundary fix.
+	/*
+	for (Bound& boundary : grid.getBoundaries()) {
+		int face = boundary.face;
+		if (boundary.condition == Condition::REFLECTING) {
+			for (int ghostCellID : boundary.ghostCellIDs) {
+				GridCell& cell = face < 3 ? grid.right(face%3, grid.getCell(ghostCellID)) : grid.left(face%3, grid.getCell(ghostCellID));
+				if ((face < 3 && cell.GRAV[face%3] < 0) || (face >= 3 && cell.GRAV[face%3] > 0)) {
+					cell.GRAV[face%3] = 0;
+				}
+			}
+		}
+	}
+	*/
+
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUpLua() complete.");
 }
 
