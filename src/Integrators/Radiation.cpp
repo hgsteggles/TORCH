@@ -212,8 +212,9 @@ void Radiation::initRecombinationHummer(const Converter& converter) {
  * @return Recombination cooling rate of HII.
  */
 double Radiation::recombinationRateCoefficient(double T) const {
-	//return alphaB*pow(T/10000, -0.7); // cm3.s-1
-	//return alphaB; // cm3.s-1
+	//return m_alphaB*pow(T/10000, -0.7); // cm3.s-1
+	//return m_alphaB; // cm3.s-1
+	//std::cout << m_consts->converter.fromCodeUnits(m_recombinationHII_RecombRates->interpolate(8000), 0, 3, -1) << std::endl;
 	return m_recombinationHII_RecombRates->interpolate(T);
 }
 
@@ -223,8 +224,6 @@ double Radiation::recombinationRateCoefficient(double T) const {
  * @return Recombination cooling rate of HII.
  */
 double Radiation::recombinationCoolingRate(double nH, double HIIFRAC, double T) const {
-	if (T == 0)
-		std::cout << "BOB" << std::endl;
 	double rate = m_recombinationHII_CoolingRates->interpolate(T);
 	return HIIFRAC*HIIFRAC*nH*nH*m_consts->boltzmannConst*T*rate;
 }
@@ -246,10 +245,8 @@ double Radiation::photoionisationRate(double nHI, double T, double delT, double 
 	if (nHI == 0 || shellVol == 0)
 		return 0.0;
 	else {
-		double emT = T > 200 ? 0 : std::exp(-T);
-		double emdT = delT > 200 ? 0 : std::exp(-delT);
-		if (delT < 1.0e-6)
-			return photonRate*emT*delT/(nHI*shellVol);
+		double emT = std::exp(-T);
+		double emdT = std::exp(-delT);
 		return photonRate*emT*(1.0-emdT)/(nHI*shellVol);
 	}
 }
@@ -314,8 +311,9 @@ double Radiation::calculateTimeStep(double dt_max, Fluid& fluid) const {
 					dt1 = K1*m_consts->hydrogenMass/(massFractionH*cell.Q[UID::DEN]*recombinationRateCoefficient(T));
 					once = true;
 				}
-				else if (cell.Q[UID::HII] != 0)
+				else if (cell.Q[UID::HII] != 0) {
 					dt1 = K1*m_consts->hydrogenMass/(massFractionH*cell.Q[UID::DEN]*cell.Q[UID::HII]*recombinationRateCoefficient(T));
+				}
 			}
 			if(K2 != 0.0)
 				dt2 = dt_max;
@@ -384,10 +382,11 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 		double alphaB = recombinationRateCoefficient(T);
 		double A_ci = collisionalIonisationRate(T);
 		if (scheme == Scheme::IMPLICIT || scheme == Scheme::IMPLICIT2) {
-			double convergence2 = 1.0e-4;
-			double convergence_frac = 1.0e-3;
+			double convergence2 = 1.0e-3;
+			double convergence_frac = 1.0e-5;
 			double HII_avg_old;
 			int niter = 0;
+			int miter = 0;
 			bool converged = false;
 			//HII_avg = cell.R[ihiita];
 			double tau_avg = cell.R[RID::TAU_A];
@@ -403,16 +402,21 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 				double nHII_aB = HII_avg*n_H*alphaB;
 				double nHII_Aci = HII_avg*n_H*A_ci;
 
-				doric(dt, HII, HII_avg, A_pi, nHII_aB, nHII_Aci);
+				doric(dt, HII_avg, HII, A_pi, nHII_aB, nHII_Aci);
 
 				if ((fabs((HII_avg-HII_avg_old)/HII_avg) < convergence2 || (HII_avg < convergence_frac) || A_pi == 0))
 					converged = true;
-				if (niter > 50000) {
+				if (niter > 10000 && miter > 5) {
 					Logger<FileLogPolicy>::Instance().print<SeverityType::WARNING>(
 							"Radiation::calculate_HIIfrac: slow iteration: HII_avg = ", HII_avg, ", HII_avg_old = ", HII_avg_old, ", HII = ", HII
 					);
 				}
-				if (niter > 50020 || HII != HII) {
+				if (niter > 10005) {
+					miter++;
+					niter = 0;
+					HII_avg = 0.5*(HII_avg + HII_avg_old);
+				}
+				if (miter > 5  || HII != HII) {
 					std::stringstream out;
 					out << "Radiation::calculate_HIIfrac: implicit method not converging.\n";
 					out << "temperature = " << fluid.calcTemperature(cell.Q[UID::HII], cell.Q[UID::PRE], cell.Q[UID::DEN]) << '\n';

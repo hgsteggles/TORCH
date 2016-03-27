@@ -1,0 +1,16 @@
+#!/bin/bash
+
+gunzipkeep() {
+    if [ -f "$1" ] ; then
+        gunzip -c $1 > "${1%.gz}"
+    fi
+}
+
+export -f gunzipkeep
+
+if [ "$1" == "" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] ; then
+	echo "usage: "$0" <gzipped_file>"
+else
+	gunzipkeep $1
+	echo $0": unzipped $1"
+fi

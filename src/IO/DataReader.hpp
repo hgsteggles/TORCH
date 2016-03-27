@@ -9,6 +9,7 @@
 #define DATAREADER_HPP_
 
 #include <string>
+#include <array>
 
 class Fluid;
 class DataParameters;

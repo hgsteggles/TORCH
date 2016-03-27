@@ -7,6 +7,7 @@ function video_order {
 	paddednum=`printf $formatting $((10#$2))`
 	if [ "$1" != "${1/_$num/_$paddednum}" ]; then
 		mv $1 ${1/_$num/_$paddednum}
+		echo $1" -> "${1/_$num/_$paddednum}
 	fi
 }
 
@@ -16,7 +17,7 @@ else
 	export -f video_order
 	pad=3
 	i=0
-	for file in $2/$1_*.txt.bz2
+	for file in $2/$1_*.txt.gz
 	do
 		echo $file
 		video_order $file $i $pad

@@ -76,7 +76,7 @@ private:
 
 	void toCodeUnits();
 	void setUp(std::string filename);
-	void setUpLua(std::string filename, int setupID);
+	void setUpLua(std::string filename);
 	double calculateTimeStep();
 	Integrator& getComponent(ComponentID id);
 	void hydroStep(double dt, bool hasCalculatedHeatFlux);

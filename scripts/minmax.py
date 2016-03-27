@@ -31,10 +31,10 @@ def minmax(cfdfile):
 	###	Get data
 	cfd = TorchCFD(cfdfile)
 
-	nh = cfd.get_var('nh')
-	pre = cfd.get_var('pre')
-	nhii = cfd.get_var('nhii')
-	tem = cfd.get_var('tem')
+	nh = cfd.get_var_raw('nh')
+	pre = cfd.get_var_raw('pre')
+	nhii = cfd.get_var_raw('nhii')
+	tem = cfd.get_var_raw('tem')
 
 	return [nh.min(), pre.min(), nhii.min(), tem.min(), nh.max(), pre.max(), nhii.max(), tem.max()]
 

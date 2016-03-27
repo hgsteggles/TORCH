@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <string>
 #include <fstream>
+#include <iostream>
 
 #include "../MPI/MPI_Wrapper.hpp"
 
@@ -66,10 +67,18 @@ template< typename log_policy >
 class Logger {
 public:
 	static Logger& Instance() {
+		return Instance("");
+	}
+	static Logger& Instance(const std::string& logdir) {
 		std::string filename = "log/torch.log" + std::to_string(MPIW::Instance().getRank());
+		if (logdir.size() != 0) {
+			filename = logdir + "/" + filename;
+		}
 		static Logger instance( filename, true );
 		return instance;
 	}
+
+	void changeOutputDirectory(const std::string& output_dir);
 
 	~Logger();
 
@@ -92,6 +101,25 @@ private:
 	template<typename First, typename...Rest>
 	void print_impl(First parm1, Rest...parm);
 };
+
+template< typename log_policy >
+void Logger< log_policy >::changeOutputDirectory(const std::string& output_dir) {
+	std::string filename = "log/torch.log" + std::to_string(MPIW::Instance().getRank());
+	if (output_dir.size() != 0) {
+		filename = output_dir + "/" + filename;
+	}
+
+	if (!m_policy) {
+		m_policy = new log_policy;
+		if( !m_policy )
+			throw std::runtime_error("LOGGER: Unable to create the logger instance.");
+	}
+	else {
+		m_policy->close_ostream();
+	}
+	m_policy->open_ostream( filename );
+	m_logLineNumber = 0;
+}
 
 template< typename log_policy >
 Logger< log_policy >::Logger( const std::string& name, bool isRootProcess ) {

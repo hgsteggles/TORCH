@@ -23,6 +23,7 @@ struct ThermoParameters;
 struct StarParameters;
 
 struct TorchParameters {
+	std::string setupFile = "";
 	std::string initialConditions = "";
 	int nd = 0; //!< Number of dimensions.
 	double sideLength = 0; //!< The side length of the simulation line/square/cube.
@@ -47,7 +48,6 @@ struct TorchParameters {
 	bool radiation_on = false;
 	bool cooling_on = false;
 	bool debug = true;
-	int setupID = 0;
 	std::string outputDirectory = "tmp/";
 
 	double dfloor = 0;

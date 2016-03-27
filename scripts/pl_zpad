@@ -6,7 +6,6 @@ function zpad {
 	num=${BASH_REMATCH[1]}
 	paddednum=`printf $formatting $((10#$num))`
 	if [ "$2" != "${2/_$num/_$paddednum}" ]; then
-		#echo ${2/$1_$num/$1_$paddednum}
 		mv $2 ${2/$1_$num/$1_$paddednum}
 	fi
 }
@@ -17,5 +16,5 @@ else
 	pad=3
 	export -f zpad
 	ls $2/$1_*.txt.gz | parallel --gnu zpad $1 {} $pad
-	echo $0": padded data2D_\*.txt.bz2 files with zeros"
+	echo "$0: padded $2/$1_*.txt.gz files with zeros"
 fi

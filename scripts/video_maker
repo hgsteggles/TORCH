@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ "$1" == "" ] || [ "$2" == "" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] ; then
+	echo "usage: "$0" <data_set> <directory_name>"
+else
+	./scripts/pl_zpad $1 $2
+	./scripts/pl_unpack $1 $2
+	python scripts/minmax.py -cfd=$2/$1_*.txt
+	parallel --gnu python -W ignore scripts/torch2x2.py -s -minmax=$2/minmax.log ::: $2/$1_*.txt
+	avconv -r 10 -y -i $2/$1_%03d.jpg -codec copy $2/video_all.avi
+	echo 'yes' | ./scripts/cleanup $2
+fi

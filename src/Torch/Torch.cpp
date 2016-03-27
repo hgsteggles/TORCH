@@ -89,7 +89,7 @@ void Torch::initialise(TorchParameters p) {
 	stepCounter = 0;
 
 	if (initialConditions.compare("") == 0)
-		setUpLua("refdata/setup.lua", p.setupID);
+		setUpLua(p.setupFile);
 	else {
 		//setUp(initialConditions);
 		DataReader::readGrid(p.initialConditions, datap, fluid);
@@ -168,7 +168,7 @@ void Torch::setUp(std::string filename) {
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUp(initialConditionsFile) complete.");
 }
 
-void Torch::setUpLua(std::string filename, int setupID) {
+void Torch::setUpLua(std::string filename) {
 	MPIW& mpihandler = MPIW::Instance();
 	Grid& grid = fluid.getGrid();
 
@@ -182,9 +182,6 @@ void Torch::setUpLua(std::string filename, int setupID) {
 		if (!hasLoaded)
 			std::cout << "SetUpLua: could not open lua file: " << filename << std::endl;
 		else {
-			if (setupID != 0)
-				luaState["setup_set"](setupID);
-
 			for (GridCell& cell : grid.getIterable("GridCells")) {
 				std::array<double, 3> xc, xs;
 				for (int i = 0; i < 3; ++i) {
@@ -240,7 +237,7 @@ void Torch::run() {
 
 	progBar.update(initTime, dt_max, mpihandler.getRank() == 0);
 	inputOutput.print2D(std::to_string((int)(100.0*initTime/tmax + 0.5)), initTime, fluid.getGrid());
-	inputOutput.printSTARBENCH(radiation, hydrodynamics, fluid);
+	//inputOutput.printSTARBENCH(radiation, hydrodynamics, fluid);
 
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() first data dump complete.");
 
@@ -260,8 +257,8 @@ void Torch::run() {
 		if (print_now) {
 			int step = (int)(100.0*fluid.getGrid().currentTime/tmax + 0.5);
 			inputOutput.print2D(std::to_string(step), fluid.getGrid().currentTime, fluid.getGrid());
-			thermodynamics.fillHeatingArrays(fluid);
-			inputOutput.printVariables(step, fluid.getGrid().currentTime, fluid.getGrid());
+			//thermodynamics.fillHeatingArrays(fluid);
+			//inputOutput.printVariables(step, fluid.getGrid().currentTime, fluid.getGrid());
 			isFinalPrintOn = (step != 100);
 		}
 
@@ -272,8 +269,8 @@ void Torch::run() {
 	progBar.end(mpihandler.getRank() == 0);
 
 	if (isFinalPrintOn) {
-		thermodynamics.fillHeatingArrays(fluid);
-		inputOutput.printVariables(100, fluid.getGrid().currentTime, fluid.getGrid());
+		//thermodynamics.fillHeatingArrays(fluid);
+		//inputOutput.printVariables(100, fluid.getGrid().currentTime, fluid.getGrid());
 		inputOutput.print2D(std::to_string(100), fluid.getGrid().currentTime, fluid.getGrid());
 	}
 

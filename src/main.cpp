@@ -20,26 +20,59 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-void parseParameters(const std::string& filename, TorchParameters& p, int param_id);
+void parseOutputDirectory(const std::string& filename, TorchParameters& p);
+void parseParameters(const std::string& filename, TorchParameters& p);
+std::string basename( std::string const& pathname );
 void makeDirectory(const std::string& dir_name);
 void deleteFileContents(const std::string& myString);
 void copyConfigFile(const std::string& filename, const std::string& directory);
+void showUsage();
 
 int main (int argc, char** argv) {
 	MPIW& mpihandler = MPIW::Instance();
 
+	std::string paramFile = "refdata/parameters.lua";
+	std::string setupFile = "refdata/setup.lua";
+
+	// Parse parameters
+	if (argc > 3) {
+		showUsage();
+		exit(0);
+	}
+	if (argc > 1) {
+		for (int iarg = 1; iarg < argc; ++iarg) {
+			std::string arg = argv[iarg];
+			std::string prefix1("--paramfile=");
+			std::string prefix2("--setupfile=");
+
+			if (!arg.compare(0, prefix1.size(), prefix1))
+				paramFile = arg.substr(prefix1.size()).c_str();
+			else if (!arg.compare(0, prefix2.size(), prefix2))
+				setupFile = arg.substr(prefix2.size()).c_str();
+			else {
+				showUsage();
+				exit(0);
+			}
+		}
+	}
+
 	try {
 		TorchParameters tpars;
-		std::string paramFile = "parameters.lua";
-		int param_id = argc > 1 ? std::stoi(std::string(argv[1])) : 0;
-		mpihandler.serial([&] () { parseParameters( paramFile, tpars, param_id ); });
+
+		mpihandler.serial([&] () {
+			parseOutputDirectory( paramFile, tpars);
+		});
 
 		if (mpihandler.getRank() == 0) {
-			makeDirectory(tpars.outputDirectory);
 			deleteFileContents(tpars.outputDirectory);
-			copyConfigFile("setup.lua", tpars.outputDirectory);
-			copyConfigFile("parameters.lua", tpars.outputDirectory);
+			copyConfigFile(setupFile, tpars.outputDirectory);
+			copyConfigFile(paramFile, tpars.outputDirectory);
 		}
+
+		mpihandler.serial([&] () {
+			parseParameters( paramFile, tpars);
+			tpars.setupFile = setupFile;
+		});
 
 		Torch torch;
 		torch.initialise(tpars);
@@ -53,8 +86,25 @@ int main (int argc, char** argv) {
 	return 0;
 }
 
-void parseParameters(const std::string& filename, TorchParameters& p, int param_id) {
-	std::string fullfilename = "refdata/" + filename;
+void parseOutputDirectory(const std::string& filename, TorchParameters& p) {
+	std::string fullfilename = filename;
+	// Create new Lua state and load the lua libraries
+	sel::State luaState{true};
+
+	if (!luaState.Load(fullfilename)) {
+		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename);
+	}
+	else {
+		parseLuaVariable(luaState["Parameters"]["Integration"]["output_directory"], p.outputDirectory);
+		makeDirectory("log");
+		makeDirectory(p.outputDirectory);
+		makeDirectory(p.outputDirectory + "/" + "log");
+		Logger<FileLogPolicy>& logger = Logger<FileLogPolicy>::Instance(p.outputDirectory);
+	}
+}
+
+void parseParameters(const std::string& filename, TorchParameters& p) {
+	std::string fullfilename = filename;
 	Logger<FileLogPolicy>& logger = Logger<FileLogPolicy>::Instance();
 	// Create new Lua state and load the lua libraries
 	sel::State luaState{true};
@@ -63,9 +113,6 @@ void parseParameters(const std::string& filename, TorchParameters& p, int param_
 		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename);
 	}
 	else {
-		if (param_id != 0)
-			luaState["param_set"](param_id);
-
 		parseLuaVariable(luaState["Parameters"]["Integration"]["density_scale"], p.dscale);
 		parseLuaVariable(luaState["Parameters"]["Integration"]["pressure_scale"], p.pscale);
 		parseLuaVariable(luaState["Parameters"]["Integration"]["time_scale"], p.tscale);
@@ -75,8 +122,6 @@ void parseParameters(const std::string& filename, TorchParameters& p, int param_
 		parseLuaVariable(luaState["Parameters"]["Integration"]["radiation_on"], p.radiation_on);
 		parseLuaVariable(luaState["Parameters"]["Integration"]["cooling_on"], p.cooling_on);
 		parseLuaVariable(luaState["Parameters"]["Integration"]["debug"], p.debug);
-		parseLuaVariable(luaState["Parameters"]["Integration"]["setup_id"], p.setupID);
-		parseLuaVariable(luaState["Parameters"]["Integration"]["output_directory"], p.outputDirectory);
 		parseLuaVariable(luaState["Parameters"]["Integration"]["initial_conditions"], p.initialConditions);
 
 		parseLuaVariable(luaState["Parameters"]["Grid"]["no_dimensions"], p.nd);
@@ -142,6 +187,10 @@ void parseParameters(const std::string& filename, TorchParameters& p, int param_
 	}
 }
 
+std::string basename( std::string const& pathname ) {
+    return pathname.substr( pathname.find_last_of("\\/") + 1 );
+}
+
 void makeDirectory(const std::string& dir_name) {
 	struct stat st = {0};
 	if (stat(dir_name.c_str(), &st) == -1)
@@ -169,8 +218,11 @@ void deleteFileContents(const std::string& folder){
 }
 
 void copyConfigFile(const std::string& filename, const std::string& directory) {
-	std::string configDirectory = "refdata/";
-	std::ifstream  src(configDirectory + filename, std::ios::binary);
-	std::ofstream  dst(directory + filename, std::ios::binary);
+	std::ifstream  src(filename, std::ios::binary);
+	std::ofstream  dst(directory + "/" + basename(filename), std::ios::binary);
 	dst << src.rdbuf();
+}
+
+void showUsage() {
+	std::cout << "torch [--paramfile=<filename>] [--setupfile<filename>]" << std::endl;
 }

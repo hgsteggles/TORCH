@@ -1,10 +1,12 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import hgspy
-from torch_plot import TorchCFD, TorchCool, TorchPlotter
 import argparse
 import os
 import sys
+import matplotlib.pyplot as plt
+import numpy as np
+from packages import hgspy
+from torch_plot import TorchCFD, TorchCool, TorchPlotter
+
+
 
 font = {'family':'serif','size':6}
 plt.rc('font',**font)
