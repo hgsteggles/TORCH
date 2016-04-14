@@ -16,8 +16,8 @@ import hgspy
 
 DPI = 300
 figformat = 'jpg'
-plot_size = 10
-fontsize = 20
+plot_size = 5
+fontsize = 16
 
 torch.set_font_sizes(fontsize)
 

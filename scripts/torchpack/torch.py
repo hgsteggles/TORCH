@@ -7,7 +7,7 @@ from mpl_toolkits.axes_grid1 import ImageGrid, Grid
 
 def set_font_sizes(fontsize=18):
 	font = {'family':'STIXGeneral','style':'normal','variant':'normal',
-		'weight':'medium','size':(fontsize-2)}
+		'weight':'medium','size':(fontsize)}
 	plt.rc('font',**font)
 	plt.rc('legend',**{'fontsize':(fontsize)})
 	plt.rc('xtick',**{'labelsize':fontsize})
@@ -295,9 +295,11 @@ class Plotter:
 		self.aspect_ratio = ny/float(nx)
 		self.fig = plt.figure()
 
-		self.ticklength = 8
-		self.tickwidth = 1
-		self.linewidth = 2
+		self.ticklength = 8 * (plot_size / 5.0)
+		self.minorticklength = 4 * (plot_size / 5.0)
+		self.tickwidth = 1 * (plot_size / 5.0)
+		self.minortickwidth = 0.8 * (plot_size / 5.0)
+		self.linewidth = 2 * (plot_size / 5.0)
 
 	def addLog10string(self, string):
 		return "\mathrm{\\log}_{10}\left(" + string + "\\right)";
@@ -308,7 +310,7 @@ class Plotter:
 	def format_typename(self, var_typename):
 		result = ""
 		if var_typename == 'nh':
-			result = "n_H\ /\ \mathrm{cm^{-3}}"
+			result = "n_\\mathrm{H}\ /\ \mathrm{cm^{-3}}"
 		elif var_typename == 'den':
 			result = "\\rho\ /\ \\mathrm{g\\, cm^{-3}}"
 		elif var_typename == 'pre':
@@ -333,7 +335,7 @@ class Plotter:
 	def format_label(self, var_type):
 		var_text = self.format_typename(var_type.name)
 		if var_type.isLog10:
-			var_type = self.addLog10string(var_text)
+			var_text = self.addLog10string(var_text)
 		var_text = "$" + var_text + "$"
 
 		return var_text
@@ -379,28 +381,44 @@ class Plotter:
 				grid[i].spines[axis].set_linewidth(self.linewidth)
 				if hasColorBar:
 					grid.cbar_axes[i].spines[axis].set_linewidth(self.linewidth)
-			grid[i].xaxis.set_tick_params(length=self.ticklength,
+			grid[i].xaxis.set_tick_params(which='major', length=self.ticklength,
 										  width=self.tickwidth)
-			grid[i].yaxis.set_tick_params(length=self.ticklength,
+			grid[i].yaxis.set_tick_params(which='major', length=self.ticklength,
 										  width=self.tickwidth)
+			grid[i].xaxis.set_tick_params(which='minor', length=self.minorticklength,
+										  width=self.minortickwidth)
+			grid[i].yaxis.set_tick_params(which='minor', length=self.minorticklength,
+										  width=self.minortickwidth)
 			if hasColorBar:
 				caxes = grid.cbar_axes[i]
-				caxes.get_xaxis().set_tick_params(length=self.ticklength,
+				caxes.get_xaxis().set_tick_params(which='major', length=self.ticklength,
 												  width=self.tickwidth)
-				caxes.get_yaxis().set_tick_params(length=self.ticklength,
+				caxes.get_yaxis().set_tick_params(which='major', length=self.ticklength,
 												  width=self.tickwidth)
+				caxes.get_xaxis().set_tick_params(which='minor', length=self.minorticklength,
+												  width=self.minortickwidth)
+				caxes.get_yaxis().set_tick_params(which='minor', length=self.minorticklength,
+												  width=self.minortickwidth)
 
-	def axes1D(self, nr_nc):
+	def axes1D(self, nr_nc, aspect_ratio = 1):
+		self.fig.set_size_inches(self.plot_size*nr_nc[1],
+								 self.plot_size*nr_nc[0] * aspect_ratio, forward=True)
 		grid = Grid(self.fig, 111, nrows_ncols = nr_nc, axes_pad = 0,
 					label_mode = "L", share_all = False)
-		self.linewidth = 1
+
+		self.ticklength *= 0.8
+		self.tickwidth *= 0.8
+		self.minorticklength *= 0.8
+		self.minortickwidth *= 0.8
+		self.linewidth *= 0.8
+
 		self.modifyGrid(grid, False)
 
 		return grid
 
 	def getGrid(self, params):
 		self.fig.set_size_inches(self.plot_size*params.nrows_ncols[1],
-								 self.plot_size*params.nrows_ncols[0])
+								 self.plot_size*params.nrows_ncols[0], forward=True)
 		shared_vars = self.areVarsShared(params.var_types, params.var_minmaxes)
 		less_detail = shared_vars or params.detail == "some" or params.detail == "none"
 

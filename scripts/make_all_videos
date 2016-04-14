@@ -2,8 +2,8 @@
 
 formatting="%02d"
 
-for i in `seq 41 45`;
+for i in `seq 1 45`;
 do
 	paddednum=`printf $formatting $((10#$i))`
-	./video_maker data2D ../data/model_paper1/set2/data_$paddednum
+	./scripts/video_maker data2D data/model_paper1/set3/data_$paddednum
 done

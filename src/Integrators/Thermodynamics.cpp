@@ -282,9 +282,7 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		double ne = nH*(HIIFRAC); //Ionised hydrogen no. density.
 		double nn = nH*(1.0-HIIFRAC); //Neutral hydrogen no. density.
 
-		double rate = cell.T[TID::RATE];
-
-		double dti = std::abs(0.10*cell.U[UID::PRE]/rate);
+		double dti = std::abs(0.10*cell.U[UID::PRE] / cell.T[TID::RATE]);
 
 		// Pressure changes over subcycle therefore temperature does, affecting cooling rate.
 		double mu_inv = m_massFractionH*(cell.Q[UID::HII] + 1.0) + (1.0 - m_massFractionH)*0.25;
@@ -293,12 +291,11 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		double rate2dpre = std::min(dt, dti)*(cell.heatCapacityRatio - 1.0);
 		double dpre2rate = 1.0/rate2dpre;
 
-		double pressure = cell.Q[UID::PRE] + rate*rate2dpre;
+		double pressure = cell.Q[UID::PRE] + cell.T[TID::RATE] * rate2dpre;
 		double subcycleT = pressure*pre2temp;
 		// Fix pressure and temperature and heating rate.
 		if (pressure < m_consts->pfloor || subcycleT < cell.T_min) {
 			double pfloor = std::max(cell.T_min*temp2pre, m_consts->pfloor);
-			rate += (pfloor - pressure)*dpre2rate;
 			subcycleT = pfloor*pre2temp;
 			pressure = pfloor;
 		}
@@ -327,16 +324,13 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 				// Fix pressure and temperature and heating rate.
 				if (pressure < m_consts->pfloor || subcycleT < cell.T_min) {
 					double pfloor = std::max(cell.T_min*temp2pre, m_consts->pfloor);
-					subcycleRate += (pfloor - pressure)*dpre2rate;
 					subcycleT = pfloor*pre2temp;
 					pressure = pfloor;
 				}
-
-				rate += subcycleRate;
 			}
 		}
 
-		cell.T[TID::RATE] = rate;
+		cell.T[TID::RATE] = (cell.Q[UID::PRE] - pressure) * dpre2rate;
 	}
 }
 

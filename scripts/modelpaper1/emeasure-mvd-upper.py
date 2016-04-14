@@ -66,6 +66,9 @@ def addImage(index, grid, xrange):
 	col = int(index / 9)
 	row = index % 9
 
+	if row > 4:
+		return
+
 	isSet2 = offgrid[index] > 25
 
 	filename = getFilename(index, isSet2)
@@ -131,30 +134,31 @@ def addImage(index, grid, xrange):
 	ax.yaxis.get_major_ticks()[2].label1.set_visible(False)
 	ax.yaxis.get_major_ticks()[-1].label1.set_visible(False)
 
-	# Pixel angular size in upper left corner.
-	ax.text(0.02, 0.96, '{:.2f}'.format(hdu_list[0].header['PIXAS']) + "''",
-			fontsize=6, horizontalalignment='left', verticalalignment='top',
-			rotation='horizontal', transform=ax.transAxes)
-
-	# FWHM of guassian blur kernal in lower left corner.
-	ax.text(0.02, 0.04, "FWHM=" + '{:.1f}'.format(FWHM) + "''",
-			fontsize=6, horizontalalignment='left', verticalalignment='bottom',
-			rotation='horizontal', transform=ax.transAxes)
-
-	# FWHM diameter line to show scale
-	ax.plot([(0.90)*xrange[col][row]/2.0 - FWHM, (0.90)*xrange[col][row]/2.0], [-(0.90)*xrange[col][row]/2.0, -(0.90)*xrange[col][row]/2.0])
-
-	# Peak brightness in mJy/beam in upper right
-	rbeam_rad = 0.5 * hdu_list[0].header['BMAJ'] * math.pi / 180.0
-	pix_rad = abs(hdu_list[0].header['CDELT1']) * math.pi / 180.0
-
-	hdu_list2 = fits.open(getIntensityFilename(index, isSet2))
-
-	peak = hdu_list2[0].header['MPIX'] * math.pi * rbeam_rad * rbeam_rad / (pix_rad * pix_rad)
-
-	ax.text(0.98, 0.96, '{:.2f}'.format(peak) + "mJy/b",
-				fontsize=6, horizontalalignment='right', verticalalignment='top',
+	if False:
+		# Pixel angular size in upper left corner.
+		ax.text(0.02, 0.96, '{:.2f}'.format(hdu_list[0].header['PIXAS']) + "''",
+				fontsize=6, horizontalalignment='left', verticalalignment='top',
 				rotation='horizontal', transform=ax.transAxes)
+
+		# FWHM of guassian blur kernal in lower left corner.
+		ax.text(0.02, 0.04, "FWHM=" + '{:.1f}'.format(FWHM) + "''",
+				fontsize=6, horizontalalignment='left', verticalalignment='bottom',
+				rotation='horizontal', transform=ax.transAxes)
+
+		# FWHM diameter line to show scale
+		ax.plot([(0.90)*xrange[col][row]/2.0 - FWHM, (0.90)*xrange[col][row]/2.0], [-(0.90)*xrange[col][row]/2.0, -(0.90)*xrange[col][row]/2.0])
+
+		# Peak brightness in mJy/beam in upper right
+		rbeam_rad = 0.5 * hdu_list[0].header['BMAJ'] * math.pi / 180.0
+		pix_rad = abs(hdu_list[0].header['CDELT1']) * math.pi / 180.0
+
+		hdu_list2 = fits.open(getIntensityFilename(index, isSet2))
+
+		peak = hdu_list2[0].header['MPIX'] * math.pi * rbeam_rad * rbeam_rad / (pix_rad * pix_rad)
+
+		ax.text(0.98, 0.96, '{:.2f}'.format(peak) + "mJy/b",
+					fontsize=6, horizontalalignment='right', verticalalignment='top',
+					rotation='horizontal', transform=ax.transAxes)
 
 	# Add column and row labels
 	def fmt_mass(x):
@@ -166,7 +170,7 @@ def addImage(index, grid, xrange):
 				fontsize=10, horizontalalignment='right', verticalalignment='center',
 				rotation='vertical', transform=ax.transAxes)
 	if row == 0:
-		ax.text(0.5, 1.24, latexify("n_\\star = " + fmt_nolatex(densities[col], 0) + "\ \\mathrm{cm^{-3}}"),
+		ax.text(0.5, 1.34, latexify("n_\\star = " + fmt_nolatex(densities[col], 0) + "\ \\mathrm{cm^{-3}}"),
 				fontsize=10, horizontalalignment='center', verticalalignment='bottom',
 				rotation='horizontal', transform=ax.transAxes)
 
@@ -175,22 +179,22 @@ def addImage(index, grid, xrange):
 #plotter.modifyGrid(grid, True)
 
 hrats = [1, 1, 1, 1, 1]
-vrats = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-fancy_grid = torch.FancyAxesGrid(hrats, vrats, border=(0.05, 0.01, 0.03, 0.02),
+vrats = [1, 1, 1, 1, 1]
+fancy_grid = torch.FancyAxesGrid(hrats, vrats, border=(0.05, 0.01, 0.04, 0.02),
 								 fig_width=plot_size, dpi=DPI, fig_format=figformat,
-								 csize=0.005, cspace=0.002, cpad=0.03,
-								 hspace=0.026, vspace=0.022)
+								 csize=0.010, cspace=0.004, cpad=0.03,
+								 hspace=0.026, vspace=0.038)
 
 xrange = []
-xrange.append([15, 32, 62, 90, 134, 190, 260, 380, 800])
-xrange.append([10, 22, 48, 80, 110, 140, 190, 300, 500])
-xrange.append([6, 15, 34, 60, 90, 120, 150, 280, 400])
-xrange.append([4, 9, 24, 46, 66, 100, 120, 180, 250])
-xrange.append([2.52, 6, 16, 30, 54, 80, 100, 150, 190])
+xrange.append([15, 32, 62, 90, 134])
+xrange.append([10, 22, 48, 80, 110])
+xrange.append([6, 15, 34, 60, 90])
+xrange.append([4, 9, 24, 46, 66])
+xrange.append([2.52, 6, 16, 30, 54])
 
 for i in range(45):
 	addImage(i, fancy_grid, xrange)
 
 fancy_grid.update_cbar()
 
-fancy_grid.save_plot("mass-density_samesize.png")
+fancy_grid.save_plot("emeasure-mvd-upper.png")

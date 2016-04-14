@@ -18,14 +18,18 @@ DPI = 300
 figformat = 'png'
 plot_size = 10
 torch.set_font_sizes(fontsize=8)
+cmap = hgspy.get_grey_cmap(isReversed=True)
 
 fileprefix2 = "data/model_paper1/set2/"
 fileprefix3 = "data/model_paper1/set3/"
 
-offgrid = np.fromfile(fileprefix2 + "offgrid_times", dtype=int, sep='\n')
+snapshots = [10, 20, 30, 40, 50]
+param_index = range(19, 28, 1)
+
+offgrid = np.genfromtxt(fileprefix2 + "offgrid_times", dtype=int)
 
 masses = [6, 9, 12, 15, 20, 30, 40, 70, 120]
-densities = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
+times = [2.0e4, 4.0e4, 6.0e4, 8e4, 10e4]
 
 def latexify(str):
 	return r'${}$'.format(str)
@@ -42,33 +46,36 @@ def fmt_nolatex(x, pos):
 def fmt(x, pos):
 	return latexify(fmt_nolatex(x, pos))
 
+def getFilename(i, j, set2):
+	padi = "%03d" % (snapshots[i],)
+	padj = "%02d" % (param_index[j],)
 
-def getFilename(i, set2):
-	padi = "%02d" % ((i+1),)
-	filesuffix = "data_" + padi + "/radio_025/emeasure_ff.fits"
-
-	if set2:
-		return fileprefix2 + filesuffix
-	else:
-		return fileprefix3 + filesuffix
-
-def getIntensityFilename(i, set2):
-	padi = "%02d" % ((i+1),)
-
-	filesuffix = "data_" + padi + "/radio_025/intensity_pixel_ff.fits"
+	filesuffix = "data_" + padj + "/radio_" + padi + "/emeasure_ff.fits"
 
 	if set2:
 		return fileprefix2 + filesuffix
 	else:
 		return fileprefix3 + filesuffix
 
-def addImage(index, grid, xrange):
-	col = int(index / 9)
-	row = index % 9
+def getIntensityFilename(i, j, set2):
+	padi = "%03d" % (snapshots[i],)
+	padj = "%02d" % (param_index[j],)
 
-	isSet2 = offgrid[index] > 25
+	filesuffix = "data_" + padj + "/radio_" + padi + "/intensity_pixel_ff.fits"
 
-	filename = getFilename(index, isSet2)
+	if set2:
+		return fileprefix2 + filesuffix
+	else:
+		return fileprefix3 + filesuffix
+
+def addImage(col, row, grid, xrange):
+	row = row - 5
+	if row < 0:
+		return
+
+	isSet2 = offgrid[param_index[row + 5] - 1] > snapshots[col]
+
+	filename = getFilename(col, row + 5, isSet2)
 
 	ax = grid.grid[col][row]
 	cbar_ax = grid.cgrid[col][row]
@@ -131,28 +138,29 @@ def addImage(index, grid, xrange):
 	ax.yaxis.get_major_ticks()[2].label1.set_visible(False)
 	ax.yaxis.get_major_ticks()[-1].label1.set_visible(False)
 
-	# Pixel angular size in upper left corner.
-	ax.text(0.02, 0.96, '{:.2f}'.format(hdu_list[0].header['PIXAS']) + "''",
-			fontsize=6, horizontalalignment='left', verticalalignment='top',
-			rotation='horizontal', transform=ax.transAxes)
+	if False:
+		# Pixel angular size in upper left corner.
+		ax.text(0.02, 0.96, '{:.2f}'.format(hdu_list[0].header['PIXAS']) + "''",
+				fontsize=6, horizontalalignment='left', verticalalignment='top',
+				rotation='horizontal', transform=ax.transAxes)
 
-	# FWHM of guassian blur kernal in lower left corner.
-	ax.text(0.02, 0.04, "FWHM=" + '{:.1f}'.format(FWHM) + "''",
-			fontsize=6, horizontalalignment='left', verticalalignment='bottom',
-			rotation='horizontal', transform=ax.transAxes)
+		# FWHM of guassian blur kernal in lower left corner.
+		ax.text(0.02, 0.04, "FWHM=" + '{:.1f}'.format(FWHM) + "''",
+				fontsize=6, horizontalalignment='left', verticalalignment='bottom',
+				rotation='horizontal', transform=ax.transAxes)
 
-	# FWHM diameter line to show scale
-	ax.plot([(0.90)*xrange[col][row]/2.0 - FWHM, (0.90)*xrange[col][row]/2.0], [-(0.90)*xrange[col][row]/2.0, -(0.90)*xrange[col][row]/2.0])
+		# FWHM diameter line to show scale
+		ax.plot([(0.90)*xrange[col][row]/2.0 - FWHM, (0.90)*xrange[col][row]/2.0], [-(0.90)*xrange[col][row]/2.0, -(0.90)*xrange[col][row]/2.0])
 
-	# Peak brightness in mJy/beam in upper right
-	rbeam_rad = 0.5 * hdu_list[0].header['BMAJ'] * math.pi / 180.0
-	pix_rad = abs(hdu_list[0].header['CDELT1']) * math.pi / 180.0
+		# Peak brightness in mJy/beam in upper right
+		rbeam_rad = 0.5 * hdu_list[0].header['BMAJ'] * math.pi / 180.0
+		pix_rad = abs(hdu_list[0].header['CDELT1']) * math.pi / 180.0
 
-	hdu_list2 = fits.open(getIntensityFilename(index, isSet2))
+		hdu_list2 = fits.open(getIntensityFilename(col, row + 5, isSet2))
 
-	peak = hdu_list2[0].header['MPIX'] * math.pi * rbeam_rad * rbeam_rad / (pix_rad * pix_rad)
+		peak = hdu_list2[0].header['MPIX'] * math.pi * rbeam_rad * rbeam_rad / (pix_rad * pix_rad)
 
-	ax.text(0.98, 0.96, '{:.2f}'.format(peak) + "mJy/b",
+		ax.text(0.98, 0.96, '{:.2f}'.format(peak) + "mJy/b",
 				fontsize=6, horizontalalignment='right', verticalalignment='top',
 				rotation='horizontal', transform=ax.transAxes)
 
@@ -162,35 +170,37 @@ def addImage(index, grid, xrange):
 		return '{}'.format(a)
 
 	if col == 0:
-		ax.text(-0.22, 0.5, latexify("M = " + fmt_mass(masses[row]) + "\ \\mathrm{M_\\odot}"),
+		ax.text(-0.22, 0.5, latexify("M = " + fmt_mass(masses[row + 5]) + "\ \\mathrm{M_\\odot}"),
 				fontsize=10, horizontalalignment='right', verticalalignment='center',
 				rotation='vertical', transform=ax.transAxes)
 	if row == 0:
-		ax.text(0.5, 1.24, latexify("n_\\star = " + fmt_nolatex(densities[col], 0) + "\ \\mathrm{cm^{-3}}"),
+		ax.text(0.5, 1.24, latexify("t = " + fmt_nolatex(times[col], 0) + "\ \\mathrm{yrs}"),
 				fontsize=10, horizontalalignment='center', verticalalignment='bottom',
 				rotation='horizontal', transform=ax.transAxes)
 
 
-#grid = plotter.getGrid(plotparams)
-#plotter.modifyGrid(grid, True)
-
 hrats = [1, 1, 1, 1, 1]
-vrats = [1, 1, 1, 1, 1, 1, 1, 1, 1]
-fancy_grid = torch.FancyAxesGrid(hrats, vrats, border=(0.05, 0.01, 0.03, 0.02),
+vrats = [1, 1, 1, 1]
+fancy_grid = torch.FancyAxesGrid(hrats, vrats, border=(0.05, 0.01, 0.06, 0.04),
 								 fig_width=plot_size, dpi=DPI, fig_format=figformat,
-								 csize=0.005, cspace=0.002, cpad=0.03,
-								 hspace=0.026, vspace=0.022)
+								 csize=0.01, cspace=0.004, cpad=0.03,
+								 hspace=0.026, vspace=0.044)
 
 xrange = []
-xrange.append([15, 32, 62, 90, 134, 190, 260, 380, 800])
-xrange.append([10, 22, 48, 80, 110, 140, 190, 300, 500])
-xrange.append([6, 15, 34, 60, 90, 120, 150, 280, 400])
-xrange.append([4, 9, 24, 46, 66, 100, 120, 180, 250])
-xrange.append([2.52, 6, 16, 30, 54, 80, 100, 150, 190])
+xrange.append([0.52, 0.6, 0.9, 2.2])
+xrange.append([0.70, 0.9, 1.9, 2.5])
+xrange.append([0.90, 1.0, 2.2, 3.0])
+xrange.append([1.00, 1.3, 2.3, 3.2])
+xrange.append([1.00, 1.6, 2.6, 3.6])
 
-for i in range(45):
-	addImage(i, fancy_grid, xrange)
+for i in range(5):
+	for j in range(4):
+		xrange[i][j] = xrange[i][j]*160.0
+
+for i in range(5):
+	for j in range(9):
+		addImage(i, j, fancy_grid, xrange)
 
 fancy_grid.update_cbar()
 
-fancy_grid.save_plot("mass-density_samesize.png")
+fancy_grid.save_plot("emeasure-mvt-lower.png")

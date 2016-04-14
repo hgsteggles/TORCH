@@ -34,7 +34,7 @@ plotter = torch.Plotter(1, 1, plot_size, figformat, DPI)
 ###	Axes.
 grid = plotter.axes1D((1,1))
 grid[0].set_xlabel(plotter.format_label(torch.VarType('M_\star\ /\ \mathrm{M_{\odot}}', False)))
-grid[0].set_ylabel(plotter.format_label(torch.VarType('\dot{M}\ /\ \mathrm{M_{\odot} \, yr^{-1}}', False)))
+grid[0].set_ylabel(plotter.format_label(torch.VarType('\dot{M}\ /\ \mathrm{M_{\odot} \, yr^{-1}}', True)))
 
 ### Plot.
 formatter = ticker.ScalarFormatter(useOffset=True, useMathText=True)

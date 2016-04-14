@@ -66,6 +66,10 @@ def calcPressureEqual2(mdot, vinf, rho_0):
 	c5 = math.pow(math.sqrt(R_GAS * T / 0.5), 5.0)
 	return 0.142 * math.sqrt(0.5 * mdot * vinf * vinf / (rho * c5))
 
+def finalRadius(mdot, vinf, rho_0):
+	tp25 = math.pow(calcPressureEqual2(mdot, vinf, rho_0), 2.0/5.0)
+	return 0.92 * math.pow(0.5 * mdot * vinf * vinf / (rho_0 * math.pow(vinf, 5.0/3.0)), 0.3) * tp25
+
 ######### MVD
 
 #### High Temp Wind
@@ -278,21 +282,21 @@ if print_sizes:
 
 def printTable(r, t, b, isWind, isMVD):
 	for row in range(9):
-		tableline =  "\multirow{4}{*}{\\num{" + str(massList[row]) + "}} & {$R_\\mathrm{\\theta = \\frac{\\pi}{2}}\ /\ \si{\parsec}$}"
-		for col in range(5):
-			tableline = tableline + " & "
-			if r[col][row] != None and not np.isnan(r[col][row]):
-				tableline = tableline + str(r[col][row])
-			else:
-				tableline = tableline + "{\\textemdash}"
-
-		print tableline + " \\\\"
-
 		tableline = "& {$R_\\mathrm{\\theta = 0}\ /\ \si{\parsec}$}"
 		for col in range(5):
 			tableline = tableline + " & "
 			if t[col][row] != None and not np.isnan(t[col][row]):
 				tableline = tableline + str(t[col][row])
+			else:
+				tableline = tableline + "{\\textemdash}"
+
+		print tableline + " \\\\"
+
+		tableline =  "\multirow{4}{*}{\\num{" + str(massList[row]) + "}} & {$R_\\mathrm{\\theta = \\frac{\\pi}{2}}\ /\ \si{\parsec}$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			if r[col][row] != None and not np.isnan(r[col][row]):
+				tableline = tableline + str(r[col][row])
 			else:
 				tableline = tableline + "{\\textemdash}"
 
@@ -338,14 +342,14 @@ def printTable(r, t, b, isWind, isMVD):
 
 			#print tableline + " \\\\"
 
-			tableline = "& {$t_\\mathrm{P}\ /\ \\si{\\kilo\\year}$}"
+			tableline = "& {$R_\\mathrm{P}\ /\ \\si{\\parsec}$}"
 			for col in range(5):
 				tableline = tableline + " & "
 				R = 0
 				if isMVD:
-					R = calcPressureEqual2(mdotList[row], vinfList[row], mh*nhs[col])*S2YR/1000.0
+					R = finalRadius(mdotList[row], vinfList[row], mh*nhs[col]) * CM2PC
 				else:
-					R = calcPressureEqual2(mdotList[row], vinfList[row], mh*nhs[2])*S2YR/1000.0
+					R = finalRadius(mdotList[row], vinfList[row], mh*nhs[2]) * CM2PC
 				tableline = tableline + str(R)
 
 			print tableline + " \\\\"
@@ -363,7 +367,7 @@ def printTable(r, t, b, isWind, isMVD):
 
 			print tableline + " \\\\"
 
-			tableline = "& {$R_\\mathrm{s}\ /\ \si{\parsec}$}"
+			tableline = "& {$R_\\mathrm{S}\ /\ \si{\parsec}$}"
 			for col in range(5):
 				tableline = tableline + " & "
 				R = 0
@@ -378,10 +382,10 @@ def printTable(r, t, b, isWind, isMVD):
 		if row != 8:
 			print "& & & & & & \\\\"
 
-printTable(mvd_SW_r, mvd_SW_t, mvd_SW_b, True, True)
+#printTable(mvd_SW_r, mvd_SW_t, mvd_SW_b, True, True)
 #printTable(mvt_SW_r, mvt_SW_t, mvt_SW_b, True, False)
 #printTable(mvd_IF_r, mvd_IF_t, mvd_IF_b, False, True)
-#printTable(mvt_IF_r, mvt_IF_t, mvt_IF_b, False, False)
+printTable(mvt_IF_r, mvt_IF_t, mvt_IF_b, False, False)
 
 
 

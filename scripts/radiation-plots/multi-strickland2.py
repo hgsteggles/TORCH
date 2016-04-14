@@ -17,7 +17,7 @@ figformat = 'png'
 plot_size = 5
 dir = "data/strickland2/"
 fontsize = 16
-var_type = "nhii"
+var_type = "nh"
 
 torch.set_font_sizes(fontsize)
 

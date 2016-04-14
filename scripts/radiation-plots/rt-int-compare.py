@@ -14,10 +14,12 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 2.5
+plot_size = 10.0
+fontsize = 16
+torch.set_font_sizes(fontsize)
 dir = "data/stromgren-compare/"
 
-outputfile = 'error1D' + '.' + figformat
+outputfile = 'plot-stromgren' + '.' + figformat
 
 inputfile = []
 inputfile.append(dir + "front_I_256x1x1_ts100.txt")
@@ -44,18 +46,19 @@ for i in range(len(data)):
 plotter = torch.Plotter(1, 1, plot_size, figformat, DPI)
 
 ###	Axes.
-grid = plotter.axes1D((2,1))
+asp_rat = 7.0 / 16.0
+grid = plotter.axes1D((2,1), aspect_ratio=asp_rat)
 grid[1].yaxis.set_ticks(np.arange(0.0, 1.8, 0.2))
 grid[0].yaxis.set_ticks(np.arange(-0.2, 1.2, 0.2))
 grid[0].set_xlim([0.0, 3.8])
 grid[0].set_ylim([-0.19, 1.0])
 grid[1].set_ylim([0, 1.6])
-grid[1].set_xlabel(plotter.format_label(torch.VarType('t\ /\ t_{rec}', False)))
-grid[0].set_ylabel(plotter.format_label(torch.VarType('Relative\ Error', False)))
-grid[1].set_ylabel(plotter.format_label(torch.VarType('R_{IF}\ /\ pc', False)))
+grid[1].set_xlabel(plotter.format_label(torch.VarType('t\ /\ t_\\mathrm{rec}', False)))
+grid[0].set_ylabel(plotter.format_label(torch.VarType('\mathrm{Relative\ Error}', False)))
+grid[1].set_ylabel(plotter.format_label(torch.VarType('R_\mathrm{IF}\ /\ \mathrm{pc}', False)))
 
 ### Plot.
-kx = dict(linewidth=0.5)
+kx = dict(linewidth=1.5)
 
 grid[1].plot(R[0], IF[0], color='green', label='Implicit', **kx)
 grid[1].plot(R[1], IF[1], color='red', label='Explicit 1st Order', **kx)
