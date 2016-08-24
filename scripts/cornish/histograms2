@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [ "$1" == "" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] ; then
+	echo "usage: "$0" <iden>"
+else
+	python scripts/cornish/hist-tms.py $@
+	python scripts/cornish/hist-age.py $@
+	python scripts/cornish/hist-flux.py $@
+	python scripts/cornish/hist-locations.py $@
+	python scripts/cornish/hist-sizes.py $@
+	python scripts/cornish/hist2d-dist-b.py $@
+	python scripts/cornish/hist2d-dist-l.py $@
+	python scripts/cornish/hist2d-dist-size.py $@
+	python scripts/cornish/hist2d-flux-b.py $@
+	python scripts/cornish/hist2d-flux-l.py $@
+	python scripts/cornish/hist2d-flux-dist.py $@
+	python scripts/cornish/hist2d-flux-mass.py $@
+	python scripts/cornish/hist2d-flux-tms.py $@
+	python scripts/cornish/hist2d-flux-age.py $@
+	python scripts/cornish/hist2d-flux-size.py $@
+	python scripts/cornish/hist2d-flux-physize.py $@
+fi

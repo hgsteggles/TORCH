@@ -224,5 +224,5 @@ void copyConfigFile(const std::string& filename, const std::string& directory) {
 }
 
 void showUsage() {
-	std::cout << "torch [--paramfile=<filename>] [--setupfile<filename>]" << std::endl;
+	std::cout << "torch [--paramfile=<filename>] [--setupfile=<filename>]" << std::endl;
 }

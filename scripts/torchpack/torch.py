@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate
 import linecache
+from astropy.io import fits
+import math
 
 from mpl_toolkits.axes_grid1 import ImageGrid, Grid
 
@@ -26,8 +28,9 @@ class VarType:
 	name = ""
 	isLog10 = False
 
-	def __init__(self, name, isLog10):
+	def __init__(self, name, units="", isLog10=False):
 		self.name = name
+		self.units = units
 		self.isLog10 = isLog10
 
 class Data:
@@ -59,7 +62,7 @@ class Data:
 		for i in range(min(2, self.nd)):
 			self.x.append(self.get_var_raw(coords[i]))
 
-		self.dx = self.x[0][1]-self.x[0][0]
+		self.dx = self.x[0][1] - self.x[0][0]
 
 		self.xi = []
 		self.xi.append(np.linspace(self.x[0].min(), self.x[0].max(), self.nx))
@@ -96,7 +99,7 @@ class Data:
 
 class CFD_Data(Data):
 	var_typenames = ['x', 'y', 'z', 'nh', 'den', 'pre', 'hii', 'nhii', 'nhi',
-					 'tem', 'vel0', 'vel1']
+					 'tem', 'vel0', 'vel1', 'vel2', 'mach']
 
 	def __init__(self, inputfile, axial=False):
 		Data.__init__(self, inputfile, axial)
@@ -122,6 +125,20 @@ class CFD_Data(Data):
 			return self.data[:,1]/3.09e18
 		elif var_typename == 'z' and self.nd > 2:
 			return self.data[:,2]/3.09e18
+		elif var_typename == 'vol-cartesian':
+			vol = 1
+			axes = ['x', 'y', 'z']
+			for i in range(self.nd):
+				vol *= self.get_var_raw(axes[i])
+			return vol
+		elif var_typename == 'vol-cylindrical':
+			rc = self.get_var_raw('x')
+			return 2.0 * math.pi * rc * self.dx * self.dx
+		elif var_typename == 'vol-spherical':
+			rc = self.get_var_raw('x') / self.dx
+			r2 = (rc + 0.5) * self.dx
+			r1 = (rc - 0.5) * self.dx
+			return 4.0 * math.pi * (r2 - r1) * (r2 * r2 + r1 * r2 + r1 * r1) / 3.0
 		elif var_typename == 'nh':
 			return self.get_var_raw('den')/1.674e-24
 		elif var_typename == 'den':
@@ -135,12 +152,29 @@ class CFD_Data(Data):
 		elif var_typename == 'tem':
 			return (self.get_var_raw('pre') / self.get_var_raw('den')) \
 				   / (8.314462e7 * (self.get_var_raw('hii') + 1))
+		elif var_typename == 'ke':
+			ke = 0
+			for i in range(self.nd):
+				ke += (self.get_var_raw('vel'+str(i)))**2
+			return 0.5 * self.get_var_raw('den') * ke
 		elif var_typename == 'vel0':
 			return self.data[:,self.nd+3]
 		elif var_typename == 'vel1' and self.nd > 1:
 			return self.data[:,self.nd+4]
 		elif var_typename == 'vel2' and self.nd > 2:
 			return self.data[:,self.nd+5]
+		elif var_typename == 'mach':
+			vel = self.get_var_raw('vel0')
+			mach = vel * vel
+			vel = self.get_var_raw('vel1')
+			if vel != None:
+				mach += (vel * vel)
+			vel = self.get_var_raw('vel2')
+			if vel != None:
+				mach += (vel * vel)
+			mach = np.sqrt(mach)
+			ss = np.sqrt((5.0 / 3.0) * self.get_var_raw('pre') / self.get_var_raw('den'))
+			return mach / ss
 		else:
 			print "TorchCFD::get_var_raw: " + var_typename + \
 				  " does not exist in this data set."
@@ -148,7 +182,13 @@ class CFD_Data(Data):
 
 	def appropriate_to_log(self, var_typename):
 		return var_typename != 'hii' and var_typename != 'vel0' and \
-			   var_typename != 'vel1' and var_typename != 'vel2'
+			   var_typename != 'vel1' and var_typename != 'vel2' and \
+			   var_typename != 'mach'
+
+	def convert_to_fits(self, var_type, filename):
+		hdu = fits.PrimaryHDU(self.interpolate(self.get_var(var_type), "nearest"))
+		hdulist = fits.HDUList([hdu])
+		hdulist.writeto(filename, clobber=True)
 
 class Cool_Data(Data):
 	var_typenames = ['x', 'y', 'z', 'imlc', 'nmlc', 'recc', 'colc', 'ciec',
@@ -249,13 +289,14 @@ class DataSetMinMax:
 
 class PlotParams:
 	def __init__(self, datacubes, var_types, var_minmaxes, axial, interp,
-				 nrows_ncols, color_maps, tight, detail="all"):
+				 nrows_ncols, color_maps, tight, cbar_on=True, detail="all"):
 		self.datacubes = datacubes
 		self.var_types = var_types
 		self.var_minmaxes = var_minmaxes
 		self.nrows_ncols = nrows_ncols
 		self.color_maps = color_maps
 		self.tight = tight
+		self.cbar_on = cbar_on
 		self.detail = detail
 		self.axial = axial
 		self.interp = interp
@@ -287,7 +328,7 @@ def image(x, y, var, var_min, var_max, interp, color_map, ax):
 
 
 class Plotter:
-	def __init__(self, nx, ny, plot_size=5, figformat='jpg', dpi=300):
+	def __init__(self, nx, ny, plot_size=5, figformat='jpg', dpi=300, ncols=1):
 		self.plot_size = plot_size
 		self.figformat = figformat
 		self.dpi = dpi
@@ -295,38 +336,58 @@ class Plotter:
 		self.aspect_ratio = ny/float(nx)
 		self.fig = plt.figure()
 
-		self.ticklength = 8 * (plot_size / 5.0)
-		self.minorticklength = 4 * (plot_size / 5.0)
-		self.tickwidth = 1 * (plot_size / 5.0)
-		self.minortickwidth = 0.8 * (plot_size / 5.0)
-		self.linewidth = 2 * (plot_size / 5.0)
+		self.ticklength = 8 * (plot_size / (5.0 * ncols))
+		self.minorticklength = 4 * (plot_size / (5.0 * ncols))
+		self.tickwidth = 1 * (plot_size / (5.0 * ncols))
+		self.minortickwidth = 0.8 * (plot_size / (5.0 * ncols))
+		self.linewidth = 2 * (plot_size / (5.0 * ncols))
 
 	def addLog10string(self, string):
-		return "\mathrm{\\log}_{10}\left(" + string + "\\right)";
+		return "\\log_{10}(" + string + ")";
 
 	def romanise(self, string):
 		return "\mathrm{" + string + "}"
 
+	def format_units(self, var_typename):
+		result = ""
+		if var_typename == 'nh':
+			result = "\\mathrm{cm^{-3}}"
+		elif var_typename == 'den':
+			result = "\\mathrm{g\\, cm^{-3}}"
+		elif var_typename == 'pre':
+			result = "\mathrm{Ba}"
+		elif var_typename == 'nhii':
+			result = "\\mathrm{cm^{-3}}"
+		elif var_typename == 'tem':
+			result = "\\mathrm{K}"
+		elif var_typename == 'vel0' or var_typename == 'vel1' or var_typename == 'vel2':
+			result = "\\mathrm{cm\\, s^{-1}}"
+
+		if result != "":
+			result = "\ [" + result + "]"
+
+		return result
+
 	def format_typename(self, var_typename):
 		result = ""
 		if var_typename == 'nh':
-			result = "n_\\mathrm{H}\ /\ \mathrm{cm^{-3}}"
+			result = "n_\\mathrm{H}"
 		elif var_typename == 'den':
-			result = "\\rho\ /\ \\mathrm{g\\, cm^{-3}}"
+			result = "\\rho"
 		elif var_typename == 'pre':
-			result = "P\ /\ \mathrm{Ba}"
+			result = "P"
 		elif var_typename == 'hii':
 			result = "f_\mathrm{HII}"
 		elif var_typename == 'nhii':
-			result = "n_\mathrm{HII}\ /\ \mathrm{cm^{-3}}"
+			result = "n_\mathrm{HII}"
 		elif var_typename == 'tem':
-			result = "T\ /\ \mathrm{K}"
+			result = "T"
 		elif var_typename == 'vel0':
-			result = "v_0\ /\ \mathrm{cm\\, s^{-1}}"
+			result = "v_0"
 		elif var_typename == 'vel1':
-			result = "v_1\ /\ \mathrm{cm\\, s^{-1}}"
+			result = "v_1"
 		elif var_typename == 'vel2':
-			result = "v_2\ /\ \mathrm{cm\\, s^{-1}}"
+			result = "v_2"
 		else:
 			result = var_typename
 
@@ -336,23 +397,47 @@ class Plotter:
 		var_text = self.format_typename(var_type.name)
 		if var_type.isLog10:
 			var_text = self.addLog10string(var_text)
-		var_text = "$" + var_text + "$"
 
-		return var_text
+		if var_type.units == "":
+			var_text = var_text + self.format_units(var_type.name)
+		else:
+			var_text = var_text + "\ [\\mathrm{" + var_type.units + "}]"
+
+		return "$" + var_text + "$"
 
 
-	def add_quiver(self, every, tdat, ax):
+	def add_quiver(self, ax, tdat, every, vmin=3.0e4, vmiddle=3.0e6):
 		e = every
 		ui = tdat.interpolate(tdat.get_var_raw('vel0'), 'nearest')
 		vi = tdat.interpolate(tdat.get_var_raw('vel1'), 'nearest')
-		max_vel = ui.max()
-		max_vel = max(max_vel, vi.max())
-		ax.quiver(tdat.xi[0][::e,::e], tdat.xi[1][::e,::e], ui[::e,::e],
-				  vi[::e,::e], pivot='mid', units='inches', color='r',
-				  scale=0.8*max_vel*self.cells_per_inch/e)
+		#max_vel = ui.max()
+		#max_vel = max(max_vel, vi.max())
+
+		vtot = np.sqrt(ui * ui + vi * vi)
+		max_vel = vtot.max()
+
+		print max_vel
+
+		m_high = np.logical_or(vtot < vmiddle, vtot < vmin)
+		ui_high = np.ma.masked_array(ui, mask=m_high)
+		vi_high = np.ma.masked_array(vi, mask=m_high)
+
+		ax.quiver(tdat.xi[0][::e,::e], tdat.xi[1][::e,::e], ui_high[::e,::e],
+				  vi_high[::e,::e], pivot='mid', units='inches', color='r',
+				  scale=1.1 * max_vel * self.cells_per_inch / e)
+
+		if vmiddle > vmin:
+			m_low = np.logical_or(vtot < vmin, vtot >= vmiddle)
+			ui_low = np.ma.masked_array(ui, mask=m_low)
+			vi_low = np.ma.masked_array(vi, mask=m_low)
+
+			ax.quiver(tdat.xi[0][::e,::e], tdat.xi[1][::e,::e], ui_low[::e,::e],
+					  vi_low[::e,::e], pivot='mid', units='inches', color='b',
+					  scale=1.1 * vmiddle * self.cells_per_inch / e)
 	
-	def save_plot(self, outputfile, ax=None):
-		self.fig.tight_layout()
+	def save_plot(self, outputfile, ax=None, tight=False):
+		if tight:
+			self.fig.tight_layout()
 		if ax == None:
 			self.fig.savefig(outputfile, format=self.figformat, dpi=self.dpi,
 							 bbox_inches='tight', pad_inches=0.1)
@@ -413,27 +498,28 @@ class Plotter:
 		self.linewidth *= 0.8
 
 		self.modifyGrid(grid, False)
+		self.fig.set_size_inches(self.plot_size*nr_nc[1], self.plot_size*nr_nc[0] * aspect_ratio, forward=True)
 
 		return grid
 
 	def getGrid(self, params):
 		self.fig.set_size_inches(self.plot_size*params.nrows_ncols[1],
 								 self.plot_size*params.nrows_ncols[0], forward=True)
-		shared_vars = self.areVarsShared(params.var_types, params.var_minmaxes)
+		shared_vars = False if params.var_types == None else self.areVarsShared(params.var_types, params.var_minmaxes)
 		less_detail = shared_vars or params.detail == "some" or params.detail == "none"
 
 		if less_detail:
-			cbsize = str(params.nrows_ncols[1]*3.0/2.0) + "%"
+			cbsize = str(params.nrows_ncols[1]*3.0/2.0) + "0%"
 			cbpad = "0%" if params.tight else "1%"
 			cbloc = "right"
-			cbmode = "single"
-			axpad = 0 if params.tight else 0.05*(self.plot_size/5.0)
+			cbmode = "single" if params.cbar_on else "none"
+			axpad = 0 if params.tight else 0.1*(self.plot_size / 5.0)
 		else:
 			cbsize = "6%"
 			cbpad = "2%"
 			cbloc = "right"
-			cbmode = "each"
-			axpad = 0.6*(self.plot_size/params.nrows_ncols[1]/5.0)
+			cbmode = "each" if params.cbar_on else "none"
+			axpad = (self.plot_size/params.nrows_ncols[1]/5.0) * np.array([1.6, 0.4])
 
 		return ImageGrid(self.fig, 111, nrows_ncols = params.nrows_ncols,
 			axes_pad = axpad,
@@ -455,11 +541,11 @@ class Plotter:
 		for i in range(len(params.datacubes)):
 			if params.detail != "none":
 				if params.axial:
-					grid[i].set_xlabel('$r\ /\ \mathrm{pc}$')
-					grid[i].set_ylabel('$z\ /\ \mathrm{pc}$')
+					grid[i].set_xlabel('$r\ \\left[\mathrm{pc}\\right]$')
+					grid[i].set_ylabel('$z\ \\left[\mathrm{pc}\\right]$')
 				else:
-					grid[i].set_xlabel('$x\ /\ \mathrm{pc}$')
-					grid[i].set_ylabel('$y\ /\ \mathrm{pc}$')
+					grid[i].set_xlabel('$x\ \\left[\mathrm{pc}\\right]$')
+					grid[i].set_ylabel('$y\ \\left[\mathrm{pc}\\right]$')
 			else:
 				grid[i].get_xaxis().set_visible(False)
 				grid[i].get_yaxis().set_visible(False)
@@ -499,6 +585,75 @@ class Plotter:
 			for i in range(len(params.var_types)):
 				grid[i].text(ts, 1-ts, self.format_label(params.var_types[i]),
 							 color='red', horizontalalignment='left',
+							 verticalalignment='top', transform=grid[i].transAxes)
+
+		if params.detail == "none":
+			grid.cbar_axes[0].get_yaxis().set_visible(False)
+
+		self.modifyGrid(grid, True)
+
+		return grid
+
+	def multi2(self, params, grid):
+		shared_vars = self.areVarsShared(params.var_types, params.var_minmaxes)
+		less_detail = shared_vars or params.detail == "some" or params.detail == "none"
+
+		im = []
+
+		for i in range(len(params.datacubes)):
+			if params.detail != "none":
+				if params.axial:
+					grid[i].set_xlabel('$r\ \\left[\mathrm{pc}\\right]$')
+					grid[i].set_ylabel('$z\ \\left[\mathrm{pc}\\right]$')
+				else:
+					grid[i].set_xlabel('$x\ \\left[\mathrm{pc}\\right]$')
+					grid[i].set_ylabel('$y\ \\left[\mathrm{pc}\\right]$')
+			else:
+				grid[i].get_xaxis().set_visible(False)
+				grid[i].get_yaxis().set_visible(False)
+
+			vs = params.datacubes[i].get_var(params.var_types[i])
+			vsi = params.datacubes[i].interpolate(vs, params.interp)
+			vsmin = params.var_minmaxes[i][0]
+			vsmax = params.var_minmaxes[i][1]
+
+			if vsmin == None:
+				vsmin = vs.min()
+			if vsmax == None:
+				vsmax = vs.max()
+
+			im.append(imageCrop(params.datacubes[i].x[0], params.datacubes[i].x[1],
+							params.xminmax, params.yminmax,
+							vsi, vsmin, vsmax, params.interp, params.color_maps[i],
+							grid[i]))
+
+			xmin = min(params.datacubes[i].x[0])
+			xmax = max(params.datacubes[i].x[0])
+			ymin = min(params.datacubes[i].x[1])
+			ymax = max(params.datacubes[i].x[1])
+
+			grid[i].set_xlim([xmin, xmax])
+			grid[i].set_ylim([ymin, ymax])
+
+			if not less_detail:
+				cbax = grid.cbar_axes[i]
+				cb = grid.fig.colorbar(im[i], cax=cbax, orientation='horizontal')
+				cbax.xaxis.label.set_text(self.format_label(params.var_types[i]))
+
+		if less_detail:
+			grid.cbar_axes[0].colorbar(im[0])
+			cbax = grid.cbar_axes[0]
+			cblax = cbax.axis[cbax.orientation]
+			cblax.label.set_text(self.format_label(params.var_types[0]))
+
+		if params.detail == "some" or params.detail == "none":
+			grid.cbar_axes[0].colorbar(im[0])
+			grid.cbar_axes[0].toggle_label(False)
+			ts = 0.04
+
+			for i in range(len(params.var_types)):
+				grid[i].text(ts, 1-ts, self.format_label(params.var_types[i]),
+							 color='red', horizontalalignment='left',
 							 verticalalignment='top', transform = grid[i].transAxes)
 
 		if params.detail == "none":
@@ -508,6 +663,22 @@ class Plotter:
 
 		return grid
 
+	def histstep(self, ax, data, bins, errorcentres=None, normed=False, **kwargs):
+		#grid[0].hist(data, bins=bins)
+		histdata, bin_edges = np.histogram(data, bins=bins)
+		N = sum(histdata)
+
+		hist = histdata if not normed else histdata / float(N)
+
+		ax.step(bin_edges, np.concatenate((hist, [0]), axis=0), where='post', **kwargs)
+
+		if errorcentres is not None:
+			del kwargs['label']
+			yerr = np.sqrt(histdata)
+			if normed:
+				yerr = yerr / float(N)
+
+			ax.errorbar(errorcentres, hist, yerr=yerr, fmt='.', **kwargs)
 
 class FancyAxesGrid:
 	def __init__(self, width_ratios, height_ratios, hspace = 0.01, vspace = 0.01,
@@ -525,6 +696,7 @@ class FancyAxesGrid:
 		self.fig = plt.figure()
 		self.ticklength = 2
 		self.visible = []
+		self.ngrids = len(width_ratios) * len(height_ratios)
 
 		# Initialise all visibles
 		for i in range(self.ncols_nrows[0]):
@@ -595,6 +767,14 @@ class FancyAxesGrid:
 		self.grid = tuple(grid)
 		self.cgrid = tuple(cgrid)
 
+		self.cbar_axes = []
+		for row in range(self.ncols_nrows[1]):
+			for col in range(self.ncols_nrows[0]):
+				self.cbar_axes.append(self.cgrid[col][row])
+
+	def __getitem__(self, item):
+		return self.grid[item % self.ncols_nrows[0]][int(item / self.ncols_nrows[0])]
+
 	def set_visible(self, i, j, isVisible):
 		self.visible[i][j] = isVisible
 		if isVisible:
@@ -613,8 +793,10 @@ class FancyAxesGrid:
 			for row in range(self.ncols_nrows[1]):
 				if col != 0 and self.visible[col-1][row]:
 					plt.setp(self.grid[col][row].get_yticklabels(), visible=False)
+					self.grid[col][row].set_ylabel("")
 				if row != self.ncols_nrows[1] - 1 and self.visible[col][row+1]:
 					plt.setp(self.grid[col][row].get_xticklabels(), visible=False)
+					self.grid[col][row].set_xlabel("")
 
 	def update_cbar(self):
 		# Move cbar xaxis to top.
@@ -622,6 +804,7 @@ class FancyAxesGrid:
 			for col in range(self.ncols_nrows[0]):
 				self.cgrid[col][row].get_xaxis().set_ticks_position('top')
 				self.cgrid[col][row].xaxis.set_tick_params(length=self.ticklength)
+				self.cgrid[col][row].xaxis.set_label_position('top')
 
 	def update(self):
 		self.remove_ticklabels()

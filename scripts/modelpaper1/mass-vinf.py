@@ -1,6 +1,7 @@
 import numpy as np
 import warnings
 import sys
+import matplotlib.ticker as ticker
 
 def load_src(name, fpath):
     import os, imp
@@ -15,7 +16,7 @@ import hgspy
 DPI = 300
 figformat = 'png'
 plot_size = 5
-fontsize = 20
+fontsize = 16
 outputfile_qlyc = "mass-vs-vinf.png"
 
 torch.set_font_sizes(fontsize)
@@ -31,11 +32,14 @@ vinf = data[:,9]/1e5
 plotter = torch.Plotter(1, 1, plot_size, figformat, DPI)
 
 ###	Axes.
-grid = plotter.axes1D((1,1))
-grid[0].set_xlabel(plotter.format_label(torch.VarType('M_\star\ /\ \\mathrm{M_{\odot}}', False)))
-grid[0].set_ylabel(plotter.format_label(torch.VarType('v_{\infty}\ /\ \\mathrm{km \, s^{-1}}', False)))
+grid = plotter.axes1D((1,1), aspect_ratio=0.75)
+grid[0].set_xlabel(plotter.format_label(torch.VarType('M_\star', units='M_{\odot}')))
+grid[0].set_ylabel(plotter.format_label(torch.VarType('v_{\infty}', units='km \, s^{-1}')))
 
 ### Plot.
+formatter = ticker.ScalarFormatter(useOffset=True, useMathText=True)
+formatter.set_powerlimits((0, 1))
+grid[0].get_yaxis().set_major_formatter(formatter)
 grid[0].plot(mass, vinf, color='r', linewidth=1)
 
 ###	Save figure.

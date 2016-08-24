@@ -1,7 +1,23 @@
 import numpy as np
 import math
+import sys
+import lupa
 
-print_sizes = False
+lua = lupa.LuaRuntime(unpack_returned_tuples=True)
+
+def load_src(name, fpath):
+    import os, imp
+    return imp.load_source(name, os.path.join(os.path.dirname(__file__), fpath))
+
+load_src("koo", "../torchpack/koo.py")
+
+import koo
+
+load_src("mp1", "../torchpack/modelpaper1.py")
+import mp1
+mp1_data = mp1.ModelData()
+
+print_sizes = True
 print_mvd_table = False
 print_mvt_table = True
 
@@ -17,122 +33,87 @@ S2YR = 3.17098e-8
 YR2S = 3.154e7
 mh = 1.6738232e-24
 R_GAS = 8.3144598e7
+KB = 1.38e-16
 
-nhs = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
-times = [2.0e4, 4.0e4, 6.0e4, 8.0e4, 10.0e4]
-
-def calcBubbleRadius(mdot, vinf, rho_0, time):
-	return 0.88*pow(mdot * vinf * vinf * time * time * time / rho_0, 0.2)
-
-def calcBubbleRadiusRadiative(mdot, vinf, rho_0, time):
-	return pow(3.0 * 0.5 * mdot * vinf * time * time / (math.pi * rho_0), 0.25)
-
-def calcBubbleContact(mdot, vinf, rho_0, time):
-	rho = 0.1*rho_0
-	T = 8000.0
-	return pow(3.0 * 0.5 * mdot * vinf * vinf * time / (10.0 * math.pi * (R_GAS * T * rho / 0.5)), 1.0/3.0)
-
-def calcIFrontRadius(logQ, nh):
-	T = 8000
-	alphaB = 2.59e-13*math.pow(T/10000.0, -0.7)
-	return pow(3.0 * pow(10.0, logQ) / (4.0 * math.pi * nh * nh * alphaB), 1.0/3.0)
-
-def calcSpitzerRadius(logQ, nh, t):
-	RS = calcIFrontRadius(logQ, nh)
-	cs = math.sqrt(2.0*R_GAS*8000.0)
-	ts = RS/cs
-	return RS*math.pow(1.0 + ((7.0*t)/(4.0*ts)), 4.0/7.0)
-
-def calcCorrectedSpitzer(mdot, t, nh, R):
-	V = (4.0 / 3.0) * math.pi * R * R * R
-	return math.pow(1.0 + (mdot * t/(mh * nh * V)), -2.0/3.0)*R
-
-def calcPressureEqual(mdot, vinf, rho_0):
-	T = 8000.0
-	#rho = 0.1 * rho_0
-	rho = rho_0
-	return math.sqrt(3.0 * 0.5 * mdot * vinf * 0.5 * 0.5 / (16.0 * math.pi * rho * R_GAS * R_GAS * T * T))
-
-def calcCritVel(mdot, vinf, rho_0):
-	#rho = 0.1 * rho_0
-	rho = rho_0
-	C1 = 6.0e-35
-	return math.pow(rho * 0.5 * mdot * vinf * vinf / (2.0 * math.pi * C1 * C1), 1.0/11.0)
-
-def calcPressureEqual2(mdot, vinf, rho_0):
-	T = 8000.0
-	#rho = 0.1 * rho_0
-	rho = rho_0
-	c5 = math.pow(math.sqrt(R_GAS * T / 0.5), 5.0)
-	return 0.142 * math.sqrt(0.5 * mdot * vinf * vinf / (rho * c5))
-
-def finalRadius(mdot, vinf, rho_0):
-	tp25 = math.pow(calcPressureEqual2(mdot, vinf, rho_0), 2.0/5.0)
-	return 0.92 * math.pow(0.5 * mdot * vinf * vinf / (rho_0 * math.pow(vinf, 5.0/3.0)), 0.3) * tp25
+mvd_nhs = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
+mvt_nhs = [3.2e4, 3.2e4, 3.2e4, 3.2e4, 3.2e4]
+mvt_times = [2.0e4, 4.0e4, 6.0e4, 8.0e4, 10.0e4]
+mvd_times = [5.0e4, 5.0e4, 5.0e4, 5.0e4, 5.0e4]
 
 ######### MVD
 
 #### High Temp Wind
 
+xrange = []
+xrange.append([15, 32, 62, 90, 134, 190, 260, 380, 800])
+xrange.append([10, 22, 48, 80, 110, 140, 190, 300, 500])
+xrange.append([6, 15, 34, 60, 90, 120, 150, 280, 400])
+xrange.append([4, 9, 24, 46, 66, 100, 120, 180, 250])
+xrange.append([2.52, 6, 16, 30, 54, 80, 100, 150, 190])
+
+for i in range(5):
+	for j in range(9):
+		xrange[i][j] = xrange[i][j] * 0.1 / 15.0
+
 mvd_xrange = []
-mvd_xrange.append([0.10, 0.24, 0.46, 0.70, 0.90, 1.0, 1, 1, 1])
-mvd_xrange.append([0.06, 0.15, 0.38, 0.60, 0.80, 0.9, 1, 1, 1])
-mvd_xrange.append([0.04, 0.11, 0.25, 0.45, 0.65, 0.9, 1, 1, 1])
-mvd_xrange.append([0.03, 0.06, 0.20, 0.35, 0.55, 0.8, 1, 1, 1])
-mvd_xrange.append([0.02, 0.05, 0.14, 0.25, 0.45, 0.6, 0.8, 1, 1])
+mvd_xrange.append([0.10, 0.24, 0.46, 0.70, 0.90, 1.26, 1.73, 2.53, 5.33])
+mvd_xrange.append([0.06, 0.15, 0.38, 0.60, 0.80, 0.90, 1.27, 2.00, 3.33])
+mvd_xrange.append([0.04, 0.11, 0.25, 0.45, 0.65, 0.90, 1.00, 1.87, 2.67])
+mvd_xrange.append([0.03, 0.06, 0.20, 0.35, 0.55, 0.80, 1.00, 1.2, 1.67])
+mvd_xrange.append([0.02, 0.05, 0.14, 0.25, 0.45, 0.60, 0.80, 1, 1.27])
 mvd_xrange = np.array(mvd_xrange, np.float64)
 
-mvd_ref = 33.6
+mvd_ref = 34.0
 
 mvd_hsize = []
-mvd_hsize.append([16.5, 4.25, 5.50, 5.00, 6.00, None, None, None, None])
-mvd_hsize.append([19.5, 8.25, 4.00, 5.00, 6.25, 10.5, None, None, None])
-mvd_hsize.append([16.5, 7.00, 7.50, 6.00, 7.00, 11.0, 18.5, None, None])
-mvd_hsize.append([15.0, 10.5, 6.75, 6.00, 6.50, 9.50, 12.2, None, None])
-mvd_hsize.append([14.5, 5.00, 8.50, 5.50, 7.50, 16.0, 15.0, 25.0, None])
+mvd_hsize.append([16.5, 4.25, 5.50, 5.00, 6.00, 8.00, 11.0, 29.0, 24.0])
+mvd_hsize.append([19.5, 8.25, 4.00, 5.00, 6.25, 10.5, 13.0, 27.0, 24.0])
+mvd_hsize.append([15.0, 10.5, 6.75, 6.00, 6.50, 9.50, 12.2, 23.0, 27.0])
+mvd_hsize.append([16.5, 7.00, 7.50, 6.00, 7.00, 11.0, 18.5, 24.5, 25.5])
+mvd_hsize.append([14.5, 5.00, 8.50, 5.50, 7.50, 16.0, 15.0, 25.0, 26.5])
 mvd_hsize = np.array(mvd_hsize, np.float64)
 
 mvd_vup = []
-mvd_vup.append([6.00, 2.25, 3.00, 1.50, 1.50, None, None, None, None])
-mvd_vup.append([5.50, 5.50, 1.00, 2.50, 2.00, 3.00, None, None, None])
-mvd_vup.append([5.00, 3.00, 3.00, 3.00, 3.00, 3.00, 5.00, None, None])
-mvd_vup.append([7.00, 2.00, 3.50, 2.50, 4.00, 3.00, 4.00, None, None])
-mvd_vup.append([6.00, 2.00, 3.00, 3.00, 3.25, 4.00, 4.00, 6.00, None])
+mvd_vup.append([6.00, 2.25, 3.00, 1.50, 1.50, 2.00, 2.50, 3.00, 7.50])
+mvd_vup.append([5.50, 5.50, 1.00, 2.50, 2.00, 3.00, 3.00, 3.50, 3.50])
+mvd_vup.append([5.00, 3.00, 3.00, 3.00, 3.00, 3.00, 5.00, 4.00, 4.00])
+mvd_vup.append([7.00, 2.00, 3.50, 2.50, 4.00, 3.00, 4.00, 5.00, 5.00])
+mvd_vup.append([6.00, 2.00, 3.00, 3.00, 3.25, 4.00, 4.00, 6.00, 6.00])
 mvd_vup = np.array(mvd_vup, np.float64)
 
 mvd_vdown = []
-mvd_vdown.append([11.0, 12.0, 10.5, 10.5, 13.0, None, None, None, None])
-mvd_vdown.append([10.0, 4.00, 10.0, 9.00, 11.0, 14.5, None, None, None])
-mvd_vdown.append([10.0, 7.00, 8.50, 9.00, 10.0, 13.5, None, None, None])
-mvd_vdown.append([10.5, 8.00, 6.50, 8.00, 8.50, 10.5, 13.5, None, None])
-mvd_vdown.append([10.5, 4.50, 5.00, 9.00, 8.50, 9.50, 12.5, None, None])
+mvd_vdown.append([11.0, 12.0, 10.5, 10.5, 13.0, 17.5, 18.5, 15.0, 14.0])
+mvd_vdown.append([10.0, 4.00, 10.0, 9.00, 11.0, 14.5, 16.5, 15.5, 15.5])
+mvd_vdown.append([10.0, 7.00, 8.50, 9.00, 10.0, 13.5, 15.0, 14.0, 16.0])
+mvd_vdown.append([10.5, 8.00, 6.50, 8.00, 8.50, 10.5, 13.5, 16.0, 16.5])
+mvd_vdown.append([10.5, 4.50, 5.00, 9.00, 8.50, 9.50, 12.5, 16.0, 19.0])
 mvd_vdown = np.array(mvd_vdown, np.float64)
 
 
 ### Ionisation Front
 
 mvd_i_hsize = []
-mvd_i_hsize.append([25.0, 24.0, 25.0, 25.0, 30.0, None, None, None, None])
-mvd_i_hsize.append([26.0, 27.0, 22.0, 23.0, 27.0, 32.5, None, None, None])
-mvd_i_hsize.append([23.0, 24.0, 24.0, 23.0, 25.5, 26.0, 30.0, None, None])
-mvd_i_hsize.append([23.5, 26.5, 21.0, 21.5, 23.5, 22.5, 23.0, None, None])
-mvd_i_hsize.append([21.0, 19.5, 19.5, 21.5, 22.0, 23.5, 22.5, 26.5, None])
+mvd_i_hsize.append([25.0, 24.0, 25.0, 25.0, 30.0, 30.0, 29.0, 32.0, 25.0])
+mvd_i_hsize.append([26.0, 27.0, 22.0, 23.0, 27.0, 32.5, 30.0, 29.5, 25.5])
+mvd_i_hsize.append([23.0, 24.0, 24.0, 23.0, 25.5, 26.0, 30.0, 28.0, 29.0])
+mvd_i_hsize.append([23.5, 26.5, 21.0, 21.5, 23.5, 22.5, 23.0, 27.0, 29.0])
+mvd_i_hsize.append([21.0, 19.5, 19.5, 21.5, 22.0, 23.5, 22.5, 26.5, 29.0])
 mvd_i_hsize = np.array(mvd_i_hsize, np.float64)
 
 mvd_i_vup = []
-mvd_i_vup.append([11.5, 11.0, 11.0, 9.50, 10.0, None, None, None, None])
-mvd_i_vup.append([10.5, 12.0, 8.50, 9.00, 10.0, 10.0, None, None, None])
-mvd_i_vup.append([8.50, 12.0, 10.5, 10.5, 10.0, 8.5, 9.00, None, None])
-mvd_i_vup.append([11.0, 12.0, 10.5, 9.00, 10.5, 9.00, 8.00, None, None])
-mvd_i_vup.append([9.50, 9.50, 8.50, 9.50, 10.0, 10.0, 8.50, 8.00, None])
+mvd_i_vup.append([11.5, 11.0, 11.0, 9.50, 10.0, 8.00, 6.00, 4.50, 8.50])
+mvd_i_vup.append([10.5, 12.0, 8.50, 9.00, 10.0, 10.0, 8.00, 5.50, 4.00])
+mvd_i_vup.append([8.50, 12.0, 10.5, 10.5, 10.0, 8.50, 9.00, 6.00, 5.00])
+mvd_i_vup.append([11.0, 12.0, 10.5, 9.00, 10.5, 9.00, 8.00, 7.50, 6.50])
+mvd_i_vup.append([9.50, 9.50, 8.50, 9.50, 10.0, 10.0, 8.50, 8.00, 7.50])
 mvd_i_vup = np.array(mvd_i_vup, np.float64)
 
 mvd_i_vdown = []
-mvd_i_vdown.append([14.5, 15.0, 14.0, 15.0, None, None, None, None, None])
-mvd_i_vdown.append([14.5, 16.0, 13.5, 13.5, None, None, None, None, None])
-mvd_i_vdown.append([13.5, 13.0, 15.0, 13.5, 15.5, None, None, None, None])
-mvd_i_vdown.append([12.0, 14.0, 12.0, 13.0, 13.5, 14.5, None, None, None])
-mvd_i_vdown.append([13.0, 10.5, 11.0, 13.0, 12.5, 13.5, 14.0, None, None])
+mvd_i_vdown.append([14.5, 15.0, 14.0, 15.0, 18.0, 21.0, 21.0, 18.5, 15.0])
+mvd_i_vdown.append([14.5, 16.0, 13.5, 13.5, 16.0, 22.0, 20.0, 17.5, 16.0])
+mvd_i_vdown.append([13.5, 13.0, 15.0, 13.5, 15.5, 16.0, 19.0, 16.0, 17.0])
+mvd_i_vdown.append([12.0, 14.0, 12.0, 13.0, 13.5, 14.5, 16.0, 17.0, 18.0])
+mvd_i_vdown.append([13.0, 10.5, 11.0, 13.0, 12.5, 13.5, 14.0, 16.0, 20.0])
 mvd_i_vdown = np.array(mvd_i_vdown, np.float64)
 
 
@@ -141,71 +122,68 @@ mvd_i_vdown = np.array(mvd_i_vdown, np.float64)
 ### High Temp Wind
 
 mvt_xrange = []
-mvt_xrange.append([0.040, 0.10, 0.20, 0.28, 0.40, 0.52, 0.7, 1.0, 1.0])
-mvt_xrange.append([0.035, 0.09, 0.22, 0.32, 0.50, 0.80, 1.0, 1.0, 1.0])
-mvt_xrange.append([0.040, 0.10, 0.24, 0.40, 0.65, 0.90, 1.0, 1.0, 1.0])
-mvt_xrange.append([0.040, 0.08, 0.25, 0.48, 0.74, 1.00, 1.0, 1.0, 1.0])
-mvt_xrange.append([0.040, 0.10, 0.25, 0.54, 0.80, 1.00, 1.0, 1.0, 1.0])
+mvt_xrange.append([0.040, 0.10, 0.20, 0.28, 0.40, 0.52, 0.7, 1.0, 2.2])
+mvt_xrange.append([0.035, 0.09, 0.22, 0.32, 0.50, 0.80, 1.0, 1.9, 2.5])
+mvt_xrange.append([0.040, 0.10, 0.24, 0.40, 0.65, 0.90, 1.0, 2.2, 3.0])
+mvt_xrange.append([0.040, 0.08, 0.25, 0.48, 0.74, 1.00, 1.3, 2.3, 3.2])
+mvt_xrange.append([0.040, 0.10, 0.25, 0.54, 0.80, 1.00, 1.6, 2.6, 3.6])
 mvt_xrange = np.array(mvt_xrange, np.float64)
-
 
 mvt_ref = 34.0
 
 mvt_hsize = []
-mvt_hsize.append([19.0, 7.00, 5.50, 8.00, 7.00, 11.5, 20.0, 22.0, None])
-mvt_hsize.append([20.0, 6.50, 5.50, 8.00, 8.00, 8.50, 12.0, None, None])
-mvt_hsize.append([17.5, 8.00, 6.00, 7.00, 8.50, 9.00, 14.0, None, None])
-mvt_hsize.append([19.0, 7.00, 7.50, 5.50, 6.00, 8.00, None, None, None])
-mvt_hsize.append([19.0, 6.00, 7.50, 5.50, 5.00, None, None, None, None])
+mvt_hsize.append([19.0, 7.00, 5.50, 8.00, 7.00, 11.5, 20.0, 22.0, 11.0])
+mvt_hsize.append([20.0, 6.50, 5.50, 8.00, 8.00, 8.50, 12.0, 20.0, 24.5])
+mvt_hsize.append([17.5, 8.00, 6.00, 7.00, 8.50, 9.00, 14.0, 21.5, 24.0])
+mvt_hsize.append([19.0, 7.00, 7.50, 5.50, 6.00, 8.00, 11.0, 19.0, 26.0])
+mvt_hsize.append([19.0, 6.00, 7.50, 5.50, 5.00, 8.00, 11.0, 18.5, 26.0])
 mvt_hsize = np.array(mvt_hsize, np.float64)
 
 mvt_vup = []
-mvt_vup.append([7.50, 3.00, 3.00, 5.00, 3.00, 6.00, 6.00, 6.00, None])
-mvt_vup.append([6.00, 4.00, 2.00, 4.00, 4.00, 3.00, 5.00, None, None])
-mvt_vup.append([5.00, 5.00, 4.00, 3.00, 3.00, 3.00, 5.00, None, None])
-mvt_vup.append([8.00, 4.50, 3.00, 3.00, 2.00, 3.00, None, None, None])
-mvt_vup.append([8.00, 6.00, 6.00, 3.00, 2.00, None, None, None, None])
+mvt_vup.append([7.50, 3.00, 3.00, 5.00, 3.00, 6.00, 6.00, 6.00, 5.00])
+mvt_vup.append([6.00, 4.00, 2.00, 4.00, 4.00, 3.00, 5.00, 4.00, 4.00])
+mvt_vup.append([5.00, 5.00, 4.00, 3.00, 3.00, 3.00, 5.00, 3.00, 3.00])
+mvt_vup.append([8.00, 4.50, 3.00, 3.00, 2.00, 3.00, 3.00, 3.00, 3.50])
+mvt_vup.append([8.00, 6.00, 6.00, 3.00, 2.00, 2.50, 3.00, 3.00, 3.50])
 mvt_vup = np.array(mvt_vup, np.float64)
 
 mvt_vdown = []
-mvt_vdown.append([11.0, 7.50, 8.50, 6.00, 9.00, 12.0, 13.5, None, None])
-mvt_vdown.append([9.50, 10.0, 12.0, 10.5, 12.5, 14.0, None, None, None])
-mvt_vdown.append([11.0, 7.50, 7.50, 12.0, 12.0, 14.0, None, None, None])
-mvt_vdown.append([10.5, 3.00, 11.0, 12.5, 13.0, None, None, None, None])
-mvt_vdown.append([11.0, 2.00, 9.00, 12.0, 14.0, None, None, None, None])
+mvt_vdown.append([11.0, 7.50, 8.50, 6.00, 9.00, 12.0, 13.5, 16.0, 9.00])
+mvt_vdown.append([9.50, 10.0, 12.0, 10.5, 12.5, 14.0, 14.0, 12.5, 15.5])
+mvt_vdown.append([11.0, 7.50, 7.50, 12.0, 12.0, 14.0, 14.0, 12.5, 15.0])
+mvt_vdown.append([10.5, 3.00, 11.0, 12.5, 13.0, 14.0, 17.0, 13.0, 15.0])
+mvt_vdown.append([11.0, 2.00, 9.00, 12.0, 14.0, 17.5, 15.5, 14.0, 15.0])
 mvt_vdown = np.array(mvt_vdown, np.float64)
 
 
 ### Ionisation Front
 
 mvt_i_hsize = []
-mvt_i_hsize.append([27.0, 24.5, 23.5, 27.0, 26.0, 27.0, 25.0, 24.5, None])
-mvt_i_hsize.append([28.0, 31.0, 27.0, 31.5, 30.0, 25.5, 16.5, None, None])
-mvt_i_hsize.append([25.5, 27.5, 27.5, 29.0, 27.5, 27.5, 32.0, None, None])
-mvt_i_hsize.append([28.0, 33.0, 28.0, 27.0, 28.0, 29.0, None, None, None])
-mvt_i_hsize.append([27.5, 26.0, 29.0, 26.0, 28.0, None, None, None, None])
+mvt_i_hsize.append([27.0, 24.5, 23.5, 27.0, 26.0, 27.0, 25.0, 24.5, 21.5])
+mvt_i_hsize.append([28.0, 31.0, 27.0, 31.5, 30.0, 25.5, 16.5, 24.0, 26.0])
+mvt_i_hsize.append([25.5, 27.5, 27.5, 29.0, 27.5, 27.5, 32.0, 25.0, 25.5])
+mvt_i_hsize.append([28.0, 33.0, 28.0, 27.0, 28.0, 29.0, 28.5, 29.5, 27.0])
+mvt_i_hsize.append([27.5, 26.0, 29.0, 26.0, 28.0, 32.0, 26.0, 30.0, 27.5])
 mvt_i_hsize = np.array(mvt_i_hsize, np.float64)
 
 mvt_i_vup = []
-mvt_i_vup.append([12.5, 13.0, 10.0, 13.0, 11.0, 11.0, 9.00, 8.00, None])
-mvt_i_vup.append([12.0, 15.5, 12.0, 14.0, 12.0, 9.00, 8.00, None, None])
-mvt_i_vup.append([10.0, 14.0, 12.0, 13.0, 11.0, 9.00, 9.00, None, None])
-mvt_i_vup.append([13.5, 16.0, 12.5, 12.0, 11.0, 9.00, None, None, None])
-mvt_i_vup.append([12.0, 13.0, 13.0, 11.5, 11.0, None, None, None, None])
+mvt_i_vup.append([12.5, 13.0, 10.0, 13.0, 11.0, 11.0, 9.00, 8.00, 5.00])
+mvt_i_vup.append([12.0, 15.5, 12.0, 14.0, 12.0, 9.00, 8.00, 6.00, 5.50])
+mvt_i_vup.append([10.0, 14.0, 12.0, 13.0, 11.0, 9.00, 9.00, 4.50, 5.00])
+mvt_i_vup.append([13.5, 16.0, 12.5, 12.0, 11.0, 9.00, 7.50, 5.00, 4.50])
+mvt_i_vup.append([12.0, 13.0, 13.0, 11.5, 11.0, 10.0, 6.50, 4.50, 4.50])
 mvt_i_vup = np.array(mvt_i_vup, np.float64)
 
 mvt_i_vdown = []
-mvt_i_vdown.append([16.0, 14.0, 13.5, 14.0, 14.5, 16.0, 15.0, None, None])
-mvt_i_vdown.append([14.5, 16.5, 16.5, 17.0, 16.5, 16.0, None, None, None])
-mvt_i_vdown.append([16.5, 14.5, 16.5, 16.5, 16.0, None, None, None, None])
-mvt_i_vdown.append([16.5, 16.5, 16.5, 16.0, 16.0, None, None, None, None])
-mvt_i_vdown.append([15.5, 17.0, 17.0, 15.5, None, None, None, None, None])
+mvt_i_vdown.append([16.0, 14.0, 13.5, 14.0, 14.5, 16.0, 15.0, 17.0, 12.5])
+mvt_i_vdown.append([14.5, 16.5, 16.5, 17.0, 16.5, 16.0, 16.0, 12.5, 17.0])
+mvt_i_vdown.append([16.5, 14.5, 16.5, 16.5, 16.0, 17.0, 20.0, 13.5, 15.0])
+mvt_i_vdown.append([16.5, 16.5, 16.5, 16.0, 16.0, 17.0, 19.0, 14.0, 16.0])
+mvt_i_vdown.append([15.5, 17.0, 17.0, 15.5, 17.0, 21.5, 17.5, 14.0, 15.0])
 mvt_i_vdown = np.array(mvt_i_vdown, np.float64)
 
 mvt_param_index = range(19, 28, 1)
 mvt_snapshots = [10, 20, 30, 40, 50]
-
-print type(mvd_xrange[0][0])
 
 mvd_SW_r = np.multiply(mvd_xrange, mvd_hsize) * 0.5 / mvd_ref
 mvd_SW_t = mvd_xrange * mvd_vup / mvd_ref
@@ -223,173 +201,336 @@ mvt_IF_r = np.multiply(mvt_xrange, mvt_i_hsize) * 0.5 / mvt_ref
 mvt_IF_t = np.multiply(mvt_xrange, mvt_i_vup) / mvt_ref
 mvt_IF_b = np.multiply(mvt_xrange, mvt_i_vdown) / mvt_ref
 
+### Injection sizes
+
+snapshots = [10, 20, 30, 40, 50]
+
+def getInjectionSizesMVD():
+	sizes = np.zeros((5, 9))
+
+	for i in range(45):
+		col = int(i / 9)
+		row = i % 9
+
+		filename = mp1_data.getParamFilename(row, col, 25)
+		filestring = open(filename, 'r').read()
+
+		table = lua.eval("{" + filestring + "}")
+		if table == None:
+			print filestring
+			sys.exit()
+		ncellsx = table["Parameters"]["Grid"]["no_cells_x"]
+		length = table["Parameters"]["Grid"]["side_length"]
+
+		sizes[col][row] = (10.0 / ncellsx) * length * CM2PC
+
+	return sizes
+
+def getInjectionSizesMVT():
+	sizes = np.zeros((5, 9))
+
+	for col in range(5):
+		for row in range(9):
+			filename = mp1_data.getParamFilename(row, 2, snapshots[col])
+			filestring = open(filename, 'r').read()
+
+			table = lua.eval("{" + filestring + "}")
+			if table == None:
+				print filestring
+				sys.exit()
+			ncellsx = table["Parameters"]["Grid"]["no_cells_x"]
+			length = table["Parameters"]["Grid"]["side_length"]
+
+			sizes[col][row] = (10.0 / ncellsx) * length * CM2PC
+
+	return sizes
+
+mvd_inj = getInjectionSizesMVD()
+mvt_inj = getInjectionSizesMVT()
+
+### Ionized ambient gas density
+
+#mvd_iden = []
+#mvd_iden.append([130.0,   150.0,  250.0,  400.0,  650.0,  900.0, 1200.0, 1800.0,  2200.0])
+#mvd_iden.append([280.0,   250.0,  380.0,  560.0, 1000.0, 1300.0, 1800.0, 2000.0,  2200.0])
+#mvd_iden.append([610.0,   480.0,  650.0,  900.0, 1300.0, 1800.0, 2200.0, 2400.0,  2700.0])
+#mvd_iden.append([800.0,   900.0, 1000.0, 1400.0, 2100.0, 2500.0, 3000.0, 5000.0,  5000.0])
+#mvd_iden.append([2000.0, 2200.0, 2200.0, 2400.0, 3000.0, 4500.0, 5500.0, 7000.0, 12000.0])
+
+#mvt_iden = []
+#mvt_iden.append([520.0, 620.0, 1000.0, 1700.0, 2600.0, 4500.0, 6500.0, 9000.0, 12000.0])
+#mvt_iden.append([620.0, 520.0,  750.0, 1000.0, 1600.0, 2400.0, 2500.0, 5000.0,  8000.0])
+#mvt_iden.append([580.0, 520.0,  600.0,  800.0, 1400.0, 1800.0, 1900.0, 2500.0,  3000.0])
+#mvt_iden.append([520.0, 550.0,  550.0,  700.0, 1100.0, 1300.0, 1500.0, 1700.0,  1800.0])
+#mvt_iden.append([520.0, 540.0,  520.0,  620.0,  850.0, 1200.0, 1300.0, 1400.0,  1500.0])
+
+mvd_iden = []
+for i in range(5):
+	arr = []
+	for j in range(9):
+		R_strom = koo.calcStromgrenRadius(logQList[j], mvd_nhs[i]) * CM2PC
+		#R_strom = max(R_strom, mvd_inj[i][j])
+		arr.append(mvd_nhs[i] * math.pow(R_strom / mvd_IF_r[i][j], 1.5))
+	mvd_iden.append(arr)
+
+mvt_iden = []
+for i in range(5):
+	arr = []
+	for j in range(9):
+		R_strom = koo.calcStromgrenRadius(logQList[j], mvt_nhs[i]) * CM2PC
+		#R_strom = max(R_strom, mvt_inj[i][j])
+		arr.append(mvt_nhs[i] * math.pow(R_strom / mvt_IF_r[i][j], 1.5))
+	mvt_iden.append(arr)
+
+
 if print_sizes:
 	for index in range(45):
 		col = int(index / 9)
 		row = index % 9
 
-		SW_l = 'None' if  mvd_hsize[col][row] == None \
-			else '{:.5f}'.format(xrange[col][row] *
-								 0.5 * mvd_hsize[col][row] / mvd_ref)
-		SW_r = SW_l
-		SW_b = 'None' if  mvd_vdown[col][row] == None \
-			else '{:.5f}'.format(xrange[col][row] * mvd_vdown[col][row] / mvd_ref)
-		SW_t = 'None' if  mvd_vup[col][row] == None \
-			else '{:.5f}'.format(xrange[col][row] * mvd_vup[col][row] / mvd_ref)
-
-		IF_l = 'None' if  mvd_i_hsize[col][row] == None \
-			else '{:.5f}'.format(xrange[col][row] *
-								 0.5 * mvd_i_hsize[col][row] / mvd_ref)
-		IF_r = IF_l
-		IF_b = 'None' if  mvd_i_vdown[col][row] == None \
-			else '{:.5f}'.format(xrange[col][row] *
-								 mvd_i_vdown[col][row] / mvd_ref)
-		IF_t = 'None' if  mvd_i_vup[col][row] == None \
-			else '{:.5f}'.format(xrange[col][row] *
-								 mvd_i_vup[col][row] / mvd_ref)
+		SW_r = "{:6.5f}".format(mvd_SW_r[col][row])
+		SW_b = "{:6.5f}".format(mvd_SW_b[col][row])
+		SW_t = "{:6.5f}".format(mvd_SW_t[col][row])
+		IF_r = "{:6.5f}".format(mvd_IF_r[col][row])
+		IF_b = "{:6.5f}".format(mvd_IF_b[col][row])
+		IF_t = "{:6.5f}".format(mvd_IF_t[col][row])
 
 		print str(index + 1) + ",25," +  \
-			  SW_l + "," + SW_r + "," + SW_b + "," + SW_t + "," + \
-			  IF_l + "," + IF_r + "," + IF_b + "," + IF_t
+			  SW_r + "," + SW_b + "," + SW_t + "," + \
+			  IF_r + "," + IF_b + "," + IF_t
 
 	for col in range(5):
 		for row in range(9):
-			SW_l = 'None' if  mvt_hsize[col][row] == None \
-				else '{:.5f}'.format(xrange[col][row] *
-									 0.5 * mvt_hsize[col][row] / mvt_ref)
-			SW_r = SW_l
-			SW_b = 'None' if  mvt_vdown[col][row] == None \
-				else '{:.5f}'.format(xrange[col][row] *
-									 mvt_vdown[col][row] / mvt_ref)
-			SW_t = 'None' if  mvt_vup[col][row] == None \
-				else '{:.5f}'.format(xrange[col][row] *
-									 mvt_vup[col][row] / mvt_ref)
-
-			IF_l = 'None' if  mvt_i_hsize[col][row] == None \
-				else '{:.5f}'.format(xrange[col][row] *
-									 0.5 * mvt_i_hsize[col][row] / mvt_ref)
-			IF_r = IF_l
-			IF_b = 'None' if  mvt_i_vdown[col][row] == None \
-				else '{:.5f}'.format(xrange[col][row] *
-									 mvt_i_vdown[col][row] / mvt_ref)
-			IF_t = 'None' if  mvt_i_vup[col][row] == None \
-				else '{:.5f}'.format(xrange[col][row] *
-									 mvt_i_vup[col][row] / mvt_ref)
-
+			SW_r = "{:6.5f}".format(mvt_SW_r[col][row])
+			SW_b = "{:6.5f}".format(mvt_SW_b[col][row])
+			SW_t = "{:6.5f}".format(mvt_SW_t[col][row])
+			IF_r = "{:6.5f}".format(mvt_IF_r[col][row])
+			IF_b = "{:6.5f}".format(mvt_IF_b[col][row])
+			IF_t = "{:6.5f}".format(mvt_IF_t[col][row])
 			print str(mvt_param_index[row]) + "," + str(mvt_snapshots[col]) + "," +  \
-				  SW_l + "," + SW_r + "," + SW_b + "," + SW_t + "," + \
-				  IF_l + "," + IF_r + "," + IF_b + "," + IF_t
+				  SW_r + "," + SW_b + "," + SW_t + "," + \
+				  IF_r + "," + IF_b + "," + IF_t
 
-def printTable(r, t, b, isWind, isMVD):
+
+def printCritVel(isMVD):
+	T = 8000.0
+	mu = 0.5
+
 	for row in range(9):
-		tableline = "& {$R_\\mathrm{\\theta = 0}\ /\ \si{\parsec}$}"
+		mdot = mdotList[row]
+		vinf = vinfList[row]
+		nh = mvd_iden if isMVD else  mvt_iden
+
+		tableline =  str(massList[row])
 		for col in range(5):
 			tableline = tableline + " & "
-			if t[col][row] != None and not np.isnan(t[col][row]):
-				tableline = tableline + str(t[col][row])
-			else:
-				tableline = tableline + "{\\textemdash}"
-
+			R = vinf / koo.calcCritVel(mdot, vinf, mh * nh[col][row])
+			tableline = tableline + str(R)
 		print tableline + " \\\\"
 
-		tableline =  "\multirow{4}{*}{\\num{" + str(massList[row]) + "}} & {$R_\\mathrm{\\theta = \\frac{\\pi}{2}}\ /\ \si{\parsec}$}"
+def printAnalyticalTimes(isMVD):
+	T = 8000.0
+	mu = 0.5
+
+	for row in range(9):
+		mass = massList[row]
+		mdot = mdotList[row]
+		vinf = vinfList[row]
+		nh = mvd_iden if isMVD else  mvt_iden
+		times = mvd_times if isMVD else mvt_times
+
+		tableline = "\multirow{3}{*}{\\num{" + str(mass) + "}} & {$t_\\mathrm{P}^\\mathrm{RB}$}"
 		for col in range(5):
 			tableline = tableline + " & "
-			if r[col][row] != None and not np.isnan(r[col][row]):
-				tableline = tableline + str(r[col][row])
-			else:
-				tableline = tableline + "{\\textemdash}"
-
+			R = koo.calcConfineTimeRB(mdot, vinf, mh*nh[col][row], T, mu) * S2YR / 1000.0
+			tableline = tableline + str(R)
 		print tableline + " \\\\"
 
-		tableline = "& {$R_\\mathrm{\\theta = \\pi}\ /\ \si{\parsec}$}"
+		tableline = "& {$t_\\mathrm{P}^\\mathrm{PRB}$}"
 		for col in range(5):
 			tableline = tableline + " & "
-			if b[col][row] != None and not np.isnan(b[col][row]):
-				tableline = tableline + str(b[col][row])
-			else:
-				tableline = tableline + "{\\textemdash}"
+			R = koo.calcConfineTimePRB(mdot, vinf, mh*nh[col][row], T, mu) * S2YR / 1000.0
+			tableline = tableline + str(R)
+		print tableline + " \\\\"
 
+		tableline = "& {$t_\\mathrm{P}^\\mathrm{AB}$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			R = koo.calcConfineTimeAB(mdot, vinf, mh*nh[col][row], T, mu) * S2YR / 1000.0
+			tableline = tableline + str(R)
+		print tableline + " \\\\"
+
+		if row != 8:
+			print "& & & & & & \\\\"
+
+def printAnalyticalSizes(r, isMVD):
+	T = 8000.0
+	mu = 0.5
+
+	for row in range(9):
+		mass = massList[row]
+		mdot = mdotList[row]
+		vinf = vinfList[row]
+		nh = mvd_iden if isMVD else  mvt_iden
+		times = mvd_times if isMVD else mvt_times
+
+		tableline =  "\multirow{5}{*}{\\num{" + str(mass) + "}} & {$D_\mathrm{s}(\\frac{\\pi}{2})$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			tableline = tableline + str(r[col][row])
+		print tableline + " \\\\"
+
+		tableline = "& {$R_\\mathrm{s}^\\mathrm{RB}$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			R = koo.calcFinalRadiusRB(mdot, vinf, mh*nh[col][row], T, mu) * CM2PC
+			tableline = tableline + str(R)
+		print tableline + " \\\\"
+
+		tableline = "& {$R_\\mathrm{s}^\\mathrm{PRB}$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			R = koo.calcFinalRadiusPRB(mdot, vinf, mh*nh[col][row], T, mu) * CM2PC
+			tableline = tableline + str(R)
+		print tableline + " \\\\"
+
+		tableline = "& {$R_\\mathrm{s}^\\mathrm{FAB}$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			R = koo.calcFinalRadiusFAB(mdot, vinf, mh*nh[col][row], T, mu) * CM2PC
+			tableline = tableline + str(R)
+		print tableline + " \\\\"
+
+		tableline = "& {$R_\\mathrm{s}^\\mathrm{PAB}$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			R = koo.calcFinalRadiusPAB(mdot, vinf, mh*nh[col][row], T, mu) * CM2PC
+			tableline = tableline + str(R)
+		print tableline + " \\\\"
+
+		if row != 8:
+			print "& & & & & & \\\\"
+
+def printAdiabaticTable(r, isMVD):
+	T = 300.0
+	mu = 1.0
+
+	diststr = "D_\\mathrm{s}"
+	numstr = "2"
+
+	for row in range(9):
+		mass = massList[row]
+		mdot = mdotList[row]
+		vinf = vinfList[row]
+		logQ = logQList[row]
+		nhs_hii = mvd_iden if isMVD else  mvt_iden
+		times = mvd_times if isMVD else mvt_times
+		nhs_init = mvd_nhs if isMVD else mvt_nhs
+		inj = mvd_inj if isMVD else mvt_inj
+
+		tableline = "\multirow{" + numstr + "}{*}{\\num{" + str(mass) + "}} & {$" + diststr + "(\\frac{\\pi}{2})$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			tableline = tableline + str(r[col][row])
+		print tableline + " \\\\"
+
+		tableline = "& {$R_\\mathrm{P}^\\mathrm{PAB}$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			tinj = koo.calcInjectionTimeAB(mdot, vinf, mh*nhs_init[col], inj[col][row] / CM2PC)
+			tinj = 0
+			#print tinj * S2YR
+			t = (koo.calcConfineTimeAB(mdot, vinf, mh*nhs_init[col], T, mu) - tinj) * S2YR
+			if times[col] <= t:
+				R = koo.calcBubbleRadiusFAB(mdot, vinf, mh*nhs_init[col], times[col] * YR2S + tinj) * CM2PC
+			else:
+				R = koo.calcFinalRadiusFAB(mdot, vinf, mh*nhs_init[col], T, mu) * CM2PC
+			tableline = tableline + str(R)
+		print tableline + " \\\\"
+
+		if row != 8:
+			print "& & & & & & \\\\"
+
+def printPaperTable(r, t, b, isWind, isMVD):
+	T = 8000.0
+	mu = 0.5
+
+	diststr = "D_\\mathrm{s}" if isWind else "D_\\mathrm{i}"
+	numstr = "4" if isWind else "5"
+
+	for row in range(9):
+		mass = massList[row]
+		mdot = mdotList[row]
+		vinf = vinfList[row]
+		logQ = logQList[row]
+		nhs_hii = mvd_iden if isMVD else  mvt_iden
+		times = mvd_times if isMVD else mvt_times
+		nhs_init = mvd_nhs if isMVD else mvt_nhs
+		inj = mvd_inj if isMVD else mvt_inj
+
+		tableline = "\multirow{" + numstr + "}{*}{\\num{" + str(mass) + "}} & {$" + diststr + "(0)$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			tableline = tableline + str(t[col][row])
+		print tableline + " \\\\"
+
+		tableline =  "& {$" + diststr + "(\\frac{\\pi}{2})$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			tableline = tableline + str(r[col][row])
+		print tableline + " \\\\"
+
+		tableline = "& {$" + diststr + "(\\pi)$}"
+		for col in range(5):
+			tableline = tableline + " & "
+			tableline = tableline + str(b[col][row])
 		print tableline + " \\\\"
 
 		if isWind:
-			#tableline = "& {$R_\\mathrm{shock}\ /\ \si{\parsec}$}"
-			#for col in range(5):
-			#	tableline = tableline + " & "
-			#	R = 0
-			#	if isMVD:
-			#		R = calcBubbleContact(mdotList[row], vinfList[row], mh*nhs[col], 5.0e4*YR2S)*CM2PC
-			#		#R = calcBubbleRadius(mdotList[row], vinfList[row], mh*nhs[col], 5.0e4*YR2S)*CM2PC
-			#		#R = calcBubbleRadiusRadiative(mdotList[row], vinfList[row], mh*nhs[col], 5.0e4*YR2S)*CM2PC
-			#	else:
-			#		R = calcBubbleContact(mdotList[row], vinfList[row], mh*nhs[2], times[col]*YR2S)*CM2PC
-			#		#R = calcBubbleRadius(mdotList[row], vinfList[row], mh*nhs[2], times[col]*YR2S)*CM2PC
-			#		#R = calcBubbleRadiusRadiative(mdotList[row], vinfList[row], mh*nhs[2], times[col]*YR2S)*CM2PC
-			#
-			#	tableline = tableline + str(R)
-
-			#print tableline + " \\\\"
-
-			#tableline = "& {$v_\\mathrm{cr}\ /\ \si{\\kilo\\meter\\per\\second}$}"
-			#for col in range(5):
-			#	tableline = tableline + " & "
-			#	R = 0
-			#	if isMVD:
-			#		R = calcCritVel(mdotList[row], vinfList[row], mh*nhs[col])/100000.0
-			#	else:
-			#		R = calcCritVel(mdotList[row], vinfList[row], mh*nhs[2])/100000.0
-			#	tableline = tableline + str(R)
-
-			#print tableline + " \\\\"
-
-			tableline = "& {$R_\\mathrm{P}\ /\ \\si{\\parsec}$}"
+			tableline = "& {$R_\\mathrm{P}$}"
 			for col in range(5):
 				tableline = tableline + " & "
-				R = 0
-				if isMVD:
-					R = finalRadius(mdotList[row], vinfList[row], mh*nhs[col]) * CM2PC
-				else:
-					R = finalRadius(mdotList[row], vinfList[row], mh*nhs[2]) * CM2PC
+				R = koo.calcFinalRadiusRB(mdot, vinf, mh*nhs_hii[col][row], T, mu) * CM2PC
 				tableline = tableline + str(R)
-
+			print tableline + " \\\\"
+		else:
+			tableline = "& {$R_\\mathrm{raga}$}"
+			for col in range(5):
+				tableline = tableline + " & "
+				R = koo.calcStromgrenRadius(logQ, nhs_init[col])
+				#R = max(R, inj[col][row] / CM2PC)
+				R = koo.calcSpitzerRadius2(R, times[col]*YR2S)*CM2PC
+				tableline = tableline + str(R)
 			print tableline + " \\\\"
 
-		if not isWind:
-			tableline = "& {$R_\\mathrm{i}\ /\ \si{\parsec}$}"
+			tableline = "& {$R_\\mathrm{stag}$}"
 			for col in range(5):
 				tableline = tableline + " & "
-				R = 0
-				if isMVD:
-					R = calcSpitzerRadius(logQList[row], nhs[col], 5.0e4*YR2S)*CM2PC
-				else:
-					R = calcSpitzerRadius(logQList[row], nhs[2], times[col]*YR2S)*CM2PC
+				R = koo.calcStromgrenRadius(logQ, nhs_init[col])
+				#R = max(R, inj[col][row] / CM2PC)
+				R = koo.calcStagnationRadius2(R) * CM2PC
 				tableline = tableline + str(R)
-
-			print tableline + " \\\\"
-
-			tableline = "& {$R_\\mathrm{S}\ /\ \si{\parsec}$}"
-			for col in range(5):
-				tableline = tableline + " & "
-				R = 0
-				if isMVD:
-					R = calcIFrontRadius(logQList[row], nhs[col])*CM2PC
-				else:
-					R = calcIFrontRadius(logQList[row], nhs[2])*CM2PC
-				tableline = tableline + str(R)
-
 			print tableline + " \\\\"
 
 		if row != 8:
 			print "& & & & & & \\\\"
 
-#printTable(mvd_SW_r, mvd_SW_t, mvd_SW_b, True, True)
-#printTable(mvt_SW_r, mvt_SW_t, mvt_SW_b, True, False)
-#printTable(mvd_IF_r, mvd_IF_t, mvd_IF_b, False, True)
-printTable(mvt_IF_r, mvt_IF_t, mvt_IF_b, False, False)
+#printPaperTable(mvd_IF_r, mvd_IF_t, mvd_IF_b, False, True)
+#printPaperTable(mvt_IF_r, mvt_IF_t, mvt_IF_b, False, False)
+#printPaperTable(mvd_SW_r, mvd_SW_t, mvd_SW_b, True, True)
+#printPaperTable(mvt_SW_r, mvt_SW_t, mvt_SW_b, True, False)
 
+#printAnalyticalSizes(mvd_SW_r, True)
+#printAnalyticalSizes(mvt_SW_r, False)
 
+#printAnalyticalTimes(True)
+#printAnalyticalTimes(False)
 
+#printCritVel(True)
+#printCritVel(False)
 
+printAdiabaticTable(mvd_IF_r, True)
+#printAdiabaticTable(mvt_IF_r, False)
 
 
 

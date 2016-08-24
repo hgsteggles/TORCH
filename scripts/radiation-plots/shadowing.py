@@ -40,7 +40,7 @@ color_maps = []
 for i in range(3):
     datacubes.append(torch.CFD_Data(inputfile[i], axial=True))
     color_maps.append(cmap)
-    vs_types.append(torch.VarType("hii", datacubes[i].appropriate_to_log("hii")))
+    vs_types.append(torch.VarType("hii", isLog10=datacubes[i].appropriate_to_log("hii")))
     vsminmax.append([0, 1])
 
 plotparams = torch.PlotParams(datacubes, vs_types, vsminmax, True, 'linear', (3, 1), color_maps, tight=False, detail="all")
@@ -93,7 +93,7 @@ grid[0].plot(circx_inf, circy_inf, c='w', **kwargs)
 grid[1].plot(circx_inf, circy_inf, c='w', **kwargs)
 grid[2].plot(circx_inf, circy_inf, c='w', **kwargs)
 
-for i in range(len(grid)):
+for i in range(len(datacubes)):
     grid[i].yaxis.set_ticks(np.arange(0, 3.0, 0.5))
     grid[i].xaxis.set_ticks_position('none')
     grid[i].yaxis.set_ticks_position('none')

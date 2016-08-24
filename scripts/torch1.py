@@ -2,10 +2,16 @@ import argparse
 import os
 import sys
 import matplotlib.pyplot as plt
-import torchpack.torch as torch
-import torchpack.hgspy as hgspy
 
+def load_src(name, fpath):
+    import os, imp
+    return imp.load_source(name, os.path.join(os.path.dirname(__file__), fpath))
 
+load_src("torch", "./torchpack/torch.py")
+load_src("hgspy", "./torchpack/hgspy.py")
+
+import torch
+import hgspy
 
 font = {'family':'STIXGeneral','style':'normal','variant':'normal','weight':'medium','size':18}
 plt.rc('font',**font)
@@ -22,6 +28,9 @@ view_quiver = True
 DPI = 300
 figformat = 'png'
 plot_size = 5
+fontsize = 16
+
+torch.set_font_sizes(fontsize)
 
 ###	Parse arguements
 parser = argparse.ArgumentParser(description='Plots 2D image of CFD data.')
@@ -32,7 +41,7 @@ parser.add_argument('-v1', metavar='var_max', type=float, help='Maximum variable
 args = parser.parse_args()
 
 inputfile = args.inputfile
-outputfile = os.path.splitext(inputfile)[0] + '.' + figformat
+outputfile = "torch1." + figformat
 
 ###	Data set up.
 datacubes = []
@@ -40,12 +49,12 @@ vs_types = []
 vsminmax = []
 color_maps = []
 
-datacubes.append(torch.CFD_Data(inputfile, axial=False))
-vs_types.append(torch.VarType(args.var_type, datacubes[0].appropriate_to_log(args.var_type)))
+datacubes.append(torch.CFD_Data(inputfile, axial=True))
+vs_types.append(torch.VarType(args.var_type, units="", isLog10=datacubes[0].appropriate_to_log(args.var_type)))
 vsminmax.append([args.v0, args.v1])
-color_maps.append(hgspy.get_green_map())
+color_maps.append(hgspy.get_water_cmap())
 
-plotparams = torch.PlotParams(datacubes, vs_types, vsminmax, False, (1, 1), color_maps, tight=True, detail="all")
+plotparams = torch.PlotParams(datacubes, vs_types, vsminmax, True, "cubic", (1, 1), color_maps, tight=True, detail="all")
 
 ### Plotting
 plotter = torch.Plotter(datacubes[0].nx, datacubes[0].ny, plot_size, figformat, DPI)

@@ -20,7 +20,7 @@ function initialise(x, y, z, xs, ys, zs)
 	local R2 = x*x + dy*dy
 	local R = math.sqrt(R2)
 
-	local den = nHI*hydrogenMass
+	local den = n0*hydrogenMass*math.pow(1 + R2/rc2, -alpha)
 	local pre = pre0
 
 	local hii = 0

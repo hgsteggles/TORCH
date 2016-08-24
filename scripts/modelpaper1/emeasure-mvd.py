@@ -9,66 +9,27 @@ def load_src(name, fpath):
     return imp.load_source(name, os.path.join(os.path.dirname(__file__), fpath))
 
 load_src("torch", "../torchpack/torch.py")
-load_src("hgspy", "../torchpack/hgspy.py")
-
 import torch
+load_src("hgspy", "../torchpack/hgspy.py")
 import hgspy
+load_src("fmt", "../torchpack/formatting.py")
+import fmt
+
+load_src("mp1", "../torchpack/modelpaper1.py")
+import mp1
+mp1_data = mp1.ModelData()
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
-torch.set_font_sizes(fontsize=8)
-
-fileprefix2 = "data/model_paper1/set2/"
-fileprefix3 = "data/model_paper1/set3/"
-
-offgrid = np.fromfile(fileprefix2 + "offgrid_times", dtype=int, sep='\n')
-
-masses = [6, 9, 12, 15, 20, 30, 40, 70, 120]
-densities = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
-
-def latexify(str):
-	return r'${}$'.format(str)
-
-def fmt_nolatex(x, pos):
-	if x >= -100 and x <= 100:
-		a = '{:.1f}'.format(x)
-		return '{}'.format(a)
-	else:
-		a, b = '{:.1e}'.format(x).split('e')
-		b = int(b)
-		return '{} \\times 10^{{{}}}'.format(a, b)
-
-def fmt(x, pos):
-	return latexify(fmt_nolatex(x, pos))
-
-
-def getFilename(i, set2):
-	padi = "%02d" % ((i+1),)
-	filesuffix = "data_" + padi + "/radio_025/emeasure_ff.fits"
-
-	if set2:
-		return fileprefix2 + filesuffix
-	else:
-		return fileprefix3 + filesuffix
-
-def getIntensityFilename(i, set2):
-	padi = "%02d" % ((i+1),)
-
-	filesuffix = "data_" + padi + "/radio_025/intensity_pixel_ff.fits"
-
-	if set2:
-		return fileprefix2 + filesuffix
-	else:
-		return fileprefix3 + filesuffix
+plot_size = 8
+fontsize = 7
+torch.set_font_sizes(fontsize)
 
 def addImage(index, grid, xrange):
 	col = int(index / 9)
 	row = index % 9
 
-	isSet2 = offgrid[index] > 25
-
-	filename = getFilename(index, isSet2)
+	filename = mp1_data.getRadioDirname(row, col, 25, 45) + "/emeasure_ff.fits"
 
 	ax = grid.grid[col][row]
 	cbar_ax = grid.cgrid[col][row]
@@ -98,7 +59,6 @@ def addImage(index, grid, xrange):
 
 	nlevels = 7
 	levels = []
-
 	for ilev in range(nlevels):
 		levels.append(max/(math.sqrt(2.0)**(nlevels - ilev)))
 	im = ax.imshow(image_data, extent=[xmin,xmax,ymin,ymax], origin='lower', cmap='gray_r')
@@ -107,7 +67,7 @@ def addImage(index, grid, xrange):
 	formatter = ticker.ScalarFormatter(useOffset=True, useMathText=True)
 	formatter.set_powerlimits((0, 1))
 
-	cb = grid.fig.colorbar(im, cax=cbar_ax, format=ticker.FuncFormatter(fmt), orientation='horizontal')
+	cb = grid.fig.colorbar(im, cax=cbar_ax, format=ticker.FuncFormatter(fmt.fmt), orientation='horizontal')
 	#cb.ax.xaxis.set_ticks_position('top')
 	xmax = cb.ax.get_xlim()[1]
 	cb.ax.xaxis.set_ticks(np.arange(0, xmax, xmax/4.0))
@@ -148,7 +108,8 @@ def addImage(index, grid, xrange):
 	rbeam_rad = 0.5 * hdu_list[0].header['BMAJ'] * math.pi / 180.0
 	pix_rad = abs(hdu_list[0].header['CDELT1']) * math.pi / 180.0
 
-	hdu_list2 = fits.open(getIntensityFilename(index, isSet2))
+	intensity_filename = mp1_data.getRadioDirname(row, col, 25, 45) + "/intensity_pixel_ff.fits"
+	hdu_list2 = fits.open(intensity_filename)
 
 	peak = hdu_list2[0].header['MPIX'] * math.pi * rbeam_rad * rbeam_rad / (pix_rad * pix_rad)
 
@@ -162,11 +123,11 @@ def addImage(index, grid, xrange):
 		return '{}'.format(a)
 
 	if col == 0:
-		ax.text(-0.22, 0.5, latexify("M = " + fmt_mass(masses[row]) + "\ \\mathrm{M_\\odot}"),
+		ax.text(-0.22, 0.5, fmt.latexify("M = " + fmt_mass(mp1_data.masses[row]) + "\ \\mathrm{M_\\odot}"),
 				fontsize=10, horizontalalignment='right', verticalalignment='center',
 				rotation='vertical', transform=ax.transAxes)
 	if row == 0:
-		ax.text(0.5, 1.24, latexify("n_\\star = " + fmt_nolatex(densities[col], 0) + "\ \\mathrm{cm^{-3}}"),
+		ax.text(0.5, 1.24, fmt.latexify("n_\\star = " + fmt.fmt_nolatex(mp1_data.densities[col], 0) + "\ \\mathrm{cm^{-3}}"),
 				fontsize=10, horizontalalignment='center', verticalalignment='bottom',
 				rotation='horizontal', transform=ax.transAxes)
 

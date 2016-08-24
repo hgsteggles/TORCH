@@ -16,7 +16,7 @@ import hgspy
 DPI = 300
 figformat = 'png'
 plot_size = 5
-fontsize = 20
+fontsize = 16
 outputfile_qlyc = "mass-vs-mdot.png"
 
 torch.set_font_sizes(fontsize)
@@ -32,9 +32,9 @@ mdot = data[:,8]*1.5768e-26
 plotter = torch.Plotter(1, 1, plot_size, figformat, DPI)
 
 ###	Axes.
-grid = plotter.axes1D((1,1))
-grid[0].set_xlabel(plotter.format_label(torch.VarType('M_\star\ /\ \mathrm{M_{\odot}}', False)))
-grid[0].set_ylabel(plotter.format_label(torch.VarType('\dot{M}\ /\ \mathrm{M_{\odot} \, yr^{-1}}', True)))
+grid = plotter.axes1D((1,1), aspect_ratio=0.75)
+grid[0].set_xlabel(plotter.format_label(torch.VarType('M_\star', units='M_{\odot}')))
+grid[0].set_ylabel(plotter.format_label(torch.VarType('\dot{M}', units='M_{\odot}\, yr^{-1}', isLog10=True)))
 
 ### Plot.
 formatter = ticker.ScalarFormatter(useOffset=True, useMathText=True)

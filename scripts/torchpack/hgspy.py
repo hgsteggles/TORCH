@@ -78,6 +78,39 @@ def parse_plot_args(argv, figformat):
 	return inputfile, outputfile, var_type
 
 def get_marc_cmap(isReversed=False):
+    return make_colormap_from_data(get_marc_cmap_data(), isReversed)
+
+def get_green_cmap(isReversed=False):
+    return make_colormap_from_data(get_green_cmap_data(), isReversed)
+
+def get_bgyr_cmap(isReversed=False):
+    return make_colormap_from_data(get_bgyr_cmap_data(), isReversed)
+
+def get_water_cmap(isReversed=False):
+    return make_colormap_from_data(get_water_cmap_data(), isReversed)
+
+def get_grey_cmap(isReversed=False):
+    return make_colormap_from_data(get_grey_cmap_data(), isReversed)
+
+def get_cdom_cmap(isReversed=False):
+    return make_colormap_from_data(get_cdom_cmap_data(), isReversed)
+
+def get_bathymetry_cmap(isReversed=False):
+    return make_colormap_from_data(get_bathymetry_cmap_data(), isReversed)
+
+def get_density_cmap(isReversed=False):
+    return make_colormap_from_data(get_density_cmap_data(), isReversed)
+
+def get_temperature_cmap(isReversed=False):
+    return make_colormap_from_data(get_temperature_cmap_data(), isReversed)
+
+def get_salinity_cmap(isReversed=False):
+    return make_colormap_from_data(get_salinity_cmap_data(), isReversed)
+
+def get_par_cmap(isReversed=False):
+    return make_colormap_from_data(get_par_cmap_data(), isReversed)
+
+def get_marc_cmap_data():
 	cm_data = [[0.0/255.0,  0.0/255.0,   0.0/255.0],
 			   [90.0/255.0,  0.0/255.0, 180.0/255.0],
 			   [127.0/255.0,  3.0/255.0, 255.0/255.0],
@@ -87,38 +120,38 @@ def get_marc_cmap(isReversed=False):
 			   [221.0/255.0,108.0/255.0,   0.0/255.0],
 			   [239.0/255.0,170.0/255.0,   0.0/255.0],
 			   [255.0/255.0,250.0/255.0,   0.0/255.0]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_green_cmap(isReversed=False):
+def get_green_cmap_data():
 	cm_data = [[0.0/255.0,   0.0/255.0,   0.0/255.0],
 			   [0.0/255.0,  28.0/255.0,  64.0/255.0],
 			   [0.0/255.0, 128.0/255.0, 125.0/255.0],
 			   [6.0/255.0, 191.0/255.0,   0.0/255.0],
 			   [255.0/255.0, 221.0/255.0,   0.0/255.0]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_bgyr_cmap(isReversed=False):
+def get_bgyr_cmap_data():
 	cm_data = [[0.0/255.0,   0.0/255.0,   0.0/255.0],
 			   [0.0/255.0,   0.0/255.0,  51.0/255.0],
 			   [0.0/255.0, 102.0/255.0, 102.0/255.0],
 			   [0.0/255.0, 152.0/255.0,   0.0/255.0],
 			   [206.0/255.0, 206.0/255.0,   0.0/255.0],
 			   [255.0/255.0,   0.0/255.0,   0.0/255.0]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_water_cmap(isReversed=False):
+def get_water_cmap_data():
 	cm_data = [[0/255.0,  0/255.0,  0/255.0],
 			   [21/255.0,  4/255.0,168/255.0],
 			   [0/255.0,247/255.0,214/255.0]]
 
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_grey_cmap(isReversed=False):
+def get_grey_cmap_data():
 	cm_data = [[0, 0, 0],
 			   [1, 1, 1]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_cdom_cmap(isReversed=False):
+def get_cdom_cmap_data():
 	cm_data = [[ 0.18517171, 0.05913349, 0.24304267],
            [ 0.19008219, 0.06057894, 0.24651605],
            [ 0.1950016 , 0.06199021, 0.24996805],
@@ -375,9 +408,9 @@ def get_cdom_cmap(isReversed=False):
            [ 0.99329154, 0.91929937, 0.68023089],
            [ 0.99380347, 0.92480678, 0.68564709],
            [ 0.99429361, 0.9303278 , 0.6910969 ]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_bathymetry_cmap(isReversed=False):
+def get_bathymetry_cmap_data():
 	cm_data = [[ 0.15610197, 0.10260825, 0.17272157],
            [ 0.15879951, 0.10562813, 0.17808215],
            [ 0.16148781, 0.10863318, 0.18344165],
@@ -634,9 +667,9 @@ def get_bathymetry_cmap(isReversed=False):
            [ 0.97704185, 0.98834183, 0.79057175],
            [ 0.98493745, 0.99135452, 0.79532716],
            [ 0.99283718, 0.99437346, 0.8001362 ]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_density_cmap(isReversed=False):
+def get_density_cmap_data():
 	cm_data = [[ 0.21298394, 0.05589169, 0.14220951],
 			   [ 0.21780744, 0.0570005 , 0.14665582],
 			   [ 0.22261214, 0.05808842, 0.15115908],
@@ -893,10 +926,10 @@ def get_density_cmap(isReversed=False):
 			   [ 0.88868558, 0.93774038, 0.93840987],
 			   [ 0.89544454, 0.94095789, 0.94106488],
 			   [ 0.90220216, 0.9441798 , 0.94380273]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
 
-def get_temperature_cmap(isReversed=False):
+def get_temperature_cmap_data():
 	cm_data = [[ 0.01555601, 0.13824425, 0.20181089],
 			   [ 0.01620184, 0.14105074, 0.20897651],
 			   [ 0.01685649, 0.14382701, 0.21623868],
@@ -1153,9 +1186,9 @@ def get_temperature_cmap(isReversed=False):
 			   [ 0.91569318, 0.96853549, 0.34820569],
 			   [ 0.91244907, 0.97532669, 0.35185336],
 			   [ 0.90904184, 0.98215741, 0.35550781]]
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_salinity_cmap(isReversed=False):
+def get_salinity_cmap_data():
 	cm_data = [[ 0.16295295, 0.09521592, 0.42257292],
 			   [ 0.16481011, 0.09635116, 0.43184597],
 			   [ 0.16661617, 0.09744967, 0.44120648],
@@ -1413,9 +1446,9 @@ def get_salinity_cmap(isReversed=False):
 			   [ 0.98746841, 0.93422029, 0.59506489],
 			   [ 0.99408058, 0.93672758, 0.60267   ]]
 
-	return make_colormap_from_data(cm_data, isReversed)
+	return cm_data
 
-def get_par_cmap(isReversed=False):
+def get_par_cmap_data():
 	cm_data = [[ 0.2014251 , 0.07730778, 0.09342024],
 			   [ 0.20623196, 0.07906208, 0.09541606],
 			   [ 0.21104289, 0.08079536, 0.09737846],
@@ -1673,4 +1706,4 @@ def get_par_cmap(isReversed=False):
 			   [ 0.88041294, 0.98844193, 0.2909277 ],
 			   [ 0.88050801, 0.99398812, 0.2936474 ]]
 
-	return make_colormap_from_data(cm_data)
+	return cm_data

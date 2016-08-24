@@ -88,9 +88,10 @@ void Torch::initialise(TorchParameters p) {
 	steps = 0;
 	stepCounter = 0;
 
-	if (initialConditions.compare("") == 0)
-		setUpLua(p.setupFile);
-	else {
+	setUpLua(p.setupFile);
+	thermodynamics.initialiseMinTempField(fluid);
+
+	if (initialConditions.compare("") == 0) {
 		//setUp(initialConditions);
 		DataReader::readGrid(p.initialConditions, datap, fluid);
 		Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::initialise: Grid read from file.");
@@ -103,7 +104,6 @@ void Torch::initialise(TorchParameters p) {
 	fluid.globalUfromQ();
 
 	radiation.initField(fluid);
-	thermodynamics.initialiseMinTempField(fluid);
 
 	if (p.star_on && p.windCellRadius > 0) {
 		Star& star = fluid.getStar();
@@ -120,6 +120,8 @@ void Torch::initialise(TorchParameters p) {
 		}
 
 	}
+
+	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::initialise: initial setup complete.");
 }
 
 void Torch::toCodeUnits() {
@@ -219,8 +221,6 @@ void Torch::setUpLua(std::string filename) {
 		}
 	}
 	*/
-
-	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUpLua() complete.");
 }
 
 void Torch::run() {

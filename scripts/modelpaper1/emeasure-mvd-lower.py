@@ -9,69 +9,34 @@ def load_src(name, fpath):
     return imp.load_source(name, os.path.join(os.path.dirname(__file__), fpath))
 
 load_src("torch", "../torchpack/torch.py")
-load_src("hgspy", "../torchpack/hgspy.py")
-
 import torch
+load_src("hgspy", "../torchpack/hgspy.py")
 import hgspy
+load_src("fmt", "../torchpack/formatting.py")
+import fmt
+load_src("mp1", "../torchpack/modelpaper1.py")
+import mp1
+mp1_data = mp1.ModelData()
+import lupa
+lua = lupa.LuaRuntime(unpack_returned_tuples=True)
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
-torch.set_font_sizes(fontsize=8)
-
-fileprefix2 = "data/model_paper1/set2/"
-fileprefix3 = "data/model_paper1/set3/"
-
-offgrid = np.fromfile(fileprefix2 + "offgrid_times", dtype=int, sep='\n')
-
-masses = [6, 9, 12, 15, 20, 30, 40, 70, 120]
-densities = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
-
-def latexify(str):
-	return r'${}$'.format(str)
-
-def fmt_nolatex(x, pos):
-	if x >= -100 and x <= 100:
-		a = '{:.1f}'.format(x)
-		return '{}'.format(a)
-	else:
-		a, b = '{:.1e}'.format(x).split('e')
-		b = int(b)
-		return '{} \\times 10^{{{}}}'.format(a, b)
-
-def fmt(x, pos):
-	return latexify(fmt_nolatex(x, pos))
-
-
-def getFilename(i, set2):
-	padi = "%02d" % ((i+1),)
-	filesuffix = "data_" + padi + "/radio_025/emeasure_ff.fits"
-
-	if set2:
-		return fileprefix2 + filesuffix
-	else:
-		return fileprefix3 + filesuffix
-
-def getIntensityFilename(i, set2):
-	padi = "%02d" % ((i+1),)
-
-	filesuffix = "data_" + padi + "/radio_025/intensity_pixel_ff.fits"
-
-	if set2:
-		return fileprefix2 + filesuffix
-	else:
-		return fileprefix3 + filesuffix
+plot_size = 8
+fontsize = 7
+torch.set_font_sizes(fontsize)
 
 def addImage(index, grid, xrange):
-	col = int(index / 9)
-	row = index % 9 - 5
+	iden = int(index / 9)
+	imass = index % 9
+
+	col = iden
+	row = imass - 5
 
 	if row < 0:
 		return
 
-	isSet2 = offgrid[index] > 25
-
-	filename = getFilename(index, isSet2)
+	filename = mp1_data.getRadioDirname(imass, iden, 25, 45, 5) + "/emeasure_ff.fits"
 
 	ax = grid.grid[col][row]
 	cbar_ax = grid.cgrid[col][row]
@@ -104,13 +69,13 @@ def addImage(index, grid, xrange):
 
 	for ilev in range(nlevels):
 		levels.append(max/(math.sqrt(2.0)**(nlevels - ilev)))
-	im = ax.imshow(image_data, extent=[xmin,xmax,ymin,ymax], origin='lower', cmap='gray_r')
+	im = ax.imshow(image_data, extent=[xmin,xmax,ymin,ymax], origin='lower', cmap='gray_r', zorder=0)
 
 	#cb = cbar_ax.colorbar(im, format=ticker.FuncFormatter(fmt))
 	formatter = ticker.ScalarFormatter(useOffset=True, useMathText=True)
 	formatter.set_powerlimits((0, 1))
 
-	cb = grid.fig.colorbar(im, cax=cbar_ax, format=ticker.FuncFormatter(fmt), orientation='horizontal')
+	cb = grid.fig.colorbar(im, cax=cbar_ax, format=ticker.FuncFormatter(fmt.fmt), orientation='horizontal')
 	#cb.ax.xaxis.set_ticks_position('top')
 	xmax = cb.ax.get_xlim()[1]
 	cb.ax.xaxis.set_ticks(np.arange(0, xmax, xmax/4.0))
@@ -119,7 +84,23 @@ def addImage(index, grid, xrange):
 	labels[2] = ""
 	cb.ax.set_xticklabels(labels)
 
-	ax.contour(X, Y, image_data, levels, colors='black', linewidths=0.5)
+	ax.contour(X, Y, image_data, levels, colors='black', linewidths=0.5, zorder=1)
+
+	param_filename = mp1_data.getParamFilename(imass, iden, 25)
+	filestring = open(param_filename, 'r').read()
+
+	table = lua.eval("{" + filestring + "}")
+
+	physical_dx = table["Parameters"]["Grid"]["side_length"] / float(table["Parameters"]["Grid"]["no_cells_x"])
+	side_length_y = table["Parameters"]["Grid"]["no_cells_y"] * physical_dx
+	star_vert_phy = table["Parameters"]["Star"]["cell_position_y"] * physical_dx - 0.5 * side_length_y
+	star_vert_ang = math.degrees(star_vert_phy / (1.5 * 1000 * 3.09e18)) * 60 * 60
+	star_y = star_vert_ang / math.sqrt(2)
+	cloud_vert_ang = star_vert_ang + math.degrees(0.35 / 1500.0) * 60 * 60
+	cloud_y = cloud_vert_ang / math.sqrt(2)
+
+	ax.scatter([0], [star_y], c='w', marker='*', linewidths=[0.4], zorder=2)
+	ax.scatter([0], [cloud_y], c='w', marker='D', linewidths=[0.4], zorder=2)
 
 	ax.set_xlim([-xrange[col][row]/2.0, xrange[col][row]/2.0])
 	ax.set_ylim([-xrange[col][row]/2.0, xrange[col][row]/2.0])
@@ -152,7 +133,8 @@ def addImage(index, grid, xrange):
 		rbeam_rad = 0.5 * hdu_list[0].header['BMAJ'] * math.pi / 180.0
 		pix_rad = abs(hdu_list[0].header['CDELT1']) * math.pi / 180.0
 
-		hdu_list2 = fits.open(getIntensityFilename(index, isSet2))
+		intensity_filename = mp1_data.getRadioDirname(row, col, 25, 45) + "/intensity_pixel_ff.fits"
+		hdu_list2 = fits.open(intensity_filename)
 
 		peak = hdu_list2[0].header['MPIX'] * math.pi * rbeam_rad * rbeam_rad / (pix_rad * pix_rad)
 
@@ -166,11 +148,11 @@ def addImage(index, grid, xrange):
 		return '{}'.format(a)
 
 	if col == 0:
-		ax.text(-0.22, 0.5, latexify("M = " + fmt_mass(masses[row + 5]) + "\ \\mathrm{M_\\odot}"),
+		ax.text(-0.22, 0.5, fmt.latexify("M = " + fmt_mass(mp1_data.masses[row + 5]) + "\ \\mathrm{M_\\odot}"),
 				fontsize=10, horizontalalignment='right', verticalalignment='center',
 				rotation='vertical', transform=ax.transAxes)
 	if row == 0:
-		ax.text(0.5, 1.28, latexify("n_\\star = " + fmt_nolatex(densities[col], 0) + "\ \\mathrm{cm^{-3}}"),
+		ax.text(0.5, 1.28, fmt.latexify("n_\\star = " + fmt.fmt_power(mp1_data.densities[col], '{:3.1f}', 4) + "\ \\mathrm{cm^{-3}}"),
 				fontsize=10, horizontalalignment='center', verticalalignment='bottom',
 				rotation='horizontal', transform=ax.transAxes)
 

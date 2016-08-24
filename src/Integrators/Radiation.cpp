@@ -53,6 +53,16 @@ void Radiation::initialise(std::shared_ptr<Constants> c, RadiationParameters rp)
 		scheme = Scheme::IMPLICIT;
 
 	initRecombinationHummer(m_consts->converter);
+
+	std::ofstream ofile("hummerspline.dat");
+
+	int N = 100;
+	for (int i = 0; i < N; ++i) {
+		double T = 2.0 + 6.0 * (i / (float)(N));
+		ofile << T << '\t' << m_consts->converter.fromCodeUnits(m_recombinationHII_CoolingRates->interpolate(std::pow(10.0, T)), 0, 3, -1) << '\n';
+	}
+
+	ofile.close();
 }
 
 void Radiation::integrate(double dt, Fluid& fluid) const {
