@@ -115,7 +115,7 @@ Parameters = {
 	},
 }
 ```
-The simulated span of time in this example is 20,000 years. Snapshots of the star  would be taken at equally spaced intervals during this time and stored in the tmp  directory.
+The simulated span of time in this example is 200 kyr. Snapshots of the star would be taken at equally spaced intervals during this time and stored in the tmp directory.
  
 An example of how to set up a problem is given in "refdata/setup.lua". For a star  offset in a spherically symmetric density gradient:
 
@@ -176,7 +176,7 @@ TODO
 
 ####Advanced Usage
 
-The parameters not included in this table should not be modified. Asterisks are wildcard strings.
+The parameters not included in this table should not be modified. Asterisks are wildcard characters.
 
 #####Basic
 | Parameter                     | Notes                                     |
@@ -197,7 +197,7 @@ The parameters not included in this table should not be modified. Asterisks are 
 | ```gamma```                   | Heat capacity ratio. |
 | ```*_floor```                 | Minimum values in cgs units. Must be positive and non-zero. |
 | ```mass_fraction_hydrogen```  | Fraction, by mass, of gas in a cell that is hydrogen. |
-| ```collisions_on```           | Include collisional ionisations. |
+| ```collisions_on```           | Include collisional ionisations? |
 | ```heating_amplification```   | Fraction of calculated heating/cooling that is injected into fluid. |
 | ```on```                      | Include star? |
 | ```cell_position_x```         | Star's position along x-axis in grid coordinates. |
@@ -207,7 +207,7 @@ The parameters not included in this table should not be modified. Asterisks are 
 | ```photon_energy```           | Energy of each photon emitted by star. |
 | ```photon_rate```             | Rate of photons emitted by star. |
 | ```wind_radius_in_cells```    | Radius within which to inject stellar wind energy. Should be > 10 cells in 2 or 3 dimensions so that wind region is roughly spherical. |
-| ```mass_loss_rate```          | Mass loss rate of star. |
+| ```mass_loss_rate```          | Stellar wind mass loss rate. |
 | ```wind_velocity```           | Terminal velocity of the stellar wind. |
 | ```wind_temperature```        | Temperature of the stellar wind region. |
 
