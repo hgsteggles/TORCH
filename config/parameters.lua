@@ -1,4 +1,8 @@
 -- Torch Parameters
+
+PC2CM = 3.09e18
+YR2S  = 3.15569e7
+
 Parameters = {
 	Integration = {
 		density_scale =              1.0e-20,
@@ -6,20 +10,20 @@ Parameters = {
 		time_scale =                 1.0e11,
 		spatial_order =              1,
 		temporal_order =             2,
-		simulation_time =            2.0*3.15569e12,
+		simulation_time =            2e5 * YR2S,
 		radiation_on =               true,
 		cooling_on =                 true,
 		debug =                      false,
 		output_directory =           "tmp",
-		initial_conditions =         "config/data2D_025.txt",
+		initial_conditions =         "",
 	},
 	Grid = {
 		no_dimensions =              2,
 		no_cells_x =                 150,
-		no_cells_y =                 300,
+		no_cells_y =                 200,
 		no_cells_z =                 1,
 		geometry =                   "cylindrical",
-		side_length =                0.04*3.09e18,
+		side_length =                0.5 * PC2CM,
 		left_boundary_condition_x =  "reflecting",
 		left_boundary_condition_y =  "outflow",
 		left_boundary_condition_z =  "reflecting",
@@ -60,7 +64,7 @@ Parameters = {
 	Star = {
 		on =                         true,
 		cell_position_x =            0,
-		cell_position_y =            160,
+		cell_position_y =            110,
 		cell_position_z =            0,
 		snap_to_face_left_x =        true,
 		snap_to_face_left_y =        false,
@@ -69,10 +73,10 @@ Parameters = {
 		snap_to_face_right_y =       false,
 		snap_to_face_right_z =       false,
 		photon_energy =              2.976e-11,
-		photon_rate =                5.75e+44,
+		photon_rate =                4.9e+48,
 		wind_radius_in_cells =       10,
-		mass_loss_rate =             4.41e+15,
-		wind_velocity =              243000000.0,
+		mass_loss_rate =             9.79e+18,
+		wind_velocity =              311000000.0,
 		wind_temperature =           10000,
 	},
 }

@@ -1,5 +1,0 @@
-Minimum gcc version 4.7.2
-
-### Setting compiler
-export CC=/path/to/gcc
-export CXX=/path/to/g++

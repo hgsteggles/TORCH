@@ -7,20 +7,20 @@
 TORCH is a 3D Eulerian fixed grid fluid dynamics code. The grid is a collection of finite  elements, called grid cells, that each hold fluid state information. The hydrodynamics are solved using a rotated hybrid HLLC-HLL Riemann solver ([Nishikawa & Kitamura 2008](#N8)) to calculate fluxes on each grid cell face. Ionisation from point source radiation is implicitly solved and the column densities required for  this are calculated via an interpolative ray tracing scheme ([Mellema et al. 2006](#M6)). Heating/cooling from atomic processes is calculated using the approximate functions in [Henney et al. (2009)](#H9).
 
 ####Example Usage
-First of all, the directory tree should look like this:
+After building, the directory tree (with "bin" as root directory) of the application should look like this:
 ```
 .
 ├── torch
-├── refdata
+├── config
 |   ├── parameters.lua
 |   └── setup.lua
 ```
 
-To run, execute torch in an mpi environment (or not). For example, using 8 logical cores:
+To run, execute torch in an mpi environment. For example, using 8 logical cores:
 ```bash
 mpirun -np 8 ./torch
 ```
-By default TORCH reads in the configuration files, "refdata/parameters.lua" and "refdata/setup.lua".
+By default TORCH reads in the configuration files, "config/parameters.lua" and "config/setup.lua".
 You can specify your own configuration files:
 ```bash
 mpirun -np 8 ./torch --paramfile=/path/to/parameters.lua --setupfile=/path/to/setup.lua
@@ -32,7 +32,7 @@ In the configuration files, cgs units are assumed.
 For example, to set up a 2D cylindrically symmetric 150x200 mesh with a star located at grid coordinates (0, 110) parameters could be:
 
 ```lua
--- refdata/parameters.lua
+-- config/parameters.lua
 
 PC2CM = 3.09e18
 YR2S  = 3.15569e7
@@ -117,10 +117,10 @@ Parameters = {
 ```
 The simulated span of time in this example is 200 kyr. Snapshots of the star would be taken at equally spaced intervals during this time and stored in the tmp directory.
  
-An example of how to set up a problem is given in "refdata/setup.lua". For a star  offset in a spherically symmetric density gradient:
+An example of how to set up a problem is given in "config/setup.lua". For a star  offset in a spherically symmetric density gradient:
 
 ```lua
--- refdata/setup.lua
+-- config/setup.lua
 
 hydrogenMass = 1.674e-24
 specificGasConstant = 8.314462e7
@@ -170,13 +170,26 @@ After 5,000 years the solution to the setup given above looks like this:
 ![SolutionImage](four-panel-d24-t025.png)
 \[Image produced using matplotlib.\]
 
-####Getting Started
+####Compiling
 
-TODO
+TORCH uses the cmake build process. To build simply make a build directory and call ccmake from there:
+```bash
+mkdir build
+cd mkdir
+ccmake path/to/Torch
+make
+```
+
+To specify your C++ compiler (Torch requires gcc 4.7.2+) and/or the root directory of your MPI you need to set some environment variables before calling ccmake:
+```bash
+export CC=/path/to/gcc
+export CXX=/path/to/g++
+export MPI_HOME=/path/to/mpi/installation
+```
 
 ####Advanced Usage
 
-The parameters not included in this table should not be modified. Asterisks are wildcard characters.
+The parameters not included in this table should not be modified unless you know what you're doing. Asterisks are wildcard characters.
 
 #####Basic
 | Parameter                     | Notes                                     |
@@ -222,8 +235,9 @@ The parameters not included in this table should not be modified. Asterisks are 
 | ```coupling```                | Coupling between radiation and hydrodynamics. neq (Non-equilibrium) or tti (two-temperature isothermal). |
 
 ####Goals
+* AMR grids.
+* HEALPix ray-tracing.
 * Output in HDF5 data format.
-* Include molecular hydrogen.
 
 ####Developer info
 
@@ -235,7 +249,7 @@ Harrison Steggles, University of Leeds (PhD student).
 <a name="N8"></a>Nishikawa, H. & Kitamura, K. 2008, Journal of Computational Physics, 227, 2560 ([link](http://research.nianet.org/~hiro/My_papers/Nishikawa_Kitamura_JCP2008v227pp2560-2581Preprint.pdf))  
 
 ####Requirements
-* Compiler support for C++11.
+* gcc 4.7.2+.
 * [zlib](http://www.zlib.net): "A massively spiffy yet delicately unobtrusive compression library".  
 * [Eigen](http://eigen.tuxfamily.org): "A template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms".  
 * [Selene](https://github.com/jeremyong/Selene): "Simple C++11 friendly header-only bindings to Lua 5.2+".  
