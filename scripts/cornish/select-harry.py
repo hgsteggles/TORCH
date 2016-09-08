@@ -10,6 +10,7 @@ lua = lupa.LuaRuntime(unpack_returned_tuples=True)
 import argparse
 parser = argparse.ArgumentParser(description='Calculates max flux in cornish set.')
 parser.add_argument('iden', metavar='iden', type=int, help='Density index in CORNISH param set.')
+parser.add_argument('-ben', action='store_true', help='Use simple ben stromgren survey.')
 args = parser.parse_args()
 
 def load_src(name, fpath):
@@ -32,7 +33,7 @@ YR2S = 3.154e7
 PC2CM = 3.086e18
 CM2PC = 1.0 / PC2CM
 
-star_data = cornish_data.star_data
+star_data = np.genfromtxt("data/galsim/starpop-hm-w.txt", skip_header=1)
 nstars = len(star_data[:,0])
 
 params = np.genfromtxt("refdata/zams-stripped.txt", skip_header=1)
@@ -58,6 +59,8 @@ def calcPlanck2(tem, freq):
 def calcTau(T, freq, ne, logq):
 	return 0.53 * (T / 1.0e4)**(-1.35) * (freq / 1.0e9)**(-2.1) * (ne / 1.0e3)**0.66 * 10.0**((logq - 49.7) / 3.0)
 
+remaining_set = np.ones(nstars + 1, dtype=bool)
+
 nhs = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
 
 mcur = star_data[:,0]
@@ -74,55 +77,79 @@ g_long = star_data[:,15]
 g_lat = star_data[:,16]
 
 for i in range(1, nstars + 1):
-	t = age[i - 1] * 1000.0 * YR2S
-	m = mcur[i - 1]
-	nh = nhs[args.iden]
-	logQ = float(logQ_interp(m))
-	dsun = d_sun[i - 1] * 1000.0 * PC2CM
+	if remaining_set[i]:
+		t = t_ms[i - 1] * 1000.0 * YR2S
+		m = mcur[i - 1]
+		#nh = nhs[args.iden]
+		nh = 4.0e4
+		logQ = float(logQ_interp(m))
+		#dsun = d_sun[i - 1] * 1000.0 * PC2CM
+		dsun = 11.0 * 1000.0 * PC2CM
 
-	stro = koo.calcStromgrenRadius(logQ, nh)
-	raga = koo.calcSpitzerRadius(logQ, nh, t)
-	stag = koo.calcStagnationRadius(logQ, nh)
-	radius = np.minimum(raga, stag)
+		stro = koo.calcStromgrenRadius(logQ, nh)
+		raga = koo.calcSpitzerRadius(logQ, nh, t)
+		if args.ben:
+			stag = raga
+		else:
+			stag = koo.calcStagnationRadius(logQ, nh, 25.0, 8000.0)
+		radius = np.minimum(raga, stag)
 
-	angsize_rad = (2.0 * radius / dsun)
-	angsize_as = angsize_rad * 60.0 * 60.0 * 180.0 / math.pi
-	ne = nh * (stro / radius)**(1.5)
-	T = 8000.0
-	f = 5.0e9
-	tau = calcTau(T, f, ne, logQ)
-	B = calcPlanck2(T, f) * 1.0e26
-	S = B * (1.0 - math.exp(-tau))
-	F = S * (0.5 * angsize_rad)**2 * 1000
+		#print radius * CM2PC
 
-	bmsize = 1.5
+		angsize_rad = (2.0 * radius / dsun)
+		angsize_as = angsize_rad * 60.0 * 60.0 * 180.0 / math.pi
 
-	pkflux = F / (max(angsize_as, bmsize) / bmsize)**2
+		ne = nh * (stro / radius)**(1.5)
+		T = 8000.0
+		f = 5.0e9
+		tau = calcTau(T, f, ne, logQ)
+		B = calcPlanck2(T, f) * 1.0e26
+		S = B * (1.0 - math.exp(-tau))
+		F = S * (0.5 * angsize_rad)*(0.5 * angsize_rad) * 1000
 
-	phy_size[i - 1] = angsize_rad * d_sun[i - 1]
-	ang_size[i - 1] = angsize_as
-	casa_ang_size[i - 1] = angsize_as
-	tot_flux[i - 1] = F
-	casa_tot_flux[i - 1] = F
-	casa_peak_flux[i - 1] = pkflux
+		#print str(angsize_as) + " " + str(F)
 
-remaining_set = np.ones(nstars + 1, dtype=bool)
+		bmsize = 3.0 if args.ben else 1.5
+
+		pkflux = F / (max(angsize_as, bmsize) / bmsize)**2
+		#pkflux = F / (angsize_as / bmsize)**2
+
+		phy_size[i - 1] = angsize_rad * dsun * CM2PC
+		ang_size[i - 1] = angsize_as
+		casa_ang_size[i - 1] = angsize_as
+		tot_flux[i - 1] = F
+		casa_tot_flux[i - 1] = F
+		casa_peak_flux[i - 1] = pkflux
 
 for i in range(1, nstars + 1):
-	# Large size
-	if casa_ang_size[i - 1] > 24:
-		remaining_set[i - 1] = False
+	ang_lower = 2 if args.ben else 0
+	ang_upper = 18 if args.ben else 30
+	pk_limit = 1 if args.ben else 5.0 * 3.0
 
-	# Weak flux
-	ipad = cornish_data.star_id_str(i)
-	dirname = cornish_data.dirname + "/star_" + ipad + "/"
-	filestring = open(dirname + "radioconfig_0.lua", 'r').read()
-	table = lua.eval("{" + filestring + "}")
-	dec = table["Parameters"]["declination"]
-	if (dec >= 14.2 and casa_peak_flux[i - 1] < 5 * 0.25) or (dec < 14.2 and casa_peak_flux[i - 1] < 5 * 0.35):
-		remaining_set[i - 1] = False
+	if args.ben:
+		if casa_peak_flux[i - 1] < pk_limit or (casa_ang_size[i - 1] > ang_upper or casa_ang_size[i - 1] < ang_lower):
+			remaining_set[i] = False
+	else:
+		if casa_ang_size[i - 1] > ang_upper:
+			remaining_set[i] = False
+		if casa_ang_size[i - 1] < ang_lower:
+			remaining_set[i] = False
+		# Weak flux
+		#ipad = cornish_data.star_id_str(i)
+		#dirname = cornish_data.dirname + "/star_" + ipad + "/"
+		#filestring = open(dirname + "radioconfig_0.lua", 'r').read()
+		#table = lua.eval("{" + filestring + "}")
+		#dec = table["Parameters"]["declination"]
+		#if (dec >= 14.2 and casa_peak_flux[i - 1] < 5 * 0.25) or (dec < 14.2 and casa_peak_flux[i - 1] < 5 * 0.35):
+		#	remaining_set[i - 1] = False
+		if casa_peak_flux[i - 1] < pk_limit:
+			remaining_set[i] = False
 
-ofile = open(cornish_data.dirname + "/final-survey-harry.txt", 'w')
+
+if args.ben:
+	ofile = open(cornish_data.dirname + "/final-survey-ben.txt", 'w')
+else:
+	ofile = open(cornish_data.dirname + "/final-survey-harry.txt", 'w')
 ofile.write("star_id mcur[Msun] t_ms[kyr] age[kyr] d_sun[kpc] phy_size[pc] ang_size[\"] casa_ang_size[\"] tot_flux[mJy] casa_tot_flux[mJy] casa_pk_flux[mJy.beam-1] g_long[deg] g_lat[deg]\n")
 
 for i in range(1, nstars + 1):

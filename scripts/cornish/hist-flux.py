@@ -28,8 +28,8 @@ nstars = len(star_data[:,0])
 
 DPI = 300
 figformat = 'png'
-plot_size = 10.0
-fontsize = 16
+plot_size = 5.0
+fontsize = 10
 torch.set_font_sizes(fontsize)
 
 benstr = ""
@@ -48,7 +48,7 @@ plotter = torch.Plotter(1, 1, plot_size, figformat, DPI)
 plotter.ticklength *= 0.5
 
 ###	Axes.
-asp_rat = 1.0
+asp_rat = 0.4
 grid = plotter.axes1D((1,1), aspect_ratio=asp_rat)
 
 grid[0].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Flux}', units='mJy')))

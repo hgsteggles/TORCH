@@ -13,26 +13,28 @@
 #include <assert.h>
 #include <cmath>
 
-#include "selene.h"
+#include "selene/include/selene.h"
 
 int stepIDFromFilename(const std::string& filename) {
-	int lastindex = filename.find_last_of(".");
+	std::size_t lastindex = filename.find_last_of(".");
 	std::string rawname = (lastindex != std::string::npos) ? filename.substr(0, lastindex) : filename;
 
-	int underscore_index = rawname.find_last_of("_");
+	std::size_t underscore_index = rawname.find_last_of("_");
 	std::string stepno_string = (underscore_index != std::string::npos) ? rawname.substr(underscore_index+1) : "-1";
 
 	return std::stoi(stepno_string);
 }
 
 void Torch::initialise(TorchParameters p) {
-	MPIW& mpihandler = MPIW::Instance();
-
 	consts = std::make_shared<Constants>();
+
+	// Initialise the scalings (scaling physical units to code units (to reduce chance of arithmetic underflow/overflow). 
 	consts->initialise_DPT(p.dscale, p.pscale, p.tscale);
 
+	// Initialise code parameters.
 	p.initialise(consts);
 
+	// Read grid geometry from initial conditions data file if one exists to set up initial grid data structure.
 	DataParameters datap;
 	if (p.initialConditions.compare("") != 0) {
 		datap = DataReader::readDataParameters(p.initialConditions);
@@ -41,20 +43,24 @@ void Torch::initialise(TorchParameters p) {
 		p.nd = datap.nd;
 	}
 
+	// Forward parameters to Constants object.
 	consts->nd = p.nd;
-
 	consts->dfloor = p.dfloor;
 	consts->pfloor = p.pfloor;
 	consts->tfloor = p.tfloor;
 
+	// Initialise IO with output directory and consts (which includes unit conversion info).
 	inputOutput.initialise(consts, p.outputDirectory);
 
+	// Set up grid data structure using geometry info read in earlier.
 	fluid.initialise(consts, p.getFluidParameters());
 	fluid.initialiseGrid(p.getGridParameters(), p.getStarParameters());
 	fluid.getGrid().currentTime = consts->converter.toCodeUnits(datap.time, 0, 0, 1);
 
+	// Forward hydrodynamics parameters.
 	hydrodynamics.initialise(consts);
 
+	// Try to set up RiemannSolver and SlopeLimiter with strings passed in parameters.lua - if invalid the default is used and a warning is issued to the log file.
 	try {
 		hydrodynamics.setRiemannSolver(std::move(RiemannSolverFactory::create(p.riemannSolver, p.nd)));
 	}
@@ -69,10 +75,12 @@ void Torch::initialise(TorchParameters p) {
 		Logger<FileLogPolicy>::Instance().print<SeverityType::WARNING>(e.what());
 	}
 
+	// Forward parameters to Radiation object.
 	radiation.initialise(consts, p.getRadiationParameters());
-
+	// Forward parameters to Thermodynamics object.
 	thermodynamics.initialise(consts, p.getThermoParameters());
 
+	// Forward parameters to this object.
 	initialConditions = p.initialConditions;
 	radiation_on = p.radiation_on;
 	cooling_on = p.cooling_on;
@@ -88,37 +96,46 @@ void Torch::initialise(TorchParameters p) {
 	steps = 0;
 	stepCounter = 0;
 
-	setUpLua(p.setupFile);
-	thermodynamics.initialiseMinTempField(fluid);
-
-	if (initialConditions.compare("") == 0) {
+	if (initialConditions.compare("") != 0) {
+		std::cout << initialConditions << std::endl;
 		//setUp(initialConditions);
 		DataReader::readGrid(p.initialConditions, datap, fluid);
 		Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::initialise: Grid read from file.");
 		stepstart = stepIDFromFilename(p.initialConditions);
 	}
+	else {
+		// Set up initial grid state using the setup.lua file.
+		setUpLua(p.setupFile);
+	}
 	if (p.patchfilename.compare("") != 0)
 		DataReader::patchGrid(p.patchfilename, p.patchoffset, fluid);
+
+	// Initialise the minimum temperature of cells given the initial temperature field if this is turned on in the parameters.lua file.
+	thermodynamics.initialiseMinTempField(fluid);
+
+	// Convert cell data to code units, fix any broken primitive variables and calculate the conservative variables.
 	toCodeUnits();
 	fluid.fixPrimitives();
 	fluid.globalUfromQ();
 
+	// Initialise the path lengths, shell volumes, and nearest neighbour weights for use with the radiative transfer.
 	radiation.initField(fluid);
 
+	// Warn the user if the reverse shock of the star is within or close to the injection radius.
 	if (p.star_on && p.windCellRadius > 0) {
 		Star& star = fluid.getStar();
 		if (star.core == Star::Location::HERE) {
 			Grid& grid = fluid.getGrid();
 
-			double edot = 0.5*star.massLossRate*star.windVelocity*star.windVelocity;
+			double edot = 0.5 * star.massLossRate * star.windVelocity * star.windVelocity;
 			double pre = grid.getCell(grid.locate((int)star.xc[0], (int)star.xc[1], (int)star.xc[2])).Q[UID::PRE];
-			double reverse2 = std::sqrt(2.0*edot*fluid.getStar().massLossRate)/(4.0*consts->pi*pre);
-			double reverse = std::sqrt(reverse2)/fluid.getGrid().dx[0];
-			if (reverse < 5 + p.windCellRadius)
+			double reverse2 = std::sqrt(2.0 * edot * fluid.getStar().massLossRate) / (4.0 * consts->pi * pre);
+			double reverse = std::sqrt(reverse2) / fluid.getGrid().dx[0];
+			if (reverse < 5 + p.windCellRadius) {
 				std::cout << "Warning: reverse shock within or close to wind injection region:" << std::endl;
 				std::cout << "         [rs = " << reverse << ", wir = " << p.windCellRadius << "]" << std::endl;
+			}
 		}
-
 	}
 
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::initialise: initial setup complete.");
@@ -206,21 +223,6 @@ void Torch::setUpLua(std::string filename) {
 			}
 		}
 	});
-
-	// Gravity at boundary fix.
-	/*
-	for (Bound& boundary : grid.getBoundaries()) {
-		int face = boundary.face;
-		if (boundary.condition == Condition::REFLECTING) {
-			for (int ghostCellID : boundary.ghostCellIDs) {
-				GridCell& cell = face < 3 ? grid.right(face%3, grid.getCell(ghostCellID)) : grid.left(face%3, grid.getCell(ghostCellID));
-				if ((face < 3 && cell.GRAV[face%3] < 0) || (face >= 3 && cell.GRAV[face%3] > 0)) {
-					cell.GRAV[face%3] = 0;
-				}
-			}
-		}
-	}
-	*/
 }
 
 void Torch::run() {
@@ -233,11 +235,8 @@ void Torch::run() {
 	fluid.globalQfromU();
 	fluid.fixPrimitives();
 
-	//hydrodynamics.fixIC(fluid);
-
 	progBar.update(initTime, dt_max, mpihandler.getRank() == 0);
 	inputOutput.print2D(std::to_string((int)(100.0*initTime/tmax + 0.5)), initTime, fluid.getGrid());
-	//inputOutput.printSTARBENCH(radiation, hydrodynamics, fluid);
 
 	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() first data dump complete.");
 
@@ -251,17 +250,18 @@ void Torch::run() {
 	timer.start();
 
 	bool isFinalPrintOn = true;
+
 	while (fluid.getGrid().currentTime < tmax && !m_isQuitting) {
+		// Find the time until the next data snapshot. Print if it has passed.
 		double dt_nextCheckpoint = dt_max;
 		bool print_now = progBar.update(fluid.getGrid().currentTime, dt_nextCheckpoint, mpihandler.getRank() == 0);
 		if (print_now) {
 			int step = (int)(100.0*fluid.getGrid().currentTime/tmax + 0.5);
 			inputOutput.print2D(std::to_string(step), fluid.getGrid().currentTime, fluid.getGrid());
-			//thermodynamics.fillHeatingArrays(fluid);
-			//inputOutput.printVariables(step, fluid.getGrid().currentTime, fluid.getGrid());
 			isFinalPrintOn = (step != 100);
 		}
 
+		// Perform full integration time-step of all physics sub-problems.
 		fluid.getGrid().deltatime = fullStep(dt_nextCheckpoint);
 		fluid.getGrid().currentTime += fluid.getGrid().deltatime;
 		++steps;
@@ -269,8 +269,6 @@ void Torch::run() {
 	progBar.end(mpihandler.getRank() == 0);
 
 	if (isFinalPrintOn) {
-		//thermodynamics.fillHeatingArrays(fluid);
-		//inputOutput.printVariables(100, fluid.getGrid().currentTime, fluid.getGrid());
 		inputOutput.print2D(std::to_string(100), fluid.getGrid().currentTime, fluid.getGrid());
 	}
 

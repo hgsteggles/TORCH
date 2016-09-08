@@ -1,2 +1,0 @@
-Mass/mo	Teff/K	Log(L*/Lo)	R*/Ro	BCv	Mv	Log(QLyc/s-1)	tKH/1000yrs	mdot/g.s-1	vinf/cm.s-1
-15.29	30014	4.28	5.15	-2.90	-3.05	47.09	74.77	3.03e17	2.72e8

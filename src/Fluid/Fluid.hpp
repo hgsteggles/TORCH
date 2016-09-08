@@ -23,33 +23,36 @@ class Constants;
 /**
  * @class Fluid
  *
- * @brief The Fluid class contains a Grid and a Star and provides methods for gas calculations.
+ * @brief The Fluid class contains a Grid and a Star, and provides methods for gas calculations.
  *
- * The Fluid should be passed into integrators so they have all the information needed to perform their integration. This class
- * also provides methods for operating on every GridCell in the Grid.
+ * The Fluid should be passed into integrators so they have all the information needed to perform their integration. This class also provides methods for operating on every GridCell in the Grid.
  *
  * @see Grid
- * @see GridFactory
  * @see GridCell
  * @see Star
- *
- * @version 0.8, 24/11/2014
  */
 class Fluid {
 public:
+	// Initialisers.
 	void initialise(std::shared_ptr<Constants> c, FluidParameters fp);
-
 	void initialiseGrid(GridParameters gp, StarParameters sp);
+
+	// Updaters.
+	void advSolution(const double dt);
+	void fixSolution();
+	void fixPrimitives();
+
+	// Getters/Setters.
+	Grid& getGrid();
+	const Grid& getGrid() const;
+	Star& getStar();
+	const Star& getStar() const;
 
 	// Conversion Methods.
 	void globalWfromU();
 	void globalUfromW();
 	void globalQfromU();
 	void globalUfromQ();
-
-	void advSolution(const double dt);
-	void fixSolution();
-	void fixPrimitives();
 
 	// Calculations.
 	double calcTemperature(double hii, double pre, double den) const;
@@ -58,13 +61,8 @@ public:
 	double maxTemperature() const;
 	double minTemperature() const;
 
-	Grid& getGrid();
-	const Grid& getGrid() const;
-	Star& getStar();
-	const Star& getStar() const;
-
-	double heatCapacityRatio = 0; //!<
-	double massFractionH = 1.0;
+	double heatCapacityRatio = 0;
+	double massFractionH = 1.0; //!< Global mass fraction of hydrogen.
 private:
 	std::shared_ptr<Constants> consts = nullptr;
 	Grid grid;

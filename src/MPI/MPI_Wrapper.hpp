@@ -3,12 +3,6 @@
  * @file MPI_Wrapper.hpp
  *
  * @author Harrison Steggles
- *
- * @date 28/01/2014, the first version.
- * @date 21/02/2014 - mpi implementation changed. Uses mpi functions directly rather than boost interface.
- * @date 24/11/2014 - MPIW::exchange modified to accept two buffers (instead of allocating heap space for a temporary each time this
- * is called.
- * @date 24/11/2014 - broadcastString, broadcastBoolean, serial, print, abort, sum and maximum methods added.
  */
 
 #ifndef MPIHANDLER_HPP_
@@ -25,9 +19,7 @@ enum BuffType {INTEGER, FLOAT, DOUBLE}; //!< buffer data types.
 /**
  * @class MPIW
  *
- * @brief A handler for MPI communication.
- *
- * @version 0.8, 24/11/2014
+ * @brief A singleton class for MPI communication.
  */
 class MPIW {
 public:
@@ -44,13 +36,13 @@ public:
 
 	~MPIW();
 
-	//Setters and Getters.
+	// Getters/Setters.
 	int getRank() const;
 	int nProcessors() const;
 	std::string pname() const;
 	std::string cname() const;
 
-	//Message passing methods.
+	// Message passing methods.
 	void send(double* S, int count, int destination, SendID tag) const;
 	void send(int* S, int count, int destination, SendID tag) const;
 	void receive(double* R, int count, int source, SendID tag) const;
@@ -60,10 +52,10 @@ public:
 	void broadcastBoolean(bool msg, int source) const;
 	void broadcastString(std::string& msg, int source) const;
 
-	//Output.
+	// Output.
 	void write(char* filename, void* inputbuffer, int ncols, int nrows, int buffsize, BuffType btype) const;
 
-	//Misc. methods.
+	// Misc. methods.
 	double minimum(double& x) const;
 	double maximum(double& x) const;
 	double sum(double& x) const;

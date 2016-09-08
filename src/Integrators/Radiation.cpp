@@ -53,16 +53,6 @@ void Radiation::initialise(std::shared_ptr<Constants> c, RadiationParameters rp)
 		scheme = Scheme::IMPLICIT;
 
 	initRecombinationHummer(m_consts->converter);
-
-	std::ofstream ofile("hummerspline.dat");
-
-	int N = 100;
-	for (int i = 0; i < N; ++i) {
-		double T = 2.0 + 6.0 * (i / (float)(N));
-		ofile << T << '\t' << m_consts->converter.fromCodeUnits(m_recombinationHII_CoolingRates->interpolate(std::pow(10.0, T)), 0, 3, -1) << '\n';
-	}
-
-	ofile.close();
 }
 
 void Radiation::integrate(double dt, Fluid& fluid) const {
@@ -370,8 +360,8 @@ void Radiation::updateTauSC(bool average, GridCell& cell, Fluid& fluid, double d
 		double sum_w = w_raga[0]+w_raga[1]+w_raga[2]+w_raga[3];
 		double newtau = 0.0;
 		for(int i = 0; i < 4; ++i){
-			w_raga[i] = w_raga[i]/sum_w;
-			newtau += w_raga[i]*tau[i];
+			w_raga[i] = w_raga[i] / sum_w;
+			newtau += w_raga[i] * tau[i];
 		}
 		cell.R[average ? RID::TAU_A : RID::TAU] = newtau;
 	}
@@ -383,8 +373,8 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 	Grid& grid = fluid.getGrid();
 	Star& star = fluid.getStar();
 
-	if(!isStar(cell, fluid.getStar())){
-		double n_H = massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
+	if(!isStar(cell, star)){
+		double n_H = massFractionH * cell.Q[UID::DEN] / m_consts->hydrogenMass;
 		double A_pi = 0;
 		double HII = cell.Q[UID::HII];
 		double HII_avg = HII;

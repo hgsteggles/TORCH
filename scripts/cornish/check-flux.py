@@ -45,6 +45,13 @@ def calcPlanck(tem, freq):
 	kb = 1.38e-23
 	return (2.0 * h * freq * freq * freq / (c * c)) / (math.exp(h * freq / (kb * tem)) - 1)
 
+def calcPlanck2(tem, freq):
+	l = 3.0e10 / freq
+	c1 = 3.7417749e-5
+	c2 = 1.4387687
+	val = c2 / (l * tem)
+	return (c1 / (l**5)) / (math.exp(val) - 1) * 1.0e-11
+
 def calcTau(T, freq, ne, logq):
 	return 0.53 * (T / 1.0e4)**(-1.35) * (freq / 1.0e9)**(-2.1) * (ne / 1.0e3)**0.66 * 10.0**((logq - 49.7) / 3.0)
 
@@ -53,15 +60,16 @@ tot_fluxes = np.genfromtxt(cornish_data.dirname + "/total-fluxes.txt", skip_head
 
 nhs = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
 
-for i in range(1, len(star_data[:,0]) + 1):
-	ipad = cornish_data.star_id_str(i)
+for j in range(1, len(tot_fluxes[:,0]) + 1):
+	index = int(tot_fluxes[j - 1][0])
+	ipad = cornish_data.star_id_str(index)
 	dirname = cornish_data.dirname + "/star_" + ipad + "/"
 
-	age = star_data[i - 1, 3] * 1000.0 * YR2S
-	mass = star_data[i - 1, 0]
+	age = star_data[index - 1, 3] * 1000.0 * YR2S
+	mass = star_data[index - 1, 0]
 	nh = nhs[args.iden]
 	logQ = logQ_interp(mass)
-	dsun = star_data[i - 1, 4] * 1000.0 * PC2CM
+	dsun = star_data[index - 1, 4] * 1000.0 * PC2CM
 
 	stro = koo.calcStromgrenRadius(logQ, nh)
 	raga = koo.calcSpitzerRadius(logQ, nh, age)
@@ -74,10 +82,9 @@ for i in range(1, len(star_data[:,0]) + 1):
 	T = 8000.0
 	f = 5.0e9
 	tau = calcTau(T, f, ne, logQ)
-	B = calcPlanck(T, f)
+	B = calcPlanck2(T, f)
 	S = B * (1.0 - math.exp(-tau))
 
-	F = S * math.pi * angsize_rad * angsize_rad * 1.0e26 * 1000
+	F = S * angsize_rad * angsize_rad * 1.0e26 * 1000
 
-	if F * 20 < tot_fluxes[i - 1][1]:
-		print i
+	print str(F) + " " + str(tot_fluxes[j - 1][1])

@@ -42,10 +42,10 @@ class GridCell;
  */
 class GridCell {
 public:
-	std::array<int, 3> rjoinID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridJoins that lie on the right side of this GridCell.
-	std::array<int, 3> ljoinID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridJoins that lie on the left side of this GridCell.
-	std::array<int, 3> rightID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridCells that lie on the right side of this GridCell.
-	std::array<int, 3> leftID = std::array<int, 3> { -1, -1, -1 }; //!< Contains pointers to GridCells that lie on the left side of this GridCell.
+	std::array<int, 3> rjoinID = std::array<int, 3> {{ -1, -1, -1 }}; //!< Contains pointers to GridJoins that lie on the right side of this GridCell.
+	std::array<int, 3> ljoinID = std::array<int, 3> {{ -1, -1, -1 }}; //!< Contains pointers to GridJoins that lie on the left side of this GridCell.
+	std::array<int, 3> rightID = std::array<int, 3> {{ -1, -1, -1 }}; //!< Contains pointers to GridCells that lie on the right side of this GridCell.
+	std::array<int, 3> leftID = std::array<int, 3> {{ -1, -1, -1 }}; //!< Contains pointers to GridCells that lie on the left side of this GridCell.
 	std::array<double, 3> GRAV;
 	FluidArray UDOT; //!< Contains rate of change of conservative fluid variable values.
 	FluidArray U; //!< Contains conservative fluid variable values.
@@ -54,35 +54,34 @@ public:
 	RadArray R; //!< Contains radiation variable values: optical depth in cell and along path of the ray from source.
 	ThermoArray T; //!< Contains thermadynamic variable values.
 	HeatArray H;
-	Vec3 xc = Vec3{ -10, -10, -10 }; //!< Grid coordinates for this GridCell.
+	Vec3 xc = Vec3{{ -10, -10, -10 }}; //!< Grid coordinates for this GridCell.
 	Array2D<double, 3, UID::N> QL; //!< Reconstructed states on left faces.
 	Array2D<double, 3, UID::N> QR; //!< Reconstructed states on right faces.
 	double vol = 0; //!< Volume of GridCell.
-	double ds = 0;
-	double shellVol = 0;
+	double ds = 0; //!< Length of segment of the ray that passed from the Star through the centre of this cell.
+	double shellVol = 0; //!< Volume of spherical shell with radius from Star to this GridCell and width this->ds.
 	double heatCapacityRatio = 0;
 	double m_soundSpeed = 0;
-	double T_min = 0;
-	std::array<int, 4> neighbourIDs = std::array<int, 4> { -1, -1, -1, -1 };
-	std::array<double, 4> neighbourWeights = std::array<double, 4> { 0, 0, 0, 0 };
+	double T_min = 0; //!< Minimum temperature of this cell set by initial conditions.
+	std::array<int, 4> neighbourIDs = std::array<int, 4> {{ -1, -1, -1, -1 }}; //!< the GridCell IDs (see Grid) of the neighbouring GridCells that are used to calculate this cell's optical depth.
+	std::array<double, 4> neighbourWeights = std::array<double, 4> {{ 0, 0, 0, 0 }}; //!< Weighting of each neighbouring cell's contribution to the optical depth to this cell.
 
-	//Structors.
+	// Structors.
 	GridCell();
 
-	void setSoundSpeed(double a);
-	double getSoundSpeed() const;
-
-	//Debugging.
+	// Debugging.
 	std::string printCoords() const;
 	std::string printInfo() const;
 
-	//Setters and Getters.
+	// Getters/Setters.
 	void set_U(const int index, const double value);
 	void set_xcs(const double x, const double y, const double z);
 	double get_xc(const int i);
 	double get_U(const int index);
+	void setSoundSpeed(double a);
+	double getSoundSpeed() const;
 
-	//Misc. methods.
+	// Misc. methods.
 	double temperature(const double massFracH, const double specGasConst) const;
 };
 
@@ -90,12 +89,9 @@ public:
  * @class GridJoin
  * @brief The GridJoin class contains flux information.
  *
- * A GridJoin holds links to GridCells that lie either side of it and contains flux information. The GridCells either side
- * of this will receive the flux in this GridJoin which is calculated by the HLLC Riemann Solver in a HydroDynamics object.
+ * A GridJoin holds links to GridCells that lie either side of it and contains flux information. The GridCells either side of this will receive the flux in this GridJoin, which is calculated by the Riemann solver in the Hydro integrator.
  *
  * @see GridCell
- *
- * @version 0.8, 24/11/2014
  */
 class GridJoin{
 public:
@@ -104,7 +100,7 @@ public:
 	int lcellID = -1; //!< Pointer to GridCell on the left.
 	int rcellID = -1; //!< Pointer to GridCell on the right.
 	FluidArray F; //!< Contains flux to be added to GridJoin::rcell and subtracted from GridJoin::lcell fluid variables (GridCell::U).
-	Vec3 xj = Vec3{ 0, 0, 0}; //!< The grid coordinates of the GridJoin in a Grid.
+	Vec3 xj = Vec3{{ 0, 0, 0 }}; //!< The grid coordinates of the GridJoin in a Grid.
 	double area = 0; //!< The area of the GridJoin.
 };
 

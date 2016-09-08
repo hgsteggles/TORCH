@@ -485,10 +485,10 @@ class Plotter:
 				caxes.get_yaxis().set_tick_params(which='minor', length=self.minorticklength,
 												  width=self.minortickwidth)
 
-	def axes1D(self, nr_nc, aspect_ratio = 1):
+	def axes1D(self, nr_nc, aspect_ratio = 1, axes_pad = 1):
 		self.fig.set_size_inches(self.plot_size*nr_nc[1],
 								 self.plot_size*nr_nc[0] * aspect_ratio, forward=True)
-		grid = Grid(self.fig, 111, nrows_ncols = nr_nc, axes_pad = 0,
+		grid = Grid(self.fig, 111, nrows_ncols = nr_nc, axes_pad = axes_pad,
 					label_mode = "L", share_all = False)
 
 		self.ticklength *= 0.8

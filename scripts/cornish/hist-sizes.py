@@ -29,8 +29,8 @@ nstars = len(star_data[:,0])
 
 DPI = 300
 figformat = 'png'
-plot_size = 10.0
-fontsize = 16
+plot_size = 4.0
+fontsize = 13
 torch.set_font_sizes(fontsize)
 
 benstr = ""
@@ -55,7 +55,7 @@ plotter.ticklength *= 0.5
 asp_rat = 1.0
 grid = plotter.axes1D((1,2), aspect_ratio=asp_rat)
 
-grid[0].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Angular\ Size}', units='arcsec')))
+grid[0].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Angular\ Size}', units='\\prime\\prime')))
 grid[1].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Physical\ Size}', units='pc')))
 
 grid[0].set_ylabel(plotter.format_label(torch.VarType('N')))
@@ -70,8 +70,9 @@ grid[1].set_xlim([0.0, 1.0])
 #grid[0].hist(cornish_survey[:,11], bins=np.arange(0, 24, 1), alpha=0.5, color='r', label="CORNISH")
 #grid[1].hist(cornish_phy_sizes, bins=np.arange(0, 1, 0.04), alpha=0.5, color='r', label="CORNISH")
 
-kx1 = dict(linewidth=1.5, label="CORNISH", linestyle='-')
-kx2 = dict(linewidth=1.5, label="Simulated", linestyle='--')
+kx1 = dict(linewidth=1.5, label="CORNISH", color='b')
+kx2 = dict(linewidth=1.5, label="Simulated", color='r', linestyle='--')
+
 plotter.histstep(grid[0], cornish_survey[:,11], np.arange(0, 24, 1), **kx1)
 plotter.histstep(grid[0], simulated_survey[:,7], np.arange(0, 24, 1), **kx2)
 plotter.histstep(grid[1], cornish_phy_sizes, np.arange(0, 1, 0.04), **kx1)

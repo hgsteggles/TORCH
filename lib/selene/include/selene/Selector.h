@@ -15,7 +15,7 @@ private:
     lua_State *_state;
     Registry &_registry;
     std::string _name;
-    using Fun = std::function<void()>;
+    using Fun = std::function<void(void)>;
     using PFun = std::function<void(Fun)>;
 
     // Traverses the structure up to this element
@@ -34,7 +34,7 @@ private:
 
     Selector(lua_State *s, Registry &r, const std::string &name,
              std::vector<Fun> traversal, Fun get, PFun put)
-        : _state(s), _registry(r), _name(name), _traversal{traversal},
+        : _state(s), _registry(r), _name(name), _traversal(traversal),
           _get(get), _put(put) {}
 
     Selector(lua_State *s, Registry &r, const char *name)
@@ -72,10 +72,10 @@ public:
     Selector(const Selector &other)
         : _state(other._state),
           _registry(other._registry),
-          _name{other._name},
-          _traversal{other._traversal},
-          _get{other._get},
-          _put{other._put},
+          _name(other._name),
+          _traversal(other._traversal),
+          _get(other._get),
+          _put(other._put),
           _functor(other._functor)
         {}
 
@@ -320,7 +320,7 @@ public:
 
     // Chaining operators. If the selector is an rvalue, modify in
     // place. Otherwise, create a new Selector and return it.
-    Selector&& operator[](const char *name) && {
+    Selector&& operator[](const char *name) {
         _name += std::string(".") + name;
         _check_create_table();
         _traversal.push_back(_get);
@@ -334,7 +334,7 @@ public:
         };
         return std::move(*this);
     }
-    Selector&& operator[](const int index) && {
+    Selector&& operator[](const int index) {
         _name += std::string(".") + std::to_string(index);
         _check_create_table();
         _traversal.push_back(_get);
@@ -350,7 +350,7 @@ public:
         };
         return std::move(*this);
     }
-    Selector operator[](const char *name) const & {
+    Selector operator[](const char *name) const {
         auto n = _name + "." + name;
         _check_create_table();
         auto traversal = _traversal;
@@ -365,7 +365,7 @@ public:
         };
         return Selector{_state, _registry, n, traversal, get, put};
     }
-    Selector operator[](const int index) const & {
+    Selector operator[](const int index) const {
         auto name = _name + "." + std::to_string(index);
         _check_create_table();
         auto traversal = _traversal;
@@ -387,9 +387,9 @@ public:
 
     friend bool operator==(const char *, const Selector &);
 
-    std::string getName() const {
-    	return _name;
-    }
+	std::string getName() const {
+		return _name;
+	}
 
 private:
     std::string ToString() const {

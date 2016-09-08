@@ -53,8 +53,8 @@ star_data = cornish_data.star_data
 nstars = len(star_data[:,0])
 
 
-weight_id = 4
-alpha = -1.0
+weight_id = 5
+alpha = -0.5
 
 A = 0.0
 for nh in nhs:

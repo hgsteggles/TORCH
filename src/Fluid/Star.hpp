@@ -36,13 +36,12 @@ class Constants;
  *
  * @see StarParameters
  * @see GridCell
- *
- * @version 0.8, 24/11/2014
+ * @see Grid
  */
 class Star {
 public:
 	enum class Location : unsigned int { LEFT, HERE, RIGHT };
-	std::array<double, 3> xc = std::array<double, 3>{ 0, 0, 0 };
+	std::array<double, 3> xc = std::array<double, 3>{{ 0, 0, 0 }};
 
 	void initialise(std::shared_ptr<Constants> c, StarParameters sp, Location containing_core, const Vec3& delta_x);
 
@@ -55,7 +54,7 @@ public:
 	int getWindCellRadius() const;
 
 	bool on = false;
-	Vec3 dx =  Vec3{0, 0, 0};
+	Vec3 dx =  Vec3{{ 0, 0, 0 }};
 	double photonEnergy = 0;
 	double photonRate = 0;
 	double massLossRate = 0;

@@ -86,7 +86,7 @@ for irow in range(5):
 	kernal_density_estimate(grid[irow], simulated_survey[:,9], simulated_survey[:,1], 2.0, 10000.0, 0.0, 50.0)
 
 	grid[irow].scatter(simulated_survey[:,9], simulated_survey[:,1],
-							   marker='o', color='k', s=5)
+							   marker='o', color='k', s=2)
 
 	grid[irow].set_xscale("log")
 

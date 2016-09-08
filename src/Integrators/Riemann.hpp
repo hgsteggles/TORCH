@@ -4,8 +4,6 @@
  * @file Riemann.hpp
  *
  * @author Harrison Steggles
- *
- * @date 24/11/2014 - the first version.
  */
 
 #ifndef RIEMANN_HPP_
@@ -20,8 +18,6 @@
  * @class RiemannSolver
  *
  * @brief A base class for solving the Riemann problem.
- *
- * @version 0.8, 24/11/2014
  */
 class RiemannSolver {
 public:
@@ -37,8 +33,6 @@ private:
  * @class HartenLaxLeerContactSolver
  *
  * @brief RiemannSolver subclass. Refer to "Riemann Solvers and Numerical Methods for Fluid Dynamics: A Practical Introduction".
- *
- * @version 0.8, 24/11/2014
  */
 class HartenLaxLeerContactSolver : public RiemannSolver {
 public:
@@ -50,8 +44,6 @@ public:
  * @class HartenLaxLeerSolver
  *
  * @brief RiemannSolver subclass. Refer to "Riemann Solvers and Numerical Methods for Fluid Dynamics: A Practical Introduction".
- *
- * @version 0.8, 24/11/2014
  */
 class HartenLaxLeerSolver : public RiemannSolver {
 public:
@@ -63,8 +55,6 @@ public:
  * @class RotatedHartenLaxLeerSolver
  *
  * @brief RiemannSolver subclass. Refer to "Nishikawa, H. & Kitamura, K. 2008, Journal of Computational Physics, 227, 2560".
- *
- * @version 0.8, 24/11/2014
  */
 class RotatedHartenLaxLeerSolver : public RiemannSolver {
 public:
@@ -79,8 +69,6 @@ private:
  * @class RiemannSolverFactory
  *
  * @brief Creates RiemannSolvers.
- *
- * @version 0.8, 24/11/2014
  */
 class RiemannSolverFactory {
 public:

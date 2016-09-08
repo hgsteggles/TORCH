@@ -144,10 +144,9 @@ def calcSpitzerRadius2(RS, t):
 	ts = RS / cs
 	return RS * np.power(1.0 + np.sqrt(4.0 / 3.0) * ((7.0 * t)/(4.0 * ts)), 4.0 / 7.0)
 
-def calcStagnationRadius(logQ, nh):
-	T = 8000.0
-	ci = soundSpeed(8000.0, 0.5)
-	co = soundSpeed(300.0, 1.0)
+def calcStagnationRadius(logQ, nh, Tmin, Tmax):
+	ci = soundSpeed(Tmax, 0.5)
+	co = soundSpeed(Tmin, 1.0)
 	cico = ci / co
 	return math.pow(math.sqrt(4.0 / 3.0) * cico, 4.0 / 3.0) * calcStromgrenRadius(logQ, nh)
 

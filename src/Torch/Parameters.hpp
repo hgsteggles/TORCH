@@ -27,14 +27,14 @@ struct TorchParameters {
 	std::string initialConditions = "";
 	int nd = 0; //!< Number of dimensions.
 	double sideLength = 0; //!< The side length of the simulation line/square/cube.
-	std::array<int, 3> ncells = std::array<int, 3>{ 0, 0, 0 }; //!< Array holding the number of grid cells along each dimension.
-	std::array<int, 3> coreCells = std::array<int, 3>{ 0, 0, 0 }; //!< Array holding the number of grid cells along in each dimension in each processor.
-	std::array<std::string, 3> leftBC = std::array<std::string, 3>{ "free", "free", "free" }; //!< Array of left boundary conditions for each dimension.
-	std::array<std::string, 3> rightBC = std::array<std::string, 3>{ "free", "free", "free" }; //!< Array of right boundary conditions for each dimension.
+	std::array<int, 3> ncells = std::array<int, 3>{{ 0, 0, 0 }}; //!< Array holding the number of grid cells along each dimension.
+	std::array<int, 3> coreCells = std::array<int, 3>{{ 0, 0, 0 }}; //!< Array holding the number of grid cells along in each dimension in each processor.
+	std::array<std::string, 3> leftBC = std::array<std::string, 3>{{ "free", "free", "free" }}; //!< Array of left boundary conditions for each dimension.
+	std::array<std::string, 3> rightBC = std::array<std::string, 3>{{ "free", "free", "free" }}; //!< Array of right boundary conditions for each dimension.
 	std::string geometry = "cartesian"; //!< The GEOMETRY of the grid [CARTESIAN, CYLINDRICAL, SPHERICAL].
 
 	std::string patchfilename = "";
-	std::array<int, 3> patchoffset = std::array<int, 3>{ 0, 0, 0 };
+	std::array<int, 3> patchoffset = std::array<int, 3>{{ 0, 0, 0 }};
 
 	std::string riemannSolver = "hll";
 	std::string slopeLimiter = "falle";
@@ -70,8 +70,8 @@ struct TorchParameters {
 	bool collisions_on = false; //!< Include collisional ionizations.
 
 	bool star_on = false;
-	std::array<int, 3> star_position = std::array<int, 3>{ 0, 0, 0 };
-	std::array<bool, 3> faceSnap = std::array<bool, 3>{ false, false, false };
+	std::array<int, 3> star_position = std::array<int, 3>{{ 0, 0, 0 }};
+	std::array<bool, 3> faceSnap = std::array<bool, 3>{{ false, false, false }};
 	double photonEnergy = 0;
 	double photonRate = 0;
 	double massLossRate = 0;
@@ -111,7 +111,7 @@ struct GridParameters {
 
 struct DataParameters {
 	double time = 0;
-	std::array<int, 3> ncells = std::array<int, 3>{ 0, 0, 0 }; //!< Array holding the number of grid cells along each dimension.
+	std::array<int, 3> ncells = std::array<int, 3>{{ 0, 0, 0 }}; //!< Array holding the number of grid cells along each dimension.
 	int nd = 0;
 	double dx = 0;
 	double sideLength = 0; //!< The side length of the simulation line/square/cube.
@@ -145,8 +145,8 @@ struct ThermoParameters {
 
 struct StarParameters {
 	bool on = false;
-	std::array<int, 3> position = std::array<int, 3>{ 0, 0, 0 };
-	std::array<bool, 3> faceSnap = std::array<bool, 3>{ false, false, false };
+	std::array<int, 3> position = std::array<int, 3>{{ 0, 0, 0 }};
+	std::array<bool, 3> faceSnap = std::array<bool, 3>{{ false, false, false }};
 	double photonEnergy = 0;
 	double photonRate = 0;
 	int windCellRadius = 0;

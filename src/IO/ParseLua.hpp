@@ -12,7 +12,7 @@
 
 #include "Logger.hpp"
 
-#include "selene.h"
+#include "selene/include/selene.h"
 
 std::string parseString(sel::Selector selector) {
 	std::string str = selector;

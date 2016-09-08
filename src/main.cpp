@@ -6,33 +6,26 @@
 #include "MPI/MPI_Wrapper.hpp"
 #include "IO/DataPrinter.hpp"
 #include "IO/Logger.hpp"
-#include "ParseLua.hpp"
+#include "IO/ParseLua.hpp"
+#include "IO/FileManagement.hpp"
 
-#include "selene.h"
+#include "selene/include/selene.h"
 
-#include <dirent.h>
 #include <cmath>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <memory>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
-void parseOutputDirectory(const std::string& filename, TorchParameters& p);
+std::string readOutputDirectory(const std::string& paramfilename);
 void parseParameters(const std::string& filename, TorchParameters& p);
-std::string basename( std::string const& pathname );
-void makeDirectory(const std::string& dir_name);
-void deleteFileContents(const std::string& myString);
-void copyConfigFile(const std::string& filename, const std::string& directory);
 void showUsage();
 
 int main (int argc, char** argv) {
 	MPIW& mpihandler = MPIW::Instance();
 
-	std::string paramFile = "refdata/parameters.lua";
-	std::string setupFile = "refdata/setup.lua";
+	std::string paramFile = "config/parameters.lua";
+	std::string setupFile = "config/setup.lua";
 
 	// Parse parameters
 	if (argc > 3) {
@@ -56,19 +49,30 @@ int main (int argc, char** argv) {
 		}
 	}
 
-	try {
-		TorchParameters tpars;
+	TorchParameters tpars;
 
+	try {
 		mpihandler.serial([&] () {
-			parseOutputDirectory( paramFile, tpars);
+			tpars.outputDirectory = readOutputDirectory(paramFile);
 		});
 
 		if (mpihandler.getRank() == 0) {
-			deleteFileContents(tpars.outputDirectory);
-			copyConfigFile(setupFile, tpars.outputDirectory);
-			copyConfigFile(paramFile, tpars.outputDirectory);
+			FileManagement::makeDirectoryPath(tpars.outputDirectory);
+			FileManagement::deleteFileContents(tpars.outputDirectory);
+			FileManagement::makeDirectoryPath(tpars.outputDirectory + "/log");
+			FileManagement::deleteFileContents(tpars.outputDirectory + "/log");
+			FileManagement::copyConfigFile(setupFile, tpars.outputDirectory);
+			FileManagement::copyConfigFile(paramFile, tpars.outputDirectory);
 		}
+	}
+	catch (std::exception& e) {
+		std::cout << e.what() << std::endl;
+		MPIW::Instance().abort();
+	}
 
+	Logger<FileLogPolicy>& logger = Logger<FileLogPolicy>::Instance(tpars.outputDirectory);
+
+	try {
 		mpihandler.serial([&] () {
 			parseParameters( paramFile, tpars);
 			tpars.setupFile = setupFile;
@@ -79,15 +83,17 @@ int main (int argc, char** argv) {
 		torch.run();
 	}
 	catch (std::exception& e) {
-		Logger<FileLogPolicy>::Instance().print<SeverityType::FATAL_ERROR>(e.what());
+		logger.print<SeverityType::FATAL_ERROR>(e.what());
+		std::cout << "Program encountered a fatal error. See ./" << tpars.outputDirectory << "/log/torch.log*" << " for more details." << std::endl;
 		MPIW::Instance().abort();
 	}
 
 	return 0;
 }
 
-void parseOutputDirectory(const std::string& filename, TorchParameters& p) {
-	std::string fullfilename = filename;
+std::string readOutputDirectory(const std::string& paramfilename) {
+	std::string fullfilename = paramfilename;
+	std::string outputDir = "";
 	// Create new Lua state and load the lua libraries
 	sel::State luaState{true};
 
@@ -95,12 +101,10 @@ void parseOutputDirectory(const std::string& filename, TorchParameters& p) {
 		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename);
 	}
 	else {
-		parseLuaVariable(luaState["Parameters"]["Integration"]["output_directory"], p.outputDirectory);
-		makeDirectory("log");
-		makeDirectory(p.outputDirectory);
-		makeDirectory(p.outputDirectory + "/" + "log");
-		Logger<FileLogPolicy>& logger = Logger<FileLogPolicy>::Instance(p.outputDirectory);
+		parseLuaVariable(luaState["Parameters"]["Integration"]["output_directory"], outputDir);
 	}
+
+	return outputDir;
 }
 
 void parseParameters(const std::string& filename, TorchParameters& p) {
@@ -185,42 +189,6 @@ void parseParameters(const std::string& filename, TorchParameters& p) {
 
 		logger.print<SeverityType::DEBUG>("Star is on: ", p.star_on);
 	}
-}
-
-std::string basename( std::string const& pathname ) {
-    return pathname.substr( pathname.find_last_of("\\/") + 1 );
-}
-
-void makeDirectory(const std::string& dir_name) {
-	struct stat st = {0};
-	if (stat(dir_name.c_str(), &st) == -1)
-		mkdir(dir_name.c_str(), 0755);
-}
-
-////// deleteFileContents deletes all files within a directory
-void deleteFileContents(const std::string& folder){
-	struct dirent *next_file;
-	DIR *dir; // These are data types defined in the "dirent" header.
-	char filepath[256];
-	dir = opendir(folder.c_str() );
-	if (!dir) {
-		throw std::runtime_error("deleteFileContents: directory " + folder + " does not exist.");
-	}
-	else {
-		while ((next_file = readdir(dir) )) {
-			// Build the full path for each file in the folder.
-			sprintf(filepath, "%s/%s", folder.c_str(), next_file->d_name);
-			remove(filepath);
-		}
-	}
-
-	closedir(dir);
-}
-
-void copyConfigFile(const std::string& filename, const std::string& directory) {
-	std::ifstream  src(filename, std::ios::binary);
-	std::ofstream  dst(directory + "/" + basename(filename), std::ios::binary);
-	dst << src.rdbuf();
 }
 
 void showUsage() {

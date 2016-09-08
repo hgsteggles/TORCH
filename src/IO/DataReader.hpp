@@ -1,8 +1,8 @@
-/*
- * DataReader.hpp
+/** Provides the DataReader class.
  *
- *  Created on: 4 Mar 2015
- *      Author: harry
+ * @file DataReader.hpp
+ *
+ * @author Harrison Steggles
  */
 
 #ifndef DATAREADER_HPP_
@@ -14,6 +14,11 @@
 class Fluid;
 class DataParameters;
 
+/**
+ * @class DataPrinter
+ *
+ * @brief Handler for all data input operations.
+ */
 class DataReader {
 public:
 	static DataParameters readDataParameters(const std::string& filename);

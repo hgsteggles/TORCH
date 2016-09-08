@@ -38,9 +38,9 @@ private:
 	double percentProgress;
 	int checkpointProgress;
 	time_point clockStart, clockLast;
-	duration speedEMA;
 	double smoothing;
 	bool debugging;
+	duration speedEMA;
 };
 
 #endif //PROGRESSBAR_HPP_

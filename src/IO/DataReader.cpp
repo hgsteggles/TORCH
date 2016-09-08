@@ -157,7 +157,6 @@ void DataReader::patchGrid(const std::string& filename, const std::array<int, 3>
 
 			myfile >> ignore >> ignore >> ignore >> ignore;
 
-			bool reset = true;
 			int npatchcells = dp.ncells[0]*dp.ncells[1]*dp.ncells[2];
 
 			for (int i = 0; i < npatchcells; ++i) {

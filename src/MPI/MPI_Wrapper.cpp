@@ -4,7 +4,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <mpi/mpi.h>
+#include <mpi.h>
 
 /**
  * @brief MPIHandler constructor.
@@ -187,6 +187,5 @@ void MPIW::print(const std::string& message) {
 }
 
 void MPIW::abort() {
-	std::cout << "Program encountered a fatal error. See torch.log for more details." << std::endl;
 	MPI_Abort(MPI_COMM_WORLD, 0);
 }

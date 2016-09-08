@@ -19,7 +19,7 @@ Grid::Grid()
 { }
 
 GridCell& Grid::getCell(int id) {
-	if (id < 0 || id >= m_cells.size()) {
+	if (id < 0 || id >= (int)m_cells.size()) {
 		std::cout << std::endl;
 		std::cout << std::endl;
 		std::cout << "ERROR: OUT OF BOUNDS" << std::endl;
@@ -31,7 +31,7 @@ GridCell& Grid::getCell(int id) {
 }
 
 const GridCell& Grid::getCell(int id) const {
-	if (id < 0 || id >= m_cells.size()) {
+	if (id < 0 || id >= (int)m_cells.size()) {
 		std::cout << std::endl;
 		std::cout << std::endl;
 		std::cout << "ERROR: OUT OF BOUNDS" << std::endl;
@@ -106,7 +106,7 @@ void Grid::addOrderedIndex(const std::string& name, int index) {
 }
 
 bool Grid::cellExists(int id) const {
-	return id >= 0 && id < m_cells.size();
+	return id >= 0 && id < (int)m_cells.size();
 }
 
 int Grid::left(int dim, int fromCellID) {
@@ -271,7 +271,7 @@ bool Grid::withinGrid(const Coords& coords) {
 }
 
 bool Grid::joinExists(int dim, std::array<int, 3>& joinIDs) {
-	return joinIDs[dim] >= 0 && joinIDs[dim] < m_joins[dim].size();
+	return joinIDs[dim] >= 0 && joinIDs[dim] < (int)m_joins[dim].size();
 }
 
 Coords Grid::nextSnakeCoords(const Coords& fromCoords, const Coords& sourceCoords, const int dxc, const int dyc, const int dzc) {
@@ -516,7 +516,7 @@ void Grid::initialise(std::shared_ptr<Constants> consts, const GridParameters& g
 
 	// Link the boundaries to the Grid.
 	m_cellCollection.start("GhostCells");
-	for (int dim = 0; dim < m_boundaries.size()/2; ++dim) {
+	for (unsigned int dim = 0; dim < m_boundaries.size() / 2; ++dim) {
 		m_cellCollection.start("GhostCells"+std::to_string(dim));
 		boundaryLink(m_boundaries[2*dim + 0]);
 		boundaryLink(m_boundaries[2*dim + 1]);
@@ -570,8 +570,7 @@ void Grid::buildCausal(const Coords& sourceCoords) {
 	Coords startCoords = nearestCoord(sourceCoords);
 
 	for (Coords c = startCoords; withinGrid(c); c = nextCausalCoords(c, startCoords)) {
-		m_causalIndices.push_back(flatIndex(c[0]-getLeftX(), c[1], c[2]));
-		GridCell& cell = m_cells[m_causalIndices[m_causalIndices.size()-1]];
+		m_causalIndices.push_back(flatIndex(c[0] - getLeftX(), c[1], c[2]));
 	}
 }
 
@@ -805,7 +804,7 @@ void Grid::applyBCs() {
 				break;
 			case(Condition::PARTITION):
 				MPIW& mpihandler = MPIW::Instance();
-				int id = 0;
+
 				partition.resetBuffer();
 
 				for (int ghostCellID : boundary.ghostCellIDs) {
@@ -815,8 +814,6 @@ void Grid::applyBCs() {
 						GridCell& cell = m_cells[currCellID];
 						for (int iu = 0; iu < UID::N; ++iu)
 							partition.addSendItem(cell.Q[iu]);
-						//if (mpihandler.rank == 1)
-							//std::cout << "( " << cell.xc[0] << " " << cell.xc[1] << " ): " << cell.Q[UID::DEN] << " " << cell.Q[UID::PRE] << std::endl;
 						partition.addSendItem(cell.heatCapacityRatio);
 					}
 				}
@@ -826,20 +823,14 @@ void Grid::applyBCs() {
 
 				partition.exchangeData(boundary.targetProcessor, tag);
 
-				id = 0;
 				for (int ghostCellID : boundary.ghostCellIDs) {
 					for (int currGhostID = ghostCellID; currGhostID != -1; currGhostID = (boundary.face < 3) ? left(dim, currGhostID) : right(dim, currGhostID)) {
 						GridCell& ghost = m_cells[currGhostID];
 						for (int iu = 0; iu < UID::N; ++iu)
 							ghost.Q[iu] = partition.getRecvItem();
-						//if (mpihandler.rank == 0)
-						//std::cout << "( " << ghost.xc[0] << " " << ghost.xc[1] << " ): " << ghost.Q[UID::DEN] << " " << ghost.Q[UID::PRE] << std::endl;
 						ghost.heatCapacityRatio = partition.getRecvItem();
-
 					}
 				}
-				//mpihandler.barrier();
-				//exit(0);
 				break;
 		}
 	}

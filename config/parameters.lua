@@ -10,8 +10,8 @@ Parameters = {
 		radiation_on =               true,
 		cooling_on =                 true,
 		debug =                      false,
-		output_directory =           "tmp/data_38",
-		initial_conditions =         "data/model_paper1/set2/data_38/data2D_090.txt",
+		output_directory =           "tmp",
+		initial_conditions =         "config/data2D_025.txt",
 	},
 	Grid = {
 		no_dimensions =              2,

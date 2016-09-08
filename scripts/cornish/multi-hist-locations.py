@@ -66,9 +66,12 @@ for irow in range(5):
 	grid[3 * irow + 1].set_xlim([-1, 1])
 	grid[3 * irow + 2].set_xlim([0.0, 20.0])
 
-	grid[3 * irow + 0].set_ylim([0, 0.3])
-	grid[3 * irow + 1].set_ylim([0, 0.3])
-	grid[3 * irow + 2].set_ylim([0, 0.3])
+	ymax = 0.3
+	nyticks = 6
+
+	grid[3 * irow + 0].set_ylim([0, ymax])
+	grid[3 * irow + 1].set_ylim([0, ymax])
+	grid[3 * irow + 2].set_ylim([0, ymax])
 
 	grid[3 * irow + 0].set_xticks(np.arange(10, 70, 10))
 	grid[3 * irow + 1].set_xticks(np.arange(-0.5, 1.5, 0.5))
@@ -76,10 +79,10 @@ for irow in range(5):
 
 	if irow == 4:
 		for icol in range(3):
-			grid[3 * irow + icol].set_yticks(np.arange(0, 0.31, 0.05))
+			grid[3 * irow + icol].set_yticks(np.arange(0, ymax +  (ymax - 1)/ float(nyticks), ymax / float(nyticks)))
 	else:
 		for icol in range(3):
-			grid[3 * irow + icol].set_yticks(np.arange(0.05, 0.31, 0.05))
+			grid[3 * irow + icol].set_yticks(np.arange(ymax / float(nyticks), ymax +  (ymax - 1)/ float(nyticks), ymax / float(nyticks)))
 
 	kx1 = dict(linewidth=1.5, label="CORNISH", color='b')
 	kx2 = dict(linewidth=1.5, label="Simulated", color='r', linestyle='--')
@@ -96,12 +99,14 @@ for irow in range(5):
 	bincentres1 = 0.5 * (bins1[:-1] + bins1[1:])
 	bincentres2 = 0.5 * (bins2[:-1] + bins2[1:])
 
-	plotter.histstep(grid[3 * irow + 0], cornish_survey[:,1], bins0, errorcentres=bincentres0, normed=True, **kx1)
-	plotter.histstep(grid[3 * irow + 0], simulated_survey[:,11], bins0, normed=True, **kx2)
-	plotter.histstep(grid[3 * irow + 1], cornish_survey[:,2], bins1, errorcentres=bincentres1, normed=True, **kx1)
-	plotter.histstep(grid[3 * irow + 1], simulated_survey[:,12], bins1, normed=True, **kx2)
-	plotter.histstep(grid[3 * irow + 2], cornish_distances[:,1], bins2, errorcentres=bincentres2, normed=True, **kx1)
-	plotter.histstep(grid[3 * irow + 2], simulated_survey[:,4], bins2, normed=True, **kx2)
+	normed = True
+
+	plotter.histstep(grid[3 * irow + 0], cornish_survey[:,1], bins0, errorcentres=bincentres0, normed=normed, **kx1)
+	plotter.histstep(grid[3 * irow + 0], simulated_survey[:,11], bins0, normed=normed, **kx2)
+	plotter.histstep(grid[3 * irow + 1], cornish_survey[:,2], bins1, errorcentres=bincentres1, normed=normed, **kx1)
+	plotter.histstep(grid[3 * irow + 1], simulated_survey[:,12], bins1, normed=normed, **kx2)
+	plotter.histstep(grid[3 * irow + 2], cornish_distances[:,1], bins2, errorcentres=bincentres2, normed=normed, **kx1)
+	plotter.histstep(grid[3 * irow + 2], simulated_survey[:,4], bins2, normed=normed, **kx2)
 
 ### Legend
 handles, labels = grid[2].get_legend_handles_labels()

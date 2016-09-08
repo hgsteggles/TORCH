@@ -93,7 +93,7 @@ for irow in range(5):
 	kernal_density_estimate(grid[2 * irow + 0], simulated_survey[:,9], simulated_survey[:,7], 2.0, 10000.0, 0.0, 15.0)
 
 	grid[2 * irow + 0].scatter(simulated_survey[:,9], simulated_survey[:,7],
-							   marker='o', color='k', s=5)
+							   marker='o', color='k', s=2)
 
 	if irow == 4:
 		grid[2 * irow + 1].text(0.04, 0.94, "CORNISH",

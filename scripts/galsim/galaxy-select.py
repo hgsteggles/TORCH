@@ -41,7 +41,7 @@ inputfile = "data/galsim/starpopfinal.txt"
 
 high_mass = True
 windowed = True
-age_cutoff = True
+age_cutoff = False
 size_cut = False
 flux_cut = False
 

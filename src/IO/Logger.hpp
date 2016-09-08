@@ -3,8 +3,6 @@
  * @file Logger.hpp
  *
  * @author Harrison Steggles
- *
- * @date 28/01/2014 - the first version.
  */
 
 #ifndef LOGGER_HPP_
@@ -25,8 +23,6 @@
  * @class LogPolicyInterface
  *
  * @brief Interface skeleton for any logging policy.
- *
- * @version 0.8, 24/11/2014
  */
 class LogPolicyInterface {
 public:
@@ -40,8 +36,6 @@ public:
  * @class FileLogPolicy
  *
  * @brief A logger with this policy will output logs to a file.
- *
- * @version 0.8, 24/11/2014
  */
 class FileLogPolicy : public LogPolicyInterface {
 public:
@@ -60,8 +54,6 @@ enum class SeverityType : unsigned int { DEBUG = 1, FATAL_ERROR, ERROR, WARNING 
  * @class Logger
  *
  * @brief Handles all logging information.
- *
- * @version 0.8, 24/11/2014
  */
 template< typename log_policy >
 class Logger {
@@ -105,6 +97,7 @@ private:
 template< typename log_policy >
 void Logger< log_policy >::changeOutputDirectory(const std::string& output_dir) {
 	std::string filename = "log/torch.log" + std::to_string(MPIW::Instance().getRank());
+
 	if (output_dir.size() != 0) {
 		filename = output_dir + "/" + filename;
 	}

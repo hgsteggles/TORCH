@@ -13,15 +13,6 @@
 #include "MPI/MPI_Wrapper.hpp"
 #include "Torch/Constants.hpp"
 
-static void printQ(const FluidArray& Q) {
-	std::cout << "density  = " << Q[UID::DEN] << std::endl;
-	std::cout << "pressure = " << Q[UID::PRE] << std::endl;
-	std::cout << "hii      = " << Q[UID::HII] << std::endl;
-	std::cout << "vel0     = " << Q[UID::VEL+0] << std::endl;
-	std::cout << "vel1     = " << Q[UID::VEL+1] << std::endl;
-	std::cout << "vel2     = " << Q[UID::VEL+2] << std::endl;
-}
-
 Hydrodynamics::Hydrodynamics()
 : Integrator("Hydrodynamics")
 { }
@@ -111,13 +102,11 @@ void Hydrodynamics::calcFluxes(Fluid& fluid) const {
 					std::cout << "left: " << left.xc[0] << " " << left.xc[1] << " " << left.xc[2] << std::endl;
 					std::cout << "right: " << right.xc[0] << " " << right.xc[1] << " " << right.xc[2] << std::endl;
 				}
-				//characteristicWaveSpeeds(S_l, S_r, join.lcell->QR[dim], join.rcell->QL[dim], join.lcell->heatCapacityRatio, dim);
 				double a_l2 = soundSpeedSqrd(left.QR[dim][UID::PRE], left.QR[dim][UID::DEN], left.heatCapacityRatio);
 				double a_r2 = soundSpeedSqrd(right.QL[dim][UID::PRE], right.QL[dim][UID::DEN], right.heatCapacityRatio);
 				m_riemannSolver->solve(join.F, left.QR[dim], right.QL[dim], a_l2, a_r2, left.heatCapacityRatio, dim);
 			}
 			else if (fluid.getGrid().spatialOrder == 0) {
-				//characteristicWaveSpeeds(S_l, S_r, left.Q, right.Q, left.heatCapacityRatio, dim);
 				double a_l2 = soundSpeedSqrd(left.Q[UID::PRE], left.Q[UID::DEN], left.heatCapacityRatio);
 				double a_r2 = soundSpeedSqrd(right.Q[UID::PRE], right.Q[UID::DEN], right.heatCapacityRatio);
 				m_riemannSolver->solve(join.F, left.Q, right.Q, a_l2, a_r2, left.heatCapacityRatio, dim);
@@ -143,7 +132,6 @@ void Hydrodynamics::updateSourceTerms(double dt, Fluid& fluid) const {
 					throw std::runtime_error("Hydrodynamics::updateSourceTerms: ljoin[dim] or rjoin[dim] is nullptr." + cell.printInfo());
 				cell.UDOT[i] += (grid.leftJoin(dim, cell).area/cell.vol)*grid.leftJoin(dim, cell).F[i];
 				cell.UDOT[i] -= (grid.rightJoin(dim, cell).area/cell.vol)*grid.rightJoin(dim, cell).F[i];
-				//cell.UDOT[i] -= cell.FIX[i];
 			}
 		}
 

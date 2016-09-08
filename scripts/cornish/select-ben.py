@@ -78,7 +78,8 @@ for i in range(1, nstars + 1):
 	m = mcur[i - 1]
 	nh = nhs[args.iden]
 	logQ = float(logQ_interp(m))
-	dsun = d_sun[i - 1] * 1000.0 * PC2CM
+	#dsun = d_sun[i - 1] * 1000.0 * PC2CM
+	dsun = 5.0 * 1000.0 * PC2CM
 
 	stro = koo.calcStromgrenRadius(logQ, nh)
 	raga = koo.calcSpitzerRadius(logQ, nh, t)

@@ -18,7 +18,7 @@ void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location 
 	for (int i = 0; i < 3; ++i)
 		mod[i] = (sp.faceSnap[i] && (sp.position[i] == 0)) ? 0.5 : 0;
 
-	xc = std::array<double, 3>{ sp.position[0] + 0.5 - mod[0], sp.position[1] + 0.5 - mod[1], sp.position[2] + 0.5 - mod[2] };
+	xc = std::array<double, 3>{{ sp.position[0] + 0.5 - mod[0], sp.position[1] + 0.5 - mod[1], sp.position[2] + 0.5 - mod[2] }};
 
 	if (consts->nd < 3)
 		xc[2] = 0;
@@ -41,11 +41,11 @@ void Star::initialise(std::shared_ptr<Constants> c, StarParameters sp, Location 
 
 void Star::setWindCells(Grid& grid) {
 	double volume = 0;
-	std::vector<int>& list = grid.getOrderedIndices("CausalWind");
 
 	for (int cellID : grid.getOrderedIndices("CausalWind"))
 		volume += grid.getCell(cellID).vol;
 	volume = MPIW::Instance().sum(volume);
+
 	mdot = massLossRate/volume;
 	edot = 0.5*mdot*windVelocity*windVelocity;
 }
@@ -58,8 +58,7 @@ void Star::injectEnergyMomentum(Grid& grid) {
 	if (mdot != 0) {
 		for (int cellID : grid.getOrderedIndices("CausalWind")) {
 			GridCell& cell = grid.getCell(cellID);
-			//for (int idim = 0; idim < consts->nd; ++idim)
-				//cell.UDOT[UID::VEL+idim] -= (mdot/cell.U[UID::DEN])*cell.U[UID::VEL+idim];
+
 			cell.UDOT[UID::DEN] += mdot;
 			cell.UDOT[UID::PRE] += edot;
 			cell.UDOT[UID::HII] += (cell.U[UID::HII]/cell.U[UID::DEN])*mdot;
@@ -75,20 +74,20 @@ void Star::fixDensityPressure(Grid& grid) {
 
 			double dist2 = 0;
 			for (int idim = 0; idim < consts->nd; ++idim)
-				dist2 += (cell.xc[idim] - xc[idim])*(cell.xc[idim] - xc[idim])*dx[idim]*dx[idim];
+				dist2 += (cell.xc[idim] - xc[idim]) * (cell.xc[idim] - xc[idim]) * dx[idim] * dx[idim];
 			if (dist2 == 0)
-				dist2 = dx[0]*dx[0];
-			double hii = cell.U[UID::HII]/cell.U[UID::DEN];
+				dist2 = dx[0] * dx[0];
+			double hii = cell.U[UID::HII] / cell.U[UID::DEN];
 
-			cell.U[UID::DEN] = massLossRate/(4.0*consts->pi*dist2*windVelocity);
-			cell.U[UID::HII] = hii*cell.U[UID::DEN];
+			cell.U[UID::DEN] = massLossRate / (4.0 * consts->pi * dist2 * windVelocity);
+			cell.U[UID::HII] = hii * cell.U[UID::DEN];
 			double ke = 0;
 			for (int idim = 0; idim < consts->nd; ++idim) {
-				cell.U[UID::VEL+idim] = windVelocity*cell.U[UID::DEN]*(cell.xc[idim] - xc[idim])*dx[idim]/std::sqrt(dist2);
-				ke += 0.5*cell.U[UID::VEL+idim]*cell.U[UID::VEL+idim]/cell.U[UID::DEN];
+				cell.U[UID::VEL+idim] = windVelocity * cell.U[UID::DEN] * (cell.xc[idim] - xc[idim]) * dx[idim] / std::sqrt(dist2);
+				ke += 0.5 * cell.U[UID::VEL+idim] * cell.U[UID::VEL+idim] / cell.U[UID::DEN];
 			}
-			double pre = (consts->specificGasConstant*(1.0 + cell.U[UID::HII]/cell.U[UID::DEN]))*cell.U[UID::DEN]*windTemperature;
-			cell.U[UID::PRE] = pre/(cell.heatCapacityRatio-1) + ke;
+			double pre = (consts->specificGasConstant * (1.0 + cell.U[UID::HII] / cell.U[UID::DEN])) * cell.U[UID::DEN] * windTemperature;
+			cell.U[UID::PRE] = pre / (cell.heatCapacityRatio-1) + ke;
 			cell.U[UID::HII] = cell.U[UID::DEN];
 		}
 	}

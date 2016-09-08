@@ -2,7 +2,7 @@
 
 CFLAGS = -O2 -g -pedantic -Wall -std=c++11
 INCLUDE = -I./src -I./src/Torch -I./src/MPI -I./src/IO -I./src/Fluid -I./src/Integrators -I./src/Misc -I./include/ -I./include/lua-5.2.3/
-LIBS = -L./lib/ -l:liblua.a -lz
+LIBS = -L./lib/ -l:liblua.a -lz -ldl
 CXX = mpic++
 MPICXX = mpic++
 SRCDIR = src
@@ -54,17 +54,17 @@ FULLPATHHDR = $(addprefix $(HDRDIR)/, $(HDRS))
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT) $(HDRDIR)/%.$(HDREXT)
 	mkdir -p $(dir $@)
-	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS)
+	$(MPICXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS)
 	
 $(OBJDIR)/%.o : $(SRCDIR)/%.$(SRCEXT)
 	mkdir -p $(dir $@)
-	$(CXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS)
+	$(MPICXX) -c $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS)
 
 torch : $(FULLPATHOBJ)
-	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(LIBS)
+	$(MPICXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(LIBS)
 
 test : $(FULLPATHOBJ)
-	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(LIBS)
+	$(MPICXX) $(CFLAGS) -o $@ $^ $(INCLUDE) $(LIBS)
 
 .PHONY: clean
 clean:

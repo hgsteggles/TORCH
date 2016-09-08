@@ -3,8 +3,6 @@
  * @file SplineData.hpp
  *
  * @author Harrison Steggles
- *
- * @date 24/11/2014 - the first version.
  */
 
 #ifndef SPLINEDATA_HPP_
@@ -19,8 +17,6 @@
  * @brief Contains cubic spline data for interpolation.
  *
  * Cubic spline interpolation and powerlaw extrapolation (using logarithm gradients at the extremes).
- *
- * @version 0.8, 24/11/2014
  */
 class SplineData {
 public:

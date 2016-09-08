@@ -3,8 +3,6 @@
  * @file SlopeLimiter.hpp
  *
  * @author Harrison Steggles
- *
- * @date 24/11/2014 - the first version.
  */
 
 #ifndef SLOPELIMITER_HPP_
@@ -18,9 +16,7 @@ enum class LimiterName : unsigned int {MONOTONISED_CENTRAL, SUPERBEE, MINMOD, MA
 /**
  * @class SlopeLimiter
  *
- * @brief A base class for calculating a slope which keeps the calling scheme total variation diminishing.
- *
- * @version 0.8, 24/11/2014
+ * @brief A base class for calculating a slope, ensuring that the calling scheme is TVD (total variation diminishing).
  */
 class SlopeLimiter {
 public:

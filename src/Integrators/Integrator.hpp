@@ -15,11 +15,9 @@ class Fluid;
 /**
  * @class Integrator
  *
- * @brief Abstract base class for integration of a Fluid.
+ * @brief Abstract base class for integration of Fluid for a physics sub-problem.
  *
  * @see Fluid
- *
- * @version 0.8, 24/11/2014
  */
 class Integrator {
 public:
