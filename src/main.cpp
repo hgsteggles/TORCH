@@ -24,8 +24,8 @@ void showUsage();
 int main (int argc, char** argv) {
 	MPIW& mpihandler = MPIW::Instance();
 
-	std::string paramFile = "config/parameters.lua";
-	std::string setupFile = "config/setup.lua";
+	std::string paramFile = "config/torch-config.lua";
+	std::string setupFile = "config/torch-setup.lua";
 
 	// Parse parameters
 	if (argc > 3) {

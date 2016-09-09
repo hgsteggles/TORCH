@@ -34,14 +34,14 @@ find_package(ZLIB REQUIRED)
 include_directories(${MPI_CXX_INCLUDE_PATH})
 include_directories(${ZLIB_INCLUDE_DIRS})
 
-configure_file(config/parameters.lua 
-				${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config/parameters.lua 
-				COPYONLY)
-configure_file(config/setup.lua 
-				${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config/setup.lua 
-				COPYONLY)
-configure_file(config/data2D_025.txt 
-				${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config/data2D_025.txt 
-				COPYONLY)
+function(copy_torch_config filename)
+	configure_file(${filename} 
+					${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${filename} 
+					COPYONLY)
+endfunction()
+
+copy_torch_config(config/torch-config.lua)
+copy_torch_config(config/torch-setup.lua)
+copy_torch_config(config/data2D_025.txt)
 
 add_subdirectory(src)

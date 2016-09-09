@@ -7,23 +7,23 @@
 TORCH is a 3D Eulerian fixed grid fluid dynamics code. The grid is a collection of finite  elements, called grid cells, that each hold fluid state information. The hydrodynamics are solved using a rotated hybrid HLLC-HLL Riemann solver ([Nishikawa & Kitamura 2008](#N8)) to calculate fluxes on each grid cell face. Ionisation from point source radiation is implicitly solved and the column densities required for  this are calculated via an interpolative ray tracing scheme ([Mellema et al. 2006](#M6)). Heating/cooling from atomic processes is calculated using the approximate functions in [Henney et al. (2009)](#H9).
 
 ####Example Usage
-After building, the directory tree (with "bin" as root directory) of the application should look like this:
+After building, the directory tree (with `bin` as root directory) of the application should look like this:
 ```
 .
 ├── torch
 ├── config
-|   ├── parameters.lua
-|   └── setup.lua
+|   ├── torch-config.lua
+|   └── torch-setup.lua
 ```
 
-To run, execute torch in an mpi environment. For example, using 8 logical cores:
+To run, execute `torch` in an mpi environment. For example, using 8 logical cores:
 ```bash
 mpirun -np 8 ./torch
 ```
-By default TORCH reads in the configuration files, "config/parameters.lua" and "config/setup.lua".
+By default TORCH reads in the configuration files, "config/torch-config.lua" and "config/torch-setup.lua".
 You can specify your own configuration files:
 ```bash
-mpirun -np 8 ./torch --paramfile=/path/to/parameters.lua --setupfile=/path/to/setup.lua
+mpirun -np 8 ./torch --paramfile=/path/to/torch-config.lua --setupfile=/path/to/torch-setup.lua
 ```
 In the configuration files, cgs units are assumed.  
 
@@ -32,7 +32,7 @@ In the configuration files, cgs units are assumed.
 For example, to set up a 2D cylindrically symmetric 150x200 mesh with a star located at grid coordinates (0, 110) parameters could be:
 
 ```lua
--- config/parameters.lua
+-- config/torch-config.lua
 
 PC2CM = 3.09e18
 YR2S  = 3.15569e7
@@ -115,12 +115,12 @@ Parameters = {
 	},
 }
 ```
-The simulated span of time in this example is 200 kyr. Snapshots of the star would be taken at equally spaced intervals during this time and stored in the tmp directory.
+The simulated span of time in this example is 200 kyr. Snapshots of the star would be taken at equally spaced intervals during this time and stored in the directory assigned to `output_directory`.
  
-An example of how to set up a problem is given in "config/setup.lua". For a star  offset in a spherically symmetric density gradient:
+An example of how to set up a problem is given in `config/torch-setup.lua`. For a star  offset in a spherically symmetric density gradient:
 
 ```lua
--- config/setup.lua
+-- config/torch-setup.lua
 
 hydrogenMass = 1.674e-24
 specificGasConstant = 8.314462e7
@@ -160,10 +160,10 @@ function initialise(x, y, z, xs, ys, zs)
 end
 ```
 
-The function ```initialise``` takes in six arguments: x (or r-polar), y (or z-polar) and z coordinates of the cell and the coordinates of the star (all in cm). Density, pressure, ionised hydrogen fraction, velocity components, and gravitational acceleration components are returned (in cgs units). This script is executed by Torch in order to set up the fluid variables in a grid.
+The function `initialise` takes in six arguments: x (or r-polar), y (or z-polar) and z coordinates of the cell and the coordinates of the star (all in cm). Density, pressure, ionised hydrogen fraction, velocity components, and gravitational acceleration components are returned (in cgs units). This script is executed by TORCH in order to set up the fluid variables in a grid.
 
 #####Output
-Torch outputs compressed data files in a specified directory (```output_directory```). The header contains 4 lines; the first line is the simulation time in seconds and the next three lines give the number of grid cells along the x, y and z directions of the mesh. After the header, grid cell data is displayed in columns. The first ND columns are the position coordinates of the grid cell, where ND is the number of dimensions. Next is density, pressure and HII fraction. Then the last ND columns are the fluid velocity components. All output is in cgs units.
+TORCH outputs compressed data files in a specified directory (`output_directory`). The header contains 4 lines; the first line is the simulation time in seconds and the next three lines give the number of grid cells along the x, y and z directions of the mesh. After the header, grid cell data is displayed in columns. The first ND columns are the position coordinates of the grid cell, where ND is the number of dimensions. Next is density, pressure and HII fraction. Then the last ND columns are the fluid velocity components. All output is in cgs units.
 
 After 5,000 years the solution to the setup given above looks like this:
 
@@ -172,15 +172,15 @@ After 5,000 years the solution to the setup given above looks like this:
 
 ####Compiling
 
-TORCH uses the cmake build process. To build simply make a build directory and call ccmake from there:
+TORCH uses the cmake build process. To build simply make a `build` directory and call `ccmake` from there:
 ```bash
 mkdir build
 cd mkdir
-ccmake path/to/Torch
+ccmake path/to/TORCH
 make
 ```
 
-To specify your C++ compiler (Torch requires gcc 4.7.2+) and/or the root directory of your MPI you need to set some environment variables before calling ccmake:
+To specify your C++ compiler (TORCH requires gcc 4.7.2+) and/or the root directory of your MPI distribution you need to set some environment variables before calling `ccmake`:
 ```bash
 export CC=/path/to/gcc
 export CXX=/path/to/g++
@@ -188,7 +188,6 @@ export MPI_HOME=/path/to/mpi/installation
 ```
 
 ####Advanced Usage
-
 The parameters not included in this table should not be modified unless you know what you're doing. Asterisks are wildcard characters.
 
 #####Basic
@@ -199,7 +198,7 @@ The parameters not included in this table should not be modified unless you know
 | ```cooling_on```              | Simulate heating and cooling? |
 | ```simulation_time```         | Span of time in seconds over which you want to simulate the fluid. |
 | ```output_directory```        | Directory for output data. |
-| ```initial_conditions```      | Data file to read a problem setup. Set to empty string to use setup.lua config.|
+| ```initial_conditions```      | Data file to read a problem setup. Set to empty string to use torch-setup.lua config.|
 | ```no_dimensions```           | No. of dimensions in numerical grid. |
 | ```no_cells_x```              | No. of cells along the x (or polar r) axis. |
 | ```no_cells_y```              | No. of cells along the y (or polar z) axis. |
@@ -240,7 +239,6 @@ The parameters not included in this table should not be modified unless you know
 * Output in HDF5 data format.
 
 ####Developer info
-
 Harrison Steggles, University of Leeds (PhD student).
 
 ####References
