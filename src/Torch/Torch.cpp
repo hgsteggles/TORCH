@@ -1,10 +1,11 @@
 #include "Torch.hpp"
-#include "IO/ProgressBar.hpp"
-#include "Fluid/GridCell.hpp"
 #include "Constants.hpp"
+#include "Fluid/GridCell.hpp"
+#include "IO/ProgressBar.hpp"
 #include "IO/Logger.hpp"
-#include "Misc/Timer.hpp"
+#include "IO/Checkpointer.hpp"
 #include "IO/DataReader.hpp"
+#include "Misc/Timer.hpp"
 
 #include <chrono>
 #include <fstream>
@@ -65,14 +66,14 @@ void Torch::initialise(TorchParameters p) {
 		hydrodynamics.setRiemannSolver(std::move(RiemannSolverFactory::create(p.riemannSolver, p.nd)));
 	}
 	catch (std::exception& e) {
-		Logger<FileLogPolicy>::Instance().print<SeverityType::WARNING>(e.what());
+		Logger::Instance().print<SeverityType::WARNING>(e.what());
 	}
 
 	try {
 		hydrodynamics.setSlopeLimiter(std::move(SlopeLimiterFactory::create(p.slopeLimiter)));
 	}
 	catch (std::exception& e) {
-		Logger<FileLogPolicy>::Instance().print<SeverityType::WARNING>(e.what());
+		Logger::Instance().print<SeverityType::WARNING>(e.what());
 	}
 
 	// Forward parameters to Radiation object.
@@ -81,6 +82,7 @@ void Torch::initialise(TorchParameters p) {
 	thermodynamics.initialise(consts, p.getThermoParameters());
 
 	// Forward parameters to this object.
+	ncheckpoints = p.ncheckpoints;
 	initialConditions = p.initialConditions;
 	radiation_on = p.radiation_on;
 	cooling_on = p.cooling_on;
@@ -97,11 +99,9 @@ void Torch::initialise(TorchParameters p) {
 	stepCounter = 0;
 
 	if (initialConditions.compare("") != 0) {
-		std::cout << initialConditions << std::endl;
-		//setUp(initialConditions);
-		DataReader::readGrid(p.initialConditions, datap, fluid);
-		Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::initialise: Grid read from file.");
-		stepstart = stepIDFromFilename(p.initialConditions);
+		DataReader::readGrid(initialConditions, datap, fluid);
+		Logger::Instance().print<SeverityType::NOTICE>("Torch::initialise: Grid read from file: ", initialConditions, "\n");
+		stepstart = stepIDFromFilename(initialConditions);
 	}
 	else {
 		// Set up initial grid state using the setup.lua file.
@@ -132,13 +132,15 @@ void Torch::initialise(TorchParameters p) {
 			double reverse2 = std::sqrt(2.0 * edot * fluid.getStar().massLossRate) / (4.0 * consts->pi * pre);
 			double reverse = std::sqrt(reverse2) / fluid.getGrid().dx[0];
 			if (reverse < 5 + p.windCellRadius) {
-				std::cout << "Warning: reverse shock within or close to wind injection region:" << std::endl;
-				std::cout << "         [rs = " << reverse << ", wir = " << p.windCellRadius << "]" << std::endl;
+				std::stringstream ss;
+				ss << "reverse shock within or close to wind injection region:\n";
+				ss << "\t[rs = " << reverse << ", wir = " << p.windCellRadius << "]\n";
+				Logger::Instance().print<SeverityType::WARNING>(ss.str());
 			}
 		}
 	}
 
-	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::initialise: initial setup complete.");
+	Logger::Instance().print<SeverityType::NOTICE>("Torch::initialise: initial setup complete.\n");
 }
 
 void Torch::toCodeUnits() {
@@ -184,14 +186,14 @@ void Torch::setUp(std::string filename) {
 		myfile.close();
 	});
 
-	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::setUp(initialConditionsFile) complete.");
+	Logger::Instance().print<SeverityType::NOTICE>("Torch::setUp(", filename, ") complete.\n");
 }
 
 void Torch::setUpLua(std::string filename) {
 	MPIW& mpihandler = MPIW::Instance();
 	Grid& grid = fluid.getGrid();
 
-	mpihandler.print("Reading lua config file: " + filename);
+	Logger::Instance().print<SeverityType::NOTICE>("Reading lua config file: " + filename + "\n");
 
 	mpihandler.serial([&] () {
 		// Create new Lua state and load the lua libraries
@@ -199,7 +201,7 @@ void Torch::setUpLua(std::string filename) {
 		bool hasLoaded = luaState.Load(filename);
 
 		if (!hasLoaded)
-			std::cout << "SetUpLua: could not open lua file: " << filename << std::endl;
+			throw std::runtime_error("Torch::setUpLua: could not open lua file: " + filename + '\n');
 		else {
 			for (GridCell& cell : grid.getIterable("GridCells")) {
 				std::array<double, 3> xc, xs;
@@ -225,20 +227,31 @@ void Torch::setUpLua(std::string filename) {
 	});
 }
 
+static std::string formatSuffix(int i) {
+	std::stringstream header;
+	header.str("");
+	header.fill('0');
+	header.width(6);
+	header << i;
+
+	return header.str();
+}
+
 void Torch::run() {
 	MPIW& mpihandler = MPIW::Instance();
-	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() initial conditions set up.");
 
 	double initTime = fluid.getGrid().currentTime;
-	ProgressBar progBar = ProgressBar(tmax, 1, "Marching solution", debug);
 
 	fluid.globalQfromU();
 	fluid.fixPrimitives();
 
-	progBar.update(initTime, dt_max, mpihandler.getRank() == 0);
-	inputOutput.print2D(std::to_string((int)(100.0*initTime/tmax + 0.5)), initTime, fluid.getGrid());
+	Logger::Instance().print<SeverityType::NOTICE>("Marching solution...\n");
+	ProgressBar progBar(tmax - initTime, 1000);
 
-	Logger<FileLogPolicy>::Instance().print<SeverityType::DEBUG>("Torch::run() first data dump complete.");
+	Checkpointer checkpointer(tmax, ncheckpoints);
+	checkpointer.update(initTime);
+
+	inputOutput.print2D(formatSuffix(checkpointer.getCount()), initTime, fluid.getGrid());
 
 	activeComponents.push_back(ComponentID::HYDRO);
 	if (cooling_on)
@@ -246,35 +259,39 @@ void Torch::run() {
 	if (radiation_on)
 		activeComponents.push_back(ComponentID::RAD);
 
-	Timer timer;
-	timer.start();
-
-	bool isFinalPrintOn = true;
+	bool isFinalPrintOn = false;
 
 	while (fluid.getGrid().currentTime < tmax && !m_isQuitting) {
 		// Find the time until the next data snapshot. Print if it has passed.
 		double dt_nextCheckpoint = dt_max;
-		bool print_now = progBar.update(fluid.getGrid().currentTime, dt_nextCheckpoint, mpihandler.getRank() == 0);
+
+		bool print_now = checkpointer.update(fluid.getGrid().currentTime, dt_nextCheckpoint);
+
 		if (print_now) {
-			int step = (int)(100.0*fluid.getGrid().currentTime/tmax + 0.5);
-			inputOutput.print2D(std::to_string(step), fluid.getGrid().currentTime, fluid.getGrid());
-			isFinalPrintOn = (step != 100);
+			inputOutput.print2D(formatSuffix(checkpointer.getCount()), 
+											   fluid.getGrid().currentTime,
+											   fluid.getGrid());
+			isFinalPrintOn = (checkpointer.getCount() != ncheckpoints);
 		}
 
 		// Perform full integration time-step of all physics sub-problems.
 		fluid.getGrid().deltatime = fullStep(dt_nextCheckpoint);
 		fluid.getGrid().currentTime += fluid.getGrid().deltatime;
 		++steps;
+
+		if (progBar.timeToUpdate()) {
+			progBar.update(fluid.getGrid().currentTime - initTime);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
-	progBar.end(mpihandler.getRank() == 0);
 
 	if (isFinalPrintOn) {
-		inputOutput.print2D(std::to_string(100), fluid.getGrid().currentTime, fluid.getGrid());
+		inputOutput.print2D(formatSuffix(ncheckpoints), fluid.getGrid().currentTime, fluid.getGrid());
 	}
 
 	mpihandler.barrier();
-	if (mpihandler.getRank() == 0)
-		std::cout << "MARCH: Took " << timer.formatTime(timer.getTicks()) << '\n';
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 }
 
 double Torch::calculateTimeStep() {
@@ -301,10 +318,11 @@ double Torch::calculateTimeStep() {
 			trad = MPIW::Instance().minimum(trad);
 			double ttherm = 100.0*dt_thermo/tmax;
 			ttherm = MPIW::Instance().minimum(ttherm);
-			if (MPIW::Instance().getRank() == 0)
-				std::cout << "thyd = " << thyd << ", trad = " << trad << ", ttherm = " << ttherm << '\n';
-			if (thyd <= 1.0e-6 || thyd <= 1.0e-6 || thyd <= 1.0e-6)
+
+			if (thyd <= 1.0e-6 || thyd <= 1.0e-6 || thyd <= 1.0e-6) {
+				Logger::Instance().print<SeverityType::ERROR>("Integration deltas are too small.\n");
 				m_isQuitting = true;
+			}
 		}
 	}
 	dt = MPIW::Instance().minimum(dt);
@@ -405,40 +423,16 @@ void Torch::checkValues(std::string componentname) {
 			break;
 	}
 	if (error) {
+		std::stringstream ss;
 		for (GridCell& cell : fluid.getGrid().getIterable("GridCells")) {
 			if (std::abs(cell.Q[UID::VEL+0]) > 1e50 || std::abs(cell.Q[UID::VEL+1]) > 1e50) {
-				std::cout << '\n' << componentname << " produced an error.\n";
+				ss << '\n' << componentname << " produced an error.\n";
 				cell.printInfo();
 			}
 		}
-		exit(0);
+		ss << '\n';
+		throw std::runtime_error(ss.str());
 	}
 }
 
-/*
-void Torch::checkValues(std::string componentname) {
-	for (GridCell& cell : fluid.getGrid().getCausalCells()) {
-		bool error = false;
-		for (int i = 0; i < UID::N; ++i) {
-			if (cell.U[i] != cell.U[i] || std::isinf(cell.U[i])) {
-				error = true;
-				break;
-			}
-		}
-		if (error) {
-			std::cout << '\n' << componentname << " produced an error.\n";
-			if (componentname.compare("Hydrodynamics") == 0) {
-				std::cout << "Possible Cause: is the RiemannSolver stable?\n";
-				std::cout << "Possible Cause: is the SlopeLimiter TVD?\n";
-				std::cout << "Possible Cause: are the boundaries correctly linked to grid? \n";
-			}
-			else if (componentname.compare("Radiation") == 0 || componentname.compare("Thermodynamics") == 0) {
-				std::cout << "Possible Cause: are the column densities calculated properly?\n";
-			}
-			std::cout << "Possible Cause: have the variables been appropriately floored?\n";
-			cell.printInfo();
-			exit(EXIT_FAILURE);
-		}
-	}
-}
- */
+

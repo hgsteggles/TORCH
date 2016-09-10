@@ -89,7 +89,7 @@ void Fluid::advSolution(const double dt) {
 void Fluid::fixSolution() {
 	for (GridCell& cell : grid.getIterable("GridCells")) {
 		if (!std::isfinite(cell.U[UID::DEN]) || !std::isfinite(cell.U[UID::PRE]))
-			throw std::runtime_error("Fluid::fixSolution(): Density = " + std::to_string(cell.U[UID::DEN]) + ", Energy =" + std::to_string(cell.U[UID::PRE]));
+			throw std::runtime_error("Fluid::fixSolution(): Density = " + std::to_string(cell.U[UID::DEN]) + ", Energy =" + std::to_string(cell.U[UID::PRE]) + '\n');
 
 		double hii = std::max(std::min(cell.U[UID::HII]/cell.U[UID::DEN], 1.0), 0.0);
 		double adv = std::max(std::min(cell.U[UID::ADV]/cell.U[UID::DEN], 1.0), 0.0);

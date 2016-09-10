@@ -71,6 +71,7 @@ private:
 	long stepstart = 0;
 	int stepCounter = 0;
 	int m_customPrintID = 0;
+	int ncheckpoints = 0;
 
 	bool m_isQuitting = false;
 

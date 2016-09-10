@@ -97,7 +97,7 @@ void HartenLaxLeerContactSolver::solve(FluidArray& F, const FluidArray& Q_l, con
 		out << "HartenLaxLeerContactSolver::solve: HII flux is NaN\n";
 		for (int iu = 0; iu < UID::N; ++iu)
 			out << "F[" << iu << "] = " << F[iu] << '\n';
-		out << "Q_l is: \n" << printQ(Q_l) << "Q_r is: \n" << printQ(Q_r);
+		out << "Q_l is: \n" << printQ(Q_l) << "Q_r is: \n" << printQ(Q_r) << '\n';
 
 		throw std::runtime_error(out.str());
 	}
@@ -134,7 +134,7 @@ void HartenLaxLeerSolver::solve(FluidArray& F, const FluidArray& Q_l, const Flui
 		out << "Q_l is: \n";
 		out << printQ(Q_l);
 		out << "Q_r is: \n";
-		out << printQ(Q_r);
+		out << printQ(Q_r) << '\n';
 		throw std::runtime_error(out.str());
 	}
 }
@@ -253,5 +253,5 @@ std::unique_ptr<RiemannSolver> RiemannSolverFactory::create(const std::string& t
 	else if (type.compare("default") == 0)
 		return std::unique_ptr<RiemannSolver>(new RotatedHartenLaxLeerSolver(ndims));
 	else
-		throw std::runtime_error("RiemannSolverFactory::create: unknown type " + type);
+		throw std::runtime_error("RiemannSolverFactory::create: unknown type: " + type + "\n");
 }

@@ -89,9 +89,3 @@ double Converter::CM_2_PC(double val_in_cm) const {
 double Converter::MO_2_G(double val_in_mo) const {
 	return val_in_mo*2.0e33;
 }
-
-void Converter::printInfo() {
-	std::cout << "M = " << M << "\n";
-	std::cout << "L = " << L << "\n";
-	std::cout << "T = " << T << "\n";
-}

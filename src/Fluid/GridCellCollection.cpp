@@ -6,6 +6,7 @@
  */
 
 #include "GridCellCollection.hpp"
+#include "IO/Logger.hpp"
 
 #include <iostream>
 
@@ -45,7 +46,7 @@ Looper GridCellCollection::getIterable(const std::string& name) {
 		return Looper(cells, iterGuards.first, iterGuards.second);
 	}
 	else {
-		std::cout << "invalid iterable: " << name << std::endl;
+		Logger::Instance().print<SeverityType::WARNING>("GridCellCollection::getIteratable: invalid iterable: ", name, '\n');
 		return Looper(cells, 0, 0);
 	}
 }
@@ -61,7 +62,7 @@ ConstLooper GridCellCollection::getIterable(const std::string& name) const {
 		return ConstLooper(cells, iterGuards.first, iterGuards.second);
 	}
 	else {
-		std::cout << "invalid iterable: " << name << std::endl;
+		Logger::Instance().print<SeverityType::WARNING>("GridCellCollection::getIteratable: invalid iterable: ", name, '\n');
 		return ConstLooper(cells, 0, 0);
 	}
 }

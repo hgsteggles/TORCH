@@ -30,7 +30,7 @@ void parseLuaVariable(sel::Selector selector, T& var) {
 	if (exists(selector))
 		var = (T)selector;
 	else
-		Logger<FileLogPolicy>::Instance().print<SeverityType::WARNING>("parseLuaVariable: <", selector.getName(), "> does not exist.");
+		Logger::Instance().print<SeverityType::WARNING>("parseLuaVariable: <", selector.getName(), "> does not exist, using default: ", var, '\n');
 }
 
 template<>
@@ -38,7 +38,7 @@ void parseLuaVariable(sel::Selector selector, std::string& var) {
 	if (exists(selector))
 		var = parseString(selector);
 	else
-		Logger<FileLogPolicy>::Instance().print<SeverityType::WARNING>("parseLuaVariable: <", selector.getName(), "> does not exist.");
+		Logger::Instance().print<SeverityType::WARNING>("parseLuaVariable: <", selector.getName(), "> does not exist, using default: ", var, '\n');
 }
 
 

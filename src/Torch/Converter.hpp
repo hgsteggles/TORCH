@@ -31,8 +31,6 @@ public:
 	double PC_2_CM(double val_in_yr) const;
 	double CM_2_PC(double val_in_yr) const;
 	double MO_2_G(double val_in_yr) const;
-
-	void printInfo();
 private:
 	double M = 0, L = 0, T = 0;
 	double convertCodeUnits(const double val, const double mass_index, const double length_index, const double time_index, const bool& from) const;

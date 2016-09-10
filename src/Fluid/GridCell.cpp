@@ -162,8 +162,6 @@ double GridCell::temperature(const double massFracH, const double specGasConst) 
 
 void UfromQ(FluidArray& u, const FluidArray& q, double gamma, int nd) {
 	double ke = 0;
-	if (!std::isfinite(q[UID::DEN]) || !std::isfinite(q[UID::PRE]))
-		std::cout << "ufromq: " << q[UID::DEN] << '\t' << q[UID::PRE] << std::endl;
 	u[UID::DEN] = q[UID::DEN];
 	for(int dim = 0; dim < nd; ++dim){
 		u[UID::VEL+dim] = q[UID::VEL+dim]*q[UID::DEN];

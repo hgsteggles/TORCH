@@ -181,11 +181,6 @@ void MPIW::serial(const std::function<void()>& f) {
 	}
 }
 
-void MPIW::print(const std::string& message) {
-	if (rank == 0)
-		std::cout << message << std::endl;
-}
-
 void MPIW::abort() {
 	MPI_Abort(MPI_COMM_WORLD, 0);
 }

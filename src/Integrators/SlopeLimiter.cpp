@@ -71,5 +71,5 @@ std::unique_ptr<SlopeLimiter> SlopeLimiterFactory::create(std::string type) {
 	else if (type.compare("default") == 0)
 		return std::unique_ptr<SlopeLimiter>(new AlbadaLimiter());
 	else
-		throw std::runtime_error("SlopeLimiterFactory::create: unknown type.");
+		throw std::runtime_error("SlopeLimiterFactory::create: unknown type: " + type + "\n");
 }

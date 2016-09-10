@@ -98,10 +98,6 @@ void Hydrodynamics::calcFluxes(Fluid& fluid) const {
 			GridCell& left = grid.joinedLeft(join);
 			GridCell& right = grid.joinedRight(join);
 			if (fluid.getGrid().spatialOrder == 1) {
-				if (left.QR[dim][UID::DEN] <= 1e-20 || right.QL[dim][UID::DEN] <= 1e-20) {
-					std::cout << "left: " << left.xc[0] << " " << left.xc[1] << " " << left.xc[2] << std::endl;
-					std::cout << "right: " << right.xc[0] << " " << right.xc[1] << " " << right.xc[2] << std::endl;
-				}
 				double a_l2 = soundSpeedSqrd(left.QR[dim][UID::PRE], left.QR[dim][UID::DEN], left.heatCapacityRatio);
 				double a_r2 = soundSpeedSqrd(right.QL[dim][UID::PRE], right.QL[dim][UID::DEN], right.heatCapacityRatio);
 				m_riemannSolver->solve(join.F, left.QR[dim], right.QL[dim], a_l2, a_r2, left.heatCapacityRatio, dim);

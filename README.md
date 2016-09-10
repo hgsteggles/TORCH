@@ -20,7 +20,7 @@ To run, execute `torch` in an mpi environment. For example, using 8 logical core
 ```bash
 mpirun -np 8 ./torch
 ```
-By default TORCH reads in the configuration files, "config/torch-config.lua" and "config/torch-setup.lua".
+By default TORCH reads in the configuration files, `config/torch-config.lua` and `config/torch-setup.lua`.
 You can specify your own configuration files:
 ```bash
 mpirun -np 8 ./torch --paramfile=/path/to/torch-config.lua --setupfile=/path/to/torch-setup.lua
@@ -50,6 +50,7 @@ Parameters = {
 		debug =                      false,
 		output_directory =           "tmp",
 		initial_conditions =         "",
+		ncheckpoints =               100,
 	},
 	Grid = {
 		no_dimensions =              2,
@@ -199,6 +200,7 @@ The parameters not included in this table should not be modified unless you know
 | ```simulation_time```         | Span of time in seconds over which you want to simulate the fluid. |
 | ```output_directory```        | Directory for output data. |
 | ```initial_conditions```      | Data file to read a problem setup. Set to empty string to use torch-setup.lua config.|
+| ```ncheckpoints```            | Number of snapshots to print equally spaced up to simulation_time.|
 | ```no_dimensions```           | No. of dimensions in numerical grid. |
 | ```no_cells_x```              | No. of cells along the x (or polar r) axis. |
 | ```no_cells_y```              | No. of cells along the y (or polar z) axis. |

@@ -61,7 +61,6 @@ public:
 	double sum(double& x) const;
 
 	void serial(const std::function<void()>& f);
-	void print(const std::string& message);
 	void abort();
 
 private:

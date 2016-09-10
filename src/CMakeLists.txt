@@ -8,6 +8,7 @@ set(TORCH_SRCS
 		${CMAKE_CURRENT_SOURCE_DIR}/IO/DataReader.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/IO/Logger.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/IO/ProgressBar.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/IO/Checkpointer.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/IO/StreamGZ.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/IO/FileManagement.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/Torch/Constants.cpp

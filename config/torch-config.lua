@@ -16,6 +16,7 @@ Parameters = {
 		debug =                      false,
 		output_directory =           "tmp",
 		initial_conditions =         "",
+		ncheckpoints =               100,
 	},
 	Grid = {
 		no_dimensions =              2,

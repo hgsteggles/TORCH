@@ -49,6 +49,7 @@ struct TorchParameters {
 	bool cooling_on = false;
 	bool debug = true;
 	std::string outputDirectory = "tmp/";
+	int ncheckpoints = 100;
 
 	double dfloor = 0;
 	double pfloor = 0;

@@ -63,7 +63,6 @@ private:
 struct PrintParameters {
 	PrintParameters();
 	std::string dir2D = "tmp/";
-	void printInfo() const;
 };
 
 #endif // DATAPRINTER_HPP_

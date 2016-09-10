@@ -16,185 +16,133 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <map>
 
-#include "../MPI/MPI_Wrapper.hpp"
+enum class SeverityType : unsigned int { FATAL_ERROR = 1, ERROR, WARNING, NOTICE, INFO, DEBUG };
 
 /**
  * @class LogPolicyInterface
- *
  * @brief Interface skeleton for any logging policy.
  */
 class LogPolicyInterface {
 public:
 	virtual ~LogPolicyInterface() {};
-	virtual void open_ostream(const std::string& name) = 0;
+	virtual void open_ostream() = 0;
 	virtual void close_ostream() = 0;
 	virtual void write(const std::string& msg) = 0;
+	virtual int getLogLevel() final {return logLevel;};
+	virtual void setLogLevel(SeverityType level) final {logLevel = static_cast<int>(level);};
+private:
+	int logLevel = static_cast<int>(SeverityType::DEBUG);
 };
 
 /**
  * @class FileLogPolicy
- *
  * @brief A logger with this policy will output logs to a file.
  */
 class FileLogPolicy : public LogPolicyInterface {
 public:
-	FileLogPolicy() : m_outStream( new std::ofstream ) {};
+	FileLogPolicy(const std::string& filename) : filename(filename), m_outStream( new std::ofstream ) {};
 	~FileLogPolicy();
-	void open_ostream(const std::string& name);
-	void close_ostream();
-	void write(const std::string& msg);
+	virtual void open_ostream();
+	virtual void close_ostream();
+	virtual void write(const std::string& msg);
+
+	std::string getLoglineHeader();
 private:
+	unsigned m_logLineNumber;
+	std::string filename = "";
 	std::unique_ptr< std::ofstream > m_outStream;
 };
 
-enum class SeverityType : unsigned int { DEBUG = 1, FATAL_ERROR, ERROR, WARNING };
+/**
+ * @class ConsoleLogPolicy
+ * @brief A logger with this policy will output logs to standard output.
+ */
+class ConsoleLogPolicy : public LogPolicyInterface {
+public:
+	ConsoleLogPolicy() : m_outStream( &std::cout ) {};
+	~ConsoleLogPolicy();
+	void open_ostream();
+	void close_ostream();
+	void write(const std::string& msg);
+private:
+	std::ostream* m_outStream;
+};
 
 /**
  * @class Logger
  *
  * @brief Handles all logging information.
  */
-template< typename log_policy >
 class Logger {
 public:
 	static Logger& Instance() {
-		return Instance("");
-	}
-	static Logger& Instance(const std::string& logdir) {
-		std::string filename = "log/torch.log" + std::to_string(MPIW::Instance().getRank());
-		if (logdir.size() != 0) {
-			filename = logdir + "/" + filename;
-		}
-		static Logger instance( filename, true );
+		static Logger instance;
 		return instance;
 	}
 
-	void changeOutputDirectory(const std::string& output_dir);
+	void setLogLevel(SeverityType severity);
+	void setLogLevel(SeverityType severity, const std::string& policy);
+	void registerLogPolicy(const std::string& name, std::unique_ptr<LogPolicyInterface> policy);
+	void unregisterLogPolicy(const std::string& name);
 
 	~Logger();
 
 	template< SeverityType severity , typename...Args >
 	void print( Args...args );
 private:
-	unsigned m_logLineNumber;
-	std::string getTime();
-	std::string getLoglineHeader();
+	SeverityType logLevel = SeverityType::DEBUG;
 	std::stringstream m_logStream;
-	log_policy* m_policy;
+	std::map<std::string, std::unique_ptr<LogPolicyInterface>> m_policies;
 	std::mutex m_writeMutex;
 
-	Logger( const std::string& name, bool isRootProcess );
+	Logger( ) {};
 	Logger( Logger const& );
 	void operator=( Logger const& );
 
 	//Core printing functionality
-	void print_impl();
+	void print_impl(SeverityType severity, std::unique_ptr<LogPolicyInterface>& policy);
 	template<typename First, typename...Rest>
-	void print_impl(First parm1, Rest...parm);
+	void print_impl(SeverityType severity, std::unique_ptr<LogPolicyInterface>& policy, First parm1, Rest...parm);
 };
 
-template< typename log_policy >
-void Logger< log_policy >::changeOutputDirectory(const std::string& output_dir) {
-	std::string filename = "log/torch.log" + std::to_string(MPIW::Instance().getRank());
-
-	if (output_dir.size() != 0) {
-		filename = output_dir + "/" + filename;
-	}
-
-	if (!m_policy) {
-		m_policy = new log_policy;
-		if( !m_policy )
-			throw std::runtime_error("LOGGER: Unable to create the logger instance.");
-	}
-	else {
-		m_policy->close_ostream();
-	}
-	m_policy->open_ostream( filename );
-	m_logLineNumber = 0;
-}
-
-template< typename log_policy >
-Logger< log_policy >::Logger( const std::string& name, bool isRootProcess ) {
-	m_logLineNumber = 0;
-	if (isRootProcess) {
-		m_policy = new log_policy;
-		if( !m_policy )
-			throw std::runtime_error("LOGGER: Unable to create the logger instance.");
-		m_policy->open_ostream( name );
-	}
-}
-
-template< typename log_policy >
-Logger< log_policy >::~Logger() {
-	if ( m_policy ) {
-		m_policy->close_ostream();
-		delete m_policy;
-	}
-}
-
-template< typename log_policy >
 template< SeverityType severity , typename...Args >
-void Logger< log_policy >::print( Args...args ) {
-	if (!m_policy)
-		return;
+void Logger::print( Args...args ) {
 	m_writeMutex.lock();
-	switch( severity )
-	{
-	case SeverityType::DEBUG:
-		m_logStream << "<DEBUG>: ";
-		break;
-	case SeverityType::WARNING:
-		m_logStream << "<WARNING>: ";
-		break;
-	case SeverityType::ERROR:
-		m_logStream << "<ERROR>: ";
-		break;
-	case SeverityType::FATAL_ERROR:
-		m_logStream << "<FATAL_ERROR>: ";
-		break;
+
+	switch( severity ) {
+		case SeverityType::DEBUG:
+			m_logStream << "<DEBUG>: ";
+			break;
+		case SeverityType::INFO:
+			m_logStream << "<INFO>: ";
+			break;
+		case SeverityType::NOTICE:
+			m_logStream << "<NOTICE>: ";
+			break;
+		case SeverityType::WARNING:
+			m_logStream << "<WARNING>: ";
+			break;
+		case SeverityType::ERROR:
+			m_logStream << "<ERROR>: ";
+			break;
+		case SeverityType::FATAL_ERROR:
+			m_logStream << "<FATAL_ERROR>: ";
+			break;
 	};
-	print_impl( args... );
+	for (auto& it : m_policies) {
+		print_impl(severity, it.second, args...);
+	}
+	m_logStream.str("");
+
 	m_writeMutex.unlock();
 }
 
-template< typename log_policy >
-void Logger< log_policy >::print_impl() {
-	m_policy->write( getLoglineHeader() + m_logStream.str() );
-	m_logStream.str("");
-}
-
-template< typename log_policy >
 template<typename First, typename...Rest >
-void Logger< log_policy >::print_impl(First parm1, Rest...parm) {
+void Logger::print_impl(SeverityType severity, std::unique_ptr<LogPolicyInterface>& policy, First parm1, Rest...parm) {
 	m_logStream << parm1;
-	print_impl(parm...);
-}
-
-template< typename log_policy >
-std::string Logger< log_policy >::getTime() {
-	std::string time_str;
-	time_t raw_time;
-	time( & raw_time );
-	char buffer[20];
-	struct tm* timeinfo = localtime( &raw_time );
-	strftime( buffer, 20, "%F %T.", timeinfo );
-	time_str = buffer;
-	//without the newline character
-	return time_str.substr( 0 , time_str.size() - 1 );
-}
-
-template< typename log_policy >
-std::string Logger< log_policy >::getLoglineHeader() {
-	std::stringstream header;
-	header.str("");
-	header.fill('0');
-	header.width(7);
-	header << m_logLineNumber++ <<" < "<< getTime() << " - ";
-	header.fill('0');
-	header.width(7);
-	header << clock() << " > ~ ";
-	return header.str();
+	print_impl(severity, policy, parm...);
 }
 
 

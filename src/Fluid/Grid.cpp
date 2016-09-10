@@ -1,6 +1,7 @@
 #include "Grid.hpp"
 
 #include "IO/ProgressBar.hpp"
+#include "IO/Logger.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -20,24 +21,14 @@ Grid::Grid()
 
 GridCell& Grid::getCell(int id) {
 	if (id < 0 || id >= (int)m_cells.size()) {
-		std::cout << std::endl;
-		std::cout << std::endl;
-		std::cout << "ERROR: OUT OF BOUNDS" << std::endl;
-		std::cout << std::endl;
-		std::cout << std::endl;
-		throw std::runtime_error("Grid::getCell: out of bounds.");
+		throw std::runtime_error("Grid::getCell: out of bounds.\n");
 	}
 	return m_cells[id];
 }
 
 const GridCell& Grid::getCell(int id) const {
 	if (id < 0 || id >= (int)m_cells.size()) {
-		std::cout << std::endl;
-		std::cout << std::endl;
-		std::cout << "ERROR: OUT OF BOUNDS" << std::endl;
-		std::cout << std::endl;
-		std::cout << std::endl;
-		throw std::runtime_error("Grid::getCell: out of bounds.");
+		throw std::runtime_error("Grid::getCell: out of bounds.\n");
 	}
 	return m_cells[id];
 }
@@ -92,7 +83,7 @@ std::vector<int>& Grid::getCausalIndices() {
 
 std::vector<int>& Grid::getOrderedIndices(const std::string& name) {
 	if (orderedIndices.find(name) == orderedIndices.end())
-		std::cout << name << " not found..." << std::endl;
+		Logger::Instance().print<SeverityType::WARNING>(name + " not found...\n");
 	return (std::vector<int>&)orderedIndices[name];
 }
 
@@ -314,8 +305,6 @@ Coords Grid::nextCausalCoords(const Coords& fromCoords, const Coords& sourceCoor
 			beginCoords[i] -= 1;
 	}
 
-	//std::cout << dir[0] << " " << dir[1] << " " << dir[2] << std::endl;
-
 	Coords nextCoords = nextSnakeCoords(fromCoords, beginCoords, dir[0], dir[1], dir[2]);
 
 	if (!withinGrid(nextCoords) && dir[0] == 1 && dir[1] == 1 && dir[2] == 1) {
@@ -536,11 +525,13 @@ void Grid::initialise(std::shared_ptr<Constants> consts, const GridParameters& g
 void Grid::buildCells() {
 	int proc_rank = MPIW::Instance().getRank();
 
-	ProgressBar progBar = ProgressBar(100, 5, "Building Grid3D", false);
+	int ncells = coreCells[0] * coreCells[1] * coreCells[2];
 
-	for (int index = 0; index < coreCells[0]*coreCells[1]*coreCells[2]; ++index){
+	Logger::Instance().print<SeverityType::NOTICE>("Building Grid3D...\n");
+	ProgressBar progBar(ncells, 1000);
+
+	for (int index = 0; index < ncells; ++index){
 		double dummy;
-		progBar.update((100*index/(double)(coreCells[0]*coreCells[1]*coreCells[2])), dummy, proc_rank == 0);
 
 		m_cellCollection.add();
 		Coords nextCoords = unflatCoords(index);
@@ -549,7 +540,14 @@ void Grid::buildCells() {
 		for (int i = 0; i < m_consts->nd; ++i)
 			m_cells[index].xc[i] += 0.5;
 		m_cells[index].xc[0] += getLeftX();
+
+		progBar.update(index);
+		if (progBar.timeToUpdate()) {
+			progBar.update(index);
+			Logger::Instance().print<SeverityType::INFO>(progBar.getFullString(), "\r");
+		}
 	}
+
 	for (int i = 0; i < coreCells[0]; ++i) {
 		for (int j = 0; j < coreCells[1]; ++j) {
 			for (int k = 0; k < coreCells[2]; ++k) {
@@ -563,7 +561,8 @@ void Grid::buildCells() {
 		}
 	}
 
-	progBar.end(proc_rank == 0);
+	progBar.end();
+	Logger::Instance().print<SeverityType::NOTICE>(progBar.getFinalString(), '\n');
 }
 
 void Grid::buildCausal(const Coords& sourceCoords) {

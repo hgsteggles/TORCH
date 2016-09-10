@@ -214,7 +214,6 @@ void Radiation::initRecombinationHummer(const Converter& converter) {
 double Radiation::recombinationRateCoefficient(double T) const {
 	//return m_alphaB*pow(T/10000, -0.7); // cm3.s-1
 	//return m_alphaB; // cm3.s-1
-	//std::cout << m_consts->converter.fromCodeUnits(m_recombinationHII_RecombRates->interpolate(8000), 0, 3, -1) << std::endl;
 	return m_recombinationHII_RecombRates->interpolate(T);
 }
 
@@ -407,8 +406,8 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 				if ((fabs((HII_avg-HII_avg_old)/HII_avg) < convergence2 || (HII_avg < convergence_frac) || A_pi == 0))
 					converged = true;
 				if (niter > 10000 && miter > 5) {
-					Logger<FileLogPolicy>::Instance().print<SeverityType::WARNING>(
-							"Radiation::calculate_HIIfrac: slow iteration: HII_avg = ", HII_avg, ", HII_avg_old = ", HII_avg_old, ", HII = ", HII
+					Logger::Instance().print<SeverityType::WARNING>(
+							"Radiation::calculate_HIIfrac: slow iteration: HII_avg = ", HII_avg, ", HII_avg_old = ", HII_avg_old, ", HII = ", HII, '\n'
 					);
 				}
 				if (niter > 10005) {

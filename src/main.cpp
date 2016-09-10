@@ -17,43 +17,52 @@
 #include <string>
 #include <memory>
 
-std::string readOutputDirectory(const std::string& paramfilename);
+std::string parseOutputDirectory(const std::string& paramfilename);
 void parseParameters(const std::string& filename, TorchParameters& p);
 void showUsage();
 
 int main (int argc, char** argv) {
 	MPIW& mpihandler = MPIW::Instance();
 
+	bool silent = mpihandler.getRank() != 0;
 	std::string paramFile = "config/torch-config.lua";
 	std::string setupFile = "config/torch-setup.lua";
 
 	// Parse parameters
-	if (argc > 3) {
+	if (argc > 4) {
 		showUsage();
-		exit(0);
+		return 0;
 	}
 	if (argc > 1) {
 		for (int iarg = 1; iarg < argc; ++iarg) {
 			std::string arg = argv[iarg];
 			std::string prefix1("--paramfile=");
 			std::string prefix2("--setupfile=");
+			std::string prefix3("-s");
 
 			if (!arg.compare(0, prefix1.size(), prefix1))
 				paramFile = arg.substr(prefix1.size()).c_str();
 			else if (!arg.compare(0, prefix2.size(), prefix2))
 				setupFile = arg.substr(prefix2.size()).c_str();
+			else if (!arg.compare(0, prefix3.size(), prefix3))
+				silent = true;
 			else {
 				showUsage();
-				exit(0);
+				return 0;
 			}
 		}
 	}
+
+	std::unique_ptr<LogPolicyInterface> consoleLogPolicy 
+		= std::unique_ptr<ConsoleLogPolicy>(new ConsoleLogPolicy());
+	consoleLogPolicy->setLogLevel(silent ? SeverityType::ERROR : SeverityType::DEBUG);
+	Logger::Instance().registerLogPolicy("console", std::move(consoleLogPolicy));
 
 	TorchParameters tpars;
 
 	try {
 		mpihandler.serial([&] () {
-			tpars.outputDirectory = readOutputDirectory(paramFile);
+			tpars.outputDirectory = parseOutputDirectory(paramFile);
 		});
 
 		if (mpihandler.getRank() == 0) {
@@ -64,13 +73,18 @@ int main (int argc, char** argv) {
 			FileManagement::copyConfigFile(setupFile, tpars.outputDirectory);
 			FileManagement::copyConfigFile(paramFile, tpars.outputDirectory);
 		}
+
+		std::unique_ptr<LogPolicyInterface> fileLogPolicy 
+			= std::unique_ptr<FileLogPolicy>(
+				  new FileLogPolicy(tpars.outputDirectory + "/log/galsim.log" + std::to_string(mpihandler.getRank()))
+			  );
+		fileLogPolicy->setLogLevel(SeverityType::NOTICE);
+		Logger::Instance().registerLogPolicy("file", std::move(fileLogPolicy));
 	}
 	catch (std::exception& e) {
-		std::cout << e.what() << std::endl;
-		MPIW::Instance().abort();
+		Logger::Instance().print<SeverityType::FATAL_ERROR>(e.what());
+		mpihandler.abort();
 	}
-
-	Logger<FileLogPolicy>& logger = Logger<FileLogPolicy>::Instance(tpars.outputDirectory);
 
 	try {
 		mpihandler.serial([&] () {
@@ -83,22 +97,22 @@ int main (int argc, char** argv) {
 		torch.run();
 	}
 	catch (std::exception& e) {
-		logger.print<SeverityType::FATAL_ERROR>(e.what());
-		std::cout << "Program encountered a fatal error. See ./" << tpars.outputDirectory << "/log/torch.log*" << " for more details." << std::endl;
+		Logger::Instance().print<SeverityType::FATAL_ERROR>(e.what());
+		std::cout << "See " << tpars.outputDirectory << "/log/torch.log* for more details." << std::endl;
 		MPIW::Instance().abort();
 	}
 
 	return 0;
 }
 
-std::string readOutputDirectory(const std::string& paramfilename) {
+std::string parseOutputDirectory(const std::string& paramfilename) {
 	std::string fullfilename = paramfilename;
 	std::string outputDir = "";
 	// Create new Lua state and load the lua libraries
 	sel::State luaState{true};
 
 	if (!luaState.Load(fullfilename)) {
-		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename);
+		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename + "\n");
 	}
 	else {
 		parseLuaVariable(luaState["Parameters"]["Integration"]["output_directory"], outputDir);
@@ -109,12 +123,11 @@ std::string readOutputDirectory(const std::string& paramfilename) {
 
 void parseParameters(const std::string& filename, TorchParameters& p) {
 	std::string fullfilename = filename;
-	Logger<FileLogPolicy>& logger = Logger<FileLogPolicy>::Instance();
 	// Create new Lua state and load the lua libraries
 	sel::State luaState{true};
 
 	if (!luaState.Load(fullfilename)) {
-		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename);
+		throw std::runtime_error("ParseParameters: could not open lua file: " + fullfilename + "\n");
 	}
 	else {
 		parseLuaVariable(luaState["Parameters"]["Integration"]["density_scale"], p.dscale);
@@ -127,6 +140,7 @@ void parseParameters(const std::string& filename, TorchParameters& p) {
 		parseLuaVariable(luaState["Parameters"]["Integration"]["cooling_on"], p.cooling_on);
 		parseLuaVariable(luaState["Parameters"]["Integration"]["debug"], p.debug);
 		parseLuaVariable(luaState["Parameters"]["Integration"]["initial_conditions"], p.initialConditions);
+		parseLuaVariable(luaState["Parameters"]["Integration"]["ncheckpoints"], p.ncheckpoints);
 
 		parseLuaVariable(luaState["Parameters"]["Grid"]["no_dimensions"], p.nd);
 		parseLuaVariable(luaState["Parameters"]["Grid"]["no_cells_x"], p.ncells[0]);
@@ -187,7 +201,7 @@ void parseParameters(const std::string& filename, TorchParameters& p) {
 		parseLuaVariable(luaState["Parameters"]["Star"]["wind_velocity"], p.windVelocity);
 		parseLuaVariable(luaState["Parameters"]["Star"]["wind_temperature"], p.windTemperature);
 
-		logger.print<SeverityType::DEBUG>("Star is on: ", p.star_on);
+		Logger::Instance().print<SeverityType::NOTICE>("Star is on: ", p.star_on, '\n');
 	}
 }
 

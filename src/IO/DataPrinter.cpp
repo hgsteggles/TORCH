@@ -16,10 +16,6 @@
 #include <iomanip>
 #include <string>
 
-void print(std::string str) {
-	std::cout << str << std::endl;
-}
-
 void DataPrinter::initialise(std::shared_ptr<Constants> c, std::string output_directory) {
 	consts = std::move(c);
 	dir2D = output_directory;
@@ -509,10 +505,8 @@ void DataPrinter::reduceToPrint(const double currTime, double& dt) const {
 	}
 }
 
-PrintParameters::PrintParameters(){
-	dir2D = "tmp/";
-}
-
-void PrintParameters::printInfo() const {
-	std::cout << "dir2D = " << dir2D << "\n";
+PrintParameters::PrintParameters() 
+	: dir2D("tmp/")
+{
+	
 }
