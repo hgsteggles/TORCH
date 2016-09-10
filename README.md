@@ -25,11 +25,11 @@ You can specify your own configuration files:
 ```bash
 mpirun -np 8 ./torch --paramfile=/path/to/torch-config.lua --setupfile=/path/to/torch-setup.lua
 ```
-In the configuration files, cgs units are assumed.  
+The `-s` flag can also be passed to run the program silently (only error messages will appear on the console).  
 
 #####Setup
 
-For example, to set up a 2D cylindrically symmetric 150x200 mesh with a star located at grid coordinates (0, 110) parameters could be:
+For example, to set up a 2D cylindrically symmetric 150x200 mesh with a star located at grid coordinates (0, 110) parameters (in cgs units) could be:
 
 ```lua
 -- config/torch-config.lua
@@ -194,46 +194,46 @@ The parameters not included in this table should not be modified unless you know
 #####Basic
 | Parameter                     | Notes                                     |
 | :---------------------------- | :---------------------------------------- |
-| ```*_scale```                 | Chosen such that code units of order of unity. |
-| ```radiation_on```            | Simulate radiative transfer? |
-| ```cooling_on```              | Simulate heating and cooling? |
-| ```simulation_time```         | Span of time in seconds over which you want to simulate the fluid. |
-| ```output_directory```        | Directory for output data. |
-| ```initial_conditions```      | Data file to read a problem setup. Set to empty string to use torch-setup.lua config.|
-| ```ncheckpoints```            | Number of snapshots to print equally spaced up to simulation_time.|
-| ```no_dimensions```           | No. of dimensions in numerical grid. |
-| ```no_cells_x```              | No. of cells along the x (or polar r) axis. |
-| ```no_cells_y```              | No. of cells along the y (or polar z) axis. |
-| ```no_cells_z```              | No. of cells along the z axis. |
-| ```geometry```                | cartesian, cylindrical or spherical. |
-| ```side_length```             | Length, in cm, of the x (or r) axis. Note: cells are cubic.|
-| ```*_boundary_condition_*```  | reflecting, free, inflow, outflow or periodic. |
-| ```gamma```                   | Heat capacity ratio. |
-| ```*_floor```                 | Minimum values in cgs units. Must be positive and non-zero. |
-| ```mass_fraction_hydrogen```  | Fraction, by mass, of gas in a cell that is hydrogen. |
-| ```collisions_on```           | Include collisional ionisations? |
-| ```heating_amplification```   | Fraction of calculated heating/cooling that is injected into fluid. |
-| ```on```                      | Include star? |
-| ```cell_position_x```         | Star's position along x-axis in grid coordinates. |
-| ```cell_position_y```         | Star's position along y-axis in grid coordinates. |
-| ```cell_position_z```         | Star's position along z-axis in grid coordinates. |
-| ```snap_to_face_*```          | Normally star sits in centre of specified cell. Snap to left if that boundary is reflecting. Snap to left in x direction if cylindrical or spherical geometries. |
-| ```photon_energy```           | Energy of each photon emitted by star. |
-| ```photon_rate```             | Rate of photons emitted by star. |
-| ```wind_radius_in_cells```    | Radius within which to inject stellar wind energy. Should be > 10 cells in 2 or 3 dimensions so that wind region is roughly spherical. |
-| ```mass_loss_rate```          | Stellar wind mass loss rate. |
-| ```wind_velocity```           | Terminal velocity of the stellar wind. |
-| ```wind_temperature```        | Temperature of the stellar wind region. |
+| `*_scale`                 | Chosen such that code units of order of unity. |
+| `radiation_on`            | Simulate radiative transfer? |
+| `cooling_on`              | Simulate heating and cooling? |
+| `simulation_time`         | Span of time in seconds over which you want to simulate the fluid. |
+| `output_directory`        | Directory to output data. |
+| `initial_conditions`      | Data file to read a problem setup. Set to empty string to use torch-setup.lua config.|
+| `ncheckpoints`            | Number of snapshots to print equally spaced up to `simulation_time`.|
+| `no_dimensions`           | No. of dimensions in numerical grid. |
+| `no_cells_x`              | No. of cells along the x (or polar r) axis. |
+| `no_cells_y`              | No. of cells along the y (or polar z) axis. |
+| `no_cells_z`              | No. of cells along the z axis. |
+| `geometry`                | cartesian, cylindrical or spherical. |
+| `side_length`             | Length, in cm, of the x (or r) axis. Note: cells are cubic.|
+| `*_boundary_condition_*`  | reflecting, free, inflow, outflow or periodic. |
+| `gamma`                   | Heat capacity ratio. |
+| `*_floor`                 | Minimum values in cgs units. Must be positive and non-zero. |
+| `mass_fraction_hydrogen`  | Fraction, by mass, of gas in a cell that is hydrogen. |
+| `collisions_on`           | Include collisional ionisations? |
+| `heating_amplification`   | Fraction of calculated heating/cooling that is injected into fluid. |
+| `on`                      | Include star? |
+| `cell_position_x`         | Star's position along x-axis in grid coordinates. |
+| `cell_position_y`         | Star's position along y-axis in grid coordinates. |
+| `cell_position_z`         | Star's position along z-axis in grid coordinates. |
+| `snap_to_face_*`          | Normally star sits in centre of specified cell. Snap to left if that boundary is reflecting. Snap to left in x direction if cylindrical or spherical geometries. |
+| `photon_energy`           | Energy of each photon emitted by star. |
+| `photon_rate`             | Rate of photons emitted by star. |
+| `wind_radius_in_cells`    | Radius within which to inject stellar wind energy. Should be > 10 cells in 2 or 3 dimensions so that wind region is roughly spherical. |
+| `mass_loss_rate`          | Stellar wind mass loss rate. |
+| `wind_velocity`           | Terminal velocity of the stellar wind. |
+| `wind_temperature`        | Temperature of the stellar wind region. |
 
 ##### Advanced
 | Parameter                     | Notes                                     |
 | :---------------------------- | :---------------------------------------- |
-| ```spatial_order```           | The order of spatial reconstruction. No reconstruction with 0 and linear reconstruction with 1. |
-| ```debug_on```                | Output debugging info to console? |
-| ```riemann_solver```          | HLL, HLLC or RotatedHLLC. |
-| ```slope_limiter```           | albada, superbee, monotonised_central, minmod or maxmod. |
-| ```integration_scheme```      | Radiation integration scheme. implicit or explicit. |
-| ```coupling```                | Coupling between radiation and hydrodynamics. neq (Non-equilibrium) or tti (two-temperature isothermal). |
+| `spatial_order`           | The order of spatial reconstruction. No reconstruction with 0 and linear reconstruction with 1. |
+| `debug_on`                | Output debugging info to console? |
+| `riemann_solver`          | HLL, HLLC or RotatedHLLC. |
+| `slope_limiter`           | albada, superbee, monotonised_central, minmod or maxmod. |
+| `integration_scheme`      | Radiation integration scheme. implicit or explicit. |
+| `coupling`                | Coupling between radiation and hydrodynamics. neq (Non-equilibrium) or tti (two-temperature isothermal). |
 
 ####Goals
 * AMR grids.
