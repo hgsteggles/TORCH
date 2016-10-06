@@ -21,6 +21,8 @@ data = np.genfromtxt(cornish_data.dirname + "/peak-fluxes.txt", skip_header=1)
 ofile1 = open(cornish_data.dirname + "/excl-casa-weak-fluxes.txt", 'w')
 ofile1.write("star_id [(dec >= 14.2 deg && peak_flux < 5 * 0.25) || (dec < 14.2 deg && tot_flux < 5 * 0.35)]\n")
 
+sigma = 7
+
 for i in range(len(data[:,0])):
 	index = data[i,0]
 	tot_flux = data[i,1]
@@ -32,7 +34,7 @@ for i in range(len(data[:,0])):
 	table = lua.eval("{" + filestring + "}")
 	dec = table["Parameters"]["declination"]
 
-	if (dec >= 14.2 and tot_flux < 5 * 0.25) or (dec < 14.2 and tot_flux < 5 * 0.35):
+	if (dec >= 14.2 and tot_flux < 0.25 * sigma) or (dec < 14.2 and tot_flux < 0.35 * sigma):
 		ofile1.write(str(int(index)) + "\n")
 
 ofile1.close()

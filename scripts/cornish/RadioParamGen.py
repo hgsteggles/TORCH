@@ -20,6 +20,7 @@ masses = mp1_data.masses
 load_src("cdat", "../torchpack/cornishdata.py")
 import cdat
 cornish_data = cdat.CornishData(args.iden)
+cornish_data.dirname = "data/cornish_examples"
 star_data = cornish_data.star_data
 
 nstars = len(star_data[:,0])

@@ -65,16 +65,21 @@ for i in range(len(casa_total_fluxes)):
 	index = int(casa_total_fluxes[i,0])
 	casa_tot_flux[index - 1] = casa_total_fluxes[i,1]
 
-ofile = open(cornish_data.dirname + "/final-survey.txt", 'w')
-ofile.write("star_id mcur[Msun] t_ms[kyr] age[kyr] d_sun[kpc] phy_size[pc] ang_size[\"] casa_ang_size[\"] tot_flux[mJy] casa_tot_flux[mJy] casa_pk_flux[mJy.beam-1] g_long[deg] g_lat[deg]\n")
+ofile1 = open(cornish_data.dirname + "/final-survey-raw.txt", 'w')
+ofile2 = open(cornish_data.dirname + "/final-survey.txt", 'w')
+ofile1.write("star_id mcur[Msun] t_ms[kyr] age[kyr] d_sun[kpc] phy_size[pc] ang_size[\"] casa_ang_size[\"] tot_flux[mJy] casa_tot_flux[mJy] casa_pk_flux[mJy.beam-1] g_long[deg] g_lat[deg]\n")
+ofile2.write("star_id mcur[Msun] t_ms[kyr] age[kyr] d_sun[kpc] phy_size[pc] ang_size[\"] casa_ang_size[\"] tot_flux[mJy] casa_tot_flux[mJy] casa_pk_flux[mJy.beam-1] g_long[deg] g_lat[deg]\n")
 
 for i in range(1, nstars + 1):
 	if (remaining_set[i]):
-		ofile.write(str(i) + " " + str(mcur[i-1]) + " " + str(t_ms[i-1]) +  " " + str(age[i-1])
-					+ " " + str(d_sun[i-1])
-					+ " " + str(phy_size[i-1]) + " " + str(ang_size[i-1])
-					+ " " + str(casa_ang_size[i-1]) + " " + str(tot_flux[i-1])
-					+ " " + str(casa_tot_flux[i-1]) + " " + str(casa_peak_flux[i-1])
-					+ " " + str(g_long[i-1]) + " " + str(g_lat[i-1]) + '\n')
+		print_str = str(i) + " " + str(mcur[i-1]) + " " + str(t_ms[i-1]) +  " " + str(age[i-1]) \
+					+ " " + str(d_sun[i-1])\
+					+ " " + str(phy_size[i-1]) + " " + str(ang_size[i-1])\
+					+ " " + str(casa_ang_size[i-1]) + " " + str(tot_flux[i-1])\
+					+ " " + str(casa_tot_flux[i-1]) + " " + str(casa_peak_flux[i-1])\
+					+ " " + str(g_long[i-1]) + " " + str(g_lat[i-1]) + '\n'
+		ofile1.write(print_str)
+		ofile2.write(print_str)
 
-ofile.close()
+ofile1.close()
+ofile2.close()

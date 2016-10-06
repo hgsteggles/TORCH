@@ -36,7 +36,7 @@ if args.ben:
 	benstr = "-ben"
 if args.harry:
 	benstr = "-harry"
-outputfile = 'multi-hist-flux' + benstr + '.' + figformat
+outputfile = 'multi-hist-pkflux' + benstr + '.' + figformat
 
 ### Plotting.
 plotter = torch.Plotter(1, 1, plot_size, figformat, DPI)
@@ -46,14 +46,8 @@ plotter.ticklength *= 0.5
 asp_rat = 0.4
 grid = plotter.axes1D((5,1), aspect_ratio=asp_rat)
 
-normed = False
-
-ymaxes = 5 * [0.3]
-nyticks = 5 * [6]
-
-if not normed:
-	ymaxes = [40, 40, 40, 80, 100]
-	nyticks = [4, 4, 4, 4, 4]
+xlogmin = 0
+xlogmax = 3
 
 for irow in range(5):
 	cornish_data = cdat.CornishData(irow)
@@ -64,20 +58,16 @@ for irow in range(5):
 	simulated_survey = np.genfromtxt(cornish_data.dirname + "/final-survey" + benstr + ".txt", skip_header=1)
 	cornish_survey = np.genfromtxt("data/cornish/cornish-uchiis.txt", skip_header=1, delimiter=',')
 
-	grid[irow].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Flux}', units='mJy')))
-	ylabel = 'P' if normed else 'N'
-	grid[irow].set_ylabel(plotter.format_label(torch.VarType(ylabel)))
-	grid[irow].set_xlim([2, 20000])
+	grid[irow].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Peak Flux}', units='mJy \, beam^{-1}')))
+	grid[irow].set_ylabel(plotter.format_label(torch.VarType('P')))
+	grid[irow].set_xlim([10.0**xlogmin, 10.0**xlogmax])
 	grid[irow].set_ylim([0, 0.2])
 	grid[irow].set_xscale("log")
 
-	ymax = ymaxes[irow]
-	nyt = nyticks[irow]
-
 	if irow == 4:
-		grid[irow].set_yticks(np.arange(0, ymax +  (ymax - 1.0e-8)/ float(nyt), ymax / float(nyt)))
+		grid[irow].set_yticks(np.arange(0, 0.21, 0.05))
 	else:
-		grid[irow].set_yticks(np.arange(ymax / float(nyt), ymax +  (ymax - 1.0e-8)/ float(nyt), ymax / float(nyt)))
+		grid[irow].set_yticks(np.arange(0.05, 0.21, 0.05))
 	#grid[irow].set_yticks(range(0, 45, 5))
 
 	grid[irow].text(0.04, 0.94, fmt.latexify("n_\\star = " + fmt.fmt_power(mp1_data.densities[irow], '{:3.1f}', 4) + "\ \\mathrm{cm^{-3}}"),
@@ -87,11 +77,11 @@ for irow in range(5):
 	kx1 = dict(linewidth=1.5, label="CORNISH", color='b')
 	kx2 = dict(linewidth=1.5, label="Simulated", color='r', linestyle='--')
 
-	bins = np.logspace(0.3, 4.3, 22)
+	bins = np.logspace(xlogmin, xlogmax, 22)
 	bincentres = np.sqrt(bins[:-1] * bins[1:])
 
-	plotter.histstep(grid[irow], cornish_survey[:,9], bins, errorcentres=bincentres, normed=normed, **kx1)
-	plotter.histstep(grid[irow], simulated_survey[:,9], bins, normed=normed, **kx2)
+	plotter.histstep(grid[irow], cornish_survey[:,7], bins, errorcentres=bincentres, normed=True, **kx1)
+	plotter.histstep(grid[irow], simulated_survey[:,10], bins, normed=True, **kx2)
 
 ### Legend
 handles, labels = grid[0].get_legend_handles_labels()

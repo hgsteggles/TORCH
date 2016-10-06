@@ -5,7 +5,12 @@ import scipy.interpolate
 import linecache
 import math
 
-from torch_plot import TorchCFD, TorchInterpolatedGrid, TorchPlotter
+def load_src(name, fpath):
+    import os, imp
+    return imp.load_source(name, os.path.join(os.path.dirname(__file__), fpath))
+
+load_src("torch", "../torchpack/torch.py")
+import torch
 
 ###    Parse arguements
 parser = argparse.ArgumentParser(description='Plots wind radius vs time.')
@@ -27,34 +32,33 @@ for inputfile in glob.iglob(input_regex):
 	### Open file.
 	f = open(inputfile,'r')
 	### Get Data
-	torchData = TorchCFD(inputfile, axial=True)
+	torchData = torch.CFD_Data(inputfile, axial=False)
 	t = torchData.t
-	hii = torchData.get_var('hii')
+	hii = torchData.get_var_raw('hii')
 	
 	###    Interpolation set up.
-	
-	hiii = torchData.interpolate(hii, 'nearest')
+
 	xi = torchData.xi[0]
-	yi = torchData.xi[1]
 	
 	### Find ionisation radius.
 	index = 0
-	for i in range(0, nx):
-		if hiii[i,0] < 0.5:
+	for i in range(0, len(hii)):
+		if hii[i] < 0.5:
 			index = i
 			break
 
 	if index != 0:
-		fracLeft = hiii[index-1,0];
-		interp = (0.5-hiii[index-1,0])/(hiii[index,0]-hiii[index-1,0]);
-		IF = (xi[0, index-1] + interp)*(xi[0, index-1] + interp)
-		if torchData.nd > 1:
-			IF += yi[0, 0]*yi[0, 0]
+		fracLeft = hii[index - 1]
+		interp = (0.5 - hii[index - 1]) / (hii[index] - hii[index - 1])
+		IF = (xi[index - 1] + interp * (xi[index] - xi[index - 1]))
 	else:
-		IF = 0;
-		
+		interp = 0
+		IF = 0
+
+	print inputfile + " " + str(index) + " " + str(xi[index] * 3.09e18) + " " + str(interp)
+
 	time.append(t)
-	radius.append(math.sqrt(IF))
+	radius.append(IF)
 
 zipped = zip(time, radius)
 zipped.sort()
@@ -64,4 +68,4 @@ out = open('if.csv', 'w')
 for i in range(0, len(time)):
     out.write(str(time[i]) + ',' + str(radius[i]) + '\n')
 out.close()
-    
+

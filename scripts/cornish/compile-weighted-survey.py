@@ -19,42 +19,12 @@ surveys = []
 nhs = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
 masses = [6.0, 9.0, 12.0, 15.0, 20.0, 30.0, 40.0, 70.0, 120.0]
 
-alpha = 5.0
-
-a = (nhs[-1] - nhs[0]) / (masses[-1]**alpha - masses[0]**alpha)
-b = nhs[0] - a * masses[0]**alpha
-
-def nh_from_mass(mass):
-	return a * mass**alpha + b
-
-def index_from_nh(nh):
-	hi = 0
-	lo = len(nhs) - 1
-
-	for i in range(len(nhs) - 1, -1, -1):
-		if nh < nhs[i]:
-			hi = i
-
-	for i in range(len(nhs)):
-		if nh >= nhs[i]:
-			lo = i
-
-	if lo == hi or hi == 0:
-		return hi
-	elif lo == len(nhs) - 1:
-		return lo
-	elif abs(nhs[lo] - nh) < abs(nhs[hi] - nh):
-		return lo
-	else:
-		return hi
-
 cornish_data = cdat.CornishData(0)
 star_data = cornish_data.star_data
 nstars = len(star_data[:,0])
 
-
-weight_id = 5
-alpha = -0.5
+weight_id = 2
+alpha = -1.0
 
 A = 0.0
 for nh in nhs:

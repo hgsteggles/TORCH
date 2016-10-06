@@ -30,7 +30,7 @@ def coolCollExcNeuMetals(nhii, nhi, T):
 	return 4.477e-20 * z0 * nhii * nhi * math.exp(-((T3 / T) + (T4 / T)**2))
 
 def getHummerSpline():
-	data = np.genfromtxt("refdata/hummer.txt",skip_header=1)
+	data = np.genfromtxt("scripts/misc/hummer.txt",skip_header=1)
 	logT = data[:,0]
 	T = np.power(10.0, logT)
 
@@ -38,7 +38,7 @@ def getHummerSpline():
 	return scipy.interpolate.interp1d(T, bB, kind='linear')
 
 def getHummerSpline2():
-	data = np.genfromtxt("refdata/hummer.txt",skip_header=1)
+	data = np.genfromtxt("scripts/misc/hummer.txt",skip_header=1)
 	logT = data[:,0]
 	bBsqrtT = data[:,6]
 
@@ -115,8 +115,8 @@ def plot():
 	figformat = 'png'
 	plot_size = 5
 	fontsize = 16
-	outputfile_qlyc = "henney.png"
-	plot_type = "if" # ["if", "hii", "ssw"]
+	plot_type = "ssw" # ["if", "hii", "ssw"]
+	outputfile_qlyc = "henney-" + plot_type + ".png"
 
 	torch.set_font_sizes(fontsize)
 
@@ -141,7 +141,7 @@ def plot():
 		hii = 0.5
 	N = 1001
 	minlogT = 4.0
-	maxlogT = 10.0
+	maxlogT = 8.0
 	if plot_type == "if" or plot_type == "hii":
 		minlogT = 3.8
 		maxlogT = 4.0
@@ -173,24 +173,24 @@ def plot():
 	###	Axes.
 	grid = plotter.axes1D((1,1), aspect_ratio=0.75)
 	grid[0].set_xlabel(plotter.format_label(torch.VarType('T', units='K', isLog10=True)))
-	grid[0].set_ylabel(plotter.format_label(torch.VarType('L', units='erg\\:s^{-1}\\:cm^{-3}', isLog10=False)))
+	grid[0].set_ylabel(plotter.format_label(torch.VarType('C', units='erg\\:s^{-1}\\:cm^{-3}', isLog10=False)))
 
 	### Plot.
 	if plot_type == "if":
-		grid[0].plot(tem, lmn, label=r"$L_\mathrm{M^0}$", color='m')
-		grid[0].plot(tem, lhn, label=r"$L_\mathrm{H^0}$", color='y')
-		grid[0].plot(tem, lmp, label=r"$L_\mathrm{M^+}$", color='g')
-		grid[0].plot(tem, lhp, label=r"$L_\mathrm{H^+}$", color='r')
-		grid[0].plot(tem, ltot, label=r"$L_\mathrm{tot}$", color='k')
+		grid[0].plot(tem, lmn, label=r"$C_\mathrm{M^0}$", color='m')
+		grid[0].plot(tem, lhn, label=r"$C_\mathrm{H^0}$", color='y')
+		grid[0].plot(tem, lmp, label=r"$C_\mathrm{M^+}$", color='g')
+		grid[0].plot(tem, lhp, label=r"$C_\mathrm{H^+}$", color='r')
+		grid[0].plot(tem, ltot, label=r"$C_\mathrm{tot}$", color='k')
 	elif plot_type == "hii":
-		grid[0].plot(tem, lmp, label=r"$L_\mathrm{M^+}$", color='g')
-		grid[0].plot(tem, lhp, label=r"$L_\mathrm{H^+}$", color='r')
-		grid[0].plot(tem, ltot, label=r"$L_\mathrm{tot}$", color='k')
+		grid[0].plot(tem, lmp, label=r"$C_\mathrm{M^+}$", color='g')
+		grid[0].plot(tem, lhp, label=r"$C_\mathrm{H^+}$", color='r')
+		grid[0].plot(tem, ltot, label=r"$C_\mathrm{tot}$", color='k')
 	elif plot_type == "ssw":
-		grid[0].plot(tem, lmp, label=r"$L_\mathrm{M^+}$", color='g')
-		grid[0].plot(tem, lhp, label=r"$L_\mathrm{H^+}$", color='r')
-		grid[0].plot(tem, lcie, label=r"$L_\mathrm{CIE}$", color='b')
-		grid[0].plot(tem, ltot, label=r"$L_\mathrm{tot}$", color='k')
+		grid[0].plot(tem, lmp, label=r"$C_\mathrm{M^+}$", color='g')
+		grid[0].plot(tem, lhp, label=r"$C_\mathrm{H^+}$", color='r')
+		grid[0].plot(tem, lcie, label=r"$C_\mathrm{CIE}$", color='b')
+		grid[0].plot(tem, ltot, label=r"$C_\mathrm{tot}$", color='k')
 
 	grid[0].set_xlim([minlogT, maxlogT])
 	if plot_type == "ssw":

@@ -2,6 +2,7 @@ import numpy as np
 from astropy.io import fits
 import matplotlib.ticker as ticker
 import argparse
+import scipy.ndimage as ndimage
 
 def load_src(name, fpath):
     import os, imp
@@ -40,10 +41,31 @@ nrefy = hdu.header['CRPIX2']
 vrefx = hdu.header['CRVAL1']
 vrefy = hdu.header['CRVAL2']
 
-xmin = vrefx + (0 - nrefx) * dx
-xmax = vrefx + (nx - nrefx) * dx
-ymin = vrefy + (0 - nrefy) * dy
-ymax = vrefy + (ny - nrefy) * dy
+imagexmin = vrefx + (0 - nrefx) * dx
+imagexmax = vrefx + (nx - nrefx) * dx
+imageymin = vrefy + (0 - nrefy) * dy
+imageymax = vrefy + (ny - nrefy) * dy
+
+xmin = imagexmin
+xmax = imagexmax
+ymin = imageymin
+ymax = imageymax
+
+### CASA?
+CASA = False
+
+if CASA:
+	data = hdu.data[0][0]
+	unitstr = 'mJy\,beam^{-1}'
+	data = 1000.0 * data
+else:
+	data = hdu.data
+	sig = 5
+	FWHM = sig*hdu.header['PIXAS']*2.335
+	data = ndimage.gaussian_filter(data, sigma=(sig, sig), order=0)
+	#xmin = vrefx + (0 - nrefy) * dx
+	#xmax = vrefx + (ny - nrefy) * dx
+	unitstr = 'mJy\,pixel^{-1}'
 
 ### Plotting
 plotter = torch.Plotter(nx, ny, plot_size, figformat, DPI)
@@ -53,9 +75,11 @@ plotter.modifyGrid(grid, True)
 
 ax = grid[0]
 
-im = ax.imshow(hdu.data, origin='upper', cmap='cubehelix', extent=[xmin,xmax,ymin,ymax])
+im = ax.imshow(data, origin='lower', cmap='cubehelix', extent=[imagexmin,imagexmax,imageymin,imageymax])
 ax.set_xlabel('RA')
 ax.set_ylabel('Dec')
+ax.set_xlim([xmin, xmax])
+ax.set_ylim([ymin, ymax])
 ax.set_xticks([xmin + 0.25*(xmax - xmin),
 			  xmin + 0.5*(xmax - xmin),
 			  xmin + 0.75*(xmax - xmin)])
@@ -73,9 +97,9 @@ dec_formatter = ticker.FuncFormatter(fmt.fmt_dec)
 ax.xaxis.set_major_formatter(ra_formatter)
 ax.yaxis.set_major_formatter(dec_formatter)
 
-grid.cbar_axes[0].colorbar(im)
+grid.cbar_axes[0].colorbar(im, format=ticker.FormatStrFormatter('%.2f'))
 cbax = grid.cbar_axes[0]
 cblax = cbax.axis[cbax.orientation]
-cblax.label.set_text(plotter.format_label(torch.VarType('S_\\nu', isLog10=False, units='Jy beam^{-1}')))
+cblax.label.set_text(plotter.format_label(torch.VarType('S_\\nu', isLog10=False, units=unitstr)))
 
 plotter.save_plot("cornish-map.png")

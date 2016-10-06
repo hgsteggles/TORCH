@@ -14,8 +14,8 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
-fontsize = 32
+plot_size = 3
+fontsize = 10
 
 torch.set_font_sizes(fontsize)
 
@@ -26,7 +26,7 @@ inputfile.append(dir + "data2D_30.txt")
 inputfile.append(dir + "data2D_45.txt")
 inputfile.append(dir + "data2D_65.txt")
 
-outputfile = "multi-plot" + '.' + figformat
+outputfile = "multi-strickland2" + '.' + figformat
 
 ###	Data set up.
 datacubes = []

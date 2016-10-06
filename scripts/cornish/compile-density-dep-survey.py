@@ -19,7 +19,7 @@ surveys = []
 nhs = [0.8e4, 1.6e4, 3.2e4, 6.4e4, 12.8e4]
 masses = [6.0, 9.0, 12.0, 15.0, 20.0, 30.0, 40.0, 70.0, 120.0]
 
-alpha = 5.0
+alpha = 0.0
 
 a = (nhs[-1] - nhs[0]) / (masses[-1]**alpha - masses[0]**alpha)
 b = nhs[0] - a * masses[0]**alpha
@@ -48,7 +48,7 @@ def index_from_nh(nh):
 	else:
 		return hi
 
-ofile = open("data/cornish-ne2001/cornish-tms/density_4/final-survey.txt", 'w')
+ofile = open("data/density_0/final-survey.txt", 'w')
 ofile.write("star_id mcur[Msun] t_ms[kyr] age[kyr] d_sun[kpc] phy_size[pc] ang_size[\"] casa_ang_size[\"] tot_flux[mJy] casa_tot_flux[mJy] casa_pk_flux[mJy.beam-1] g_long[deg] g_lat[deg]\n")
 
 for i in range(5):

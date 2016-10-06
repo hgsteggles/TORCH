@@ -40,8 +40,8 @@ CM2PC = 1.0 / PC2CM
 inputfile = "data/galsim/starpopfinal.txt"
 
 high_mass = True
-windowed = True
-age_cutoff = False
+windowed = False
+age_cutoff = True
 size_cut = False
 flux_cut = False
 
@@ -61,7 +61,7 @@ outputfile = "data/galsim/starpop" + suffix + ".txt"
 firstline = linecache.getline(inputfile, 1)
 
 ###	Data set up.
-params = np.genfromtxt("refdata/zams-stripped.txt", skip_header=1)
+params = np.genfromtxt("config/zams-stripped.txt", skip_header=1)
 
 massdat = params[:, 0]  # [Msun]
 logQdat = params[:, 6]  # log[Q / phot.s-1]

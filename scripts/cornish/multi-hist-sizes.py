@@ -47,6 +47,15 @@ plotter.ticklength *= 0.5
 asp_rat = 0.6
 grid = plotter.axes1D((5,2), aspect_ratio=asp_rat)
 
+normed = False
+
+ymaxes = 5 * [0.4]
+nyticks = 5 * [4]
+
+if not normed:
+	ymaxes = [100, 100, 100, 160, 300]
+	nyticks = [4, 4, 4, 4, 4]
+
 for irow in range(5):
 	cornish_data = cdat.CornishData(irow)
 	star_data = cornish_data.star_data
@@ -65,23 +74,24 @@ for irow in range(5):
 	grid[2 * irow + 0].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Angular\ Size}', units='\prime\prime')))
 	grid[2 * irow + 1].set_xlabel(plotter.format_label(torch.VarType('\mathrm{Physical\ Size}', units='pc')))
 
-	grid[2 * irow + 0].set_ylabel(plotter.format_label(torch.VarType('P')))
+	ylabel = 'P' if normed else 'N'
+	grid[2 * irow + 0].set_ylabel(plotter.format_label(torch.VarType(ylabel)))
 
 	grid[2 * irow + 0].set_xlim([0.0, 24.0])
 	grid[2 * irow + 1].set_xlim([0.0, 1.0])
 
-	grid[2 * irow + 0].set_ylim([0, 0.4])
-	grid[2 * irow + 1].set_ylim([0, 0.4])
+	ymax = ymaxes[irow]
+	nyt = nyticks[irow]
 
-	#grid[2 * irow + 0].set_xticks(np.arange(10, 70, 10))
-	#grid[2 * irow + 1].set_xticks(np.arange(-0.5, 1.5, 0.5))
+	grid[2 * irow + 0].set_ylim([0, ymax])
+	grid[2 * irow + 1].set_ylim([0, ymax])
 
 	if irow == 4:
 		for icol in range(2):
-			grid[2 * irow + icol].set_yticks(np.arange(0, 0.41, 0.1))
+			grid[2 * irow + icol].set_yticks(np.arange(0, ymax +  (ymax - 1.0e-8)/ float(nyt), ymax / float(nyt)))
 	else:
 		for icol in range(2):
-			grid[2 * irow + icol].set_yticks(np.arange(0.1, 0.41, 0.1))
+			grid[2 * irow + icol].set_yticks(np.arange(ymax / float(nyt), ymax +  (ymax - 1.0e-8)/ float(nyt), ymax / float(nyt)))
 
 	kx1 = dict(linewidth=1.5, label="CORNISH", color='b')
 	kx2 = dict(linewidth=1.5, label="Simulated", color='r', linestyle='--')
@@ -96,10 +106,10 @@ for irow in range(5):
 	bincentres0 = 0.5 * (bins0[:-1] + bins0[1:])
 	bincentres1 = 0.5 * (bins1[:-1] + bins1[1:])
 
-	plotter.histstep(grid[2* irow + 0], cornish_survey[:,11], bins0, errorcentres=bincentres0, normed=True, **kx1)
-	plotter.histstep(grid[2* irow + 0], simulated_survey[:,7], bins0, normed=True, **kx2)
-	plotter.histstep(grid[2* irow + 1], cornish_phy_sizes, bins1, errorcentres=bincentres1, normed=True, **kx1)
-	plotter.histstep(grid[2* irow + 1], phy_sizes, bins1, normed=True, **kx2)
+	plotter.histstep(grid[2* irow + 0], cornish_survey[:,11], bins0, errorcentres=bincentres0, normed=normed, **kx1)
+	plotter.histstep(grid[2* irow + 0], simulated_survey[:,7], bins0, normed=normed, **kx2)
+	plotter.histstep(grid[2* irow + 1], cornish_phy_sizes, bins1, errorcentres=bincentres1, normed=normed, **kx1)
+	plotter.histstep(grid[2* irow + 1], phy_sizes, bins1, normed=normed, **kx2)
 
 ### Legend
 handles, labels = grid[1].get_legend_handles_labels()

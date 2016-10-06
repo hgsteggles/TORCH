@@ -15,8 +15,8 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
-fontsize = 32
+plot_size = 3
+fontsize = 10
 
 torch.set_font_sizes(fontsize)
 
@@ -27,7 +27,7 @@ inputfile.append(dir + "data2D_011.txt")
 inputfile.append(dir + "data2D_040.txt")
 inputfile.append(dir + "data2D_100.txt")
 
-outputfile = "multi-plot" + '.' + figformat
+outputfile = "multi-shadow" + '.' + figformat
 
 ###	Data set up.
 datacubes = []
@@ -77,7 +77,7 @@ for i in range(4):
 circx_inf =  RS_inf*np.cos(theta)
 circy_inf = 1.5 + RS_inf*np.sin(theta)
 
-kwargs = {'linewidth':2}
+kwargs = {'linewidth':1}
 
 for i in range(len(datacubes)):
 	grid[i].plot(clumpx, clumpy, c='r', **kwargs)

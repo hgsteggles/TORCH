@@ -46,6 +46,15 @@ plotter.ticklength *= 0.5
 asp_rat = 0.8
 grid = plotter.axes1D((5,3), aspect_ratio=asp_rat)
 
+normed = True
+
+ymaxes = 5 * [0.4]
+nyticks = 5 * [4]
+
+if not normed:
+	ymaxes = [70, 70, 70, 120, 140]
+	nyticks = [7, 7, 7, 6, 7]
+
 for irow in range(5):
 	cornish_data = cdat.CornishData(irow)
 	star_data = cornish_data.star_data
@@ -60,14 +69,15 @@ for irow in range(5):
 	grid[3 * irow + 1].set_xlabel(plotter.format_label(torch.VarType('b', units='deg')))
 	grid[3 * irow + 2].set_xlabel(plotter.format_label(torch.VarType('d', units='kpc')))
 
-	grid[3 * irow + 0].set_ylabel(plotter.format_label(torch.VarType('P')))
+	ylabel = 'P' if normed else 'N'
+	grid[3 * irow + 0].set_ylabel(plotter.format_label(torch.VarType(ylabel)))
 
 	grid[3 * irow + 0].set_xlim([10.0, 65.0])
 	grid[3 * irow + 1].set_xlim([-1, 1])
 	grid[3 * irow + 2].set_xlim([0.0, 20.0])
 
-	ymax = 0.3
-	nyticks = 6
+	nyt = nyticks[irow]
+	ymax = ymaxes[irow]
 
 	grid[3 * irow + 0].set_ylim([0, ymax])
 	grid[3 * irow + 1].set_ylim([0, ymax])
@@ -79,10 +89,10 @@ for irow in range(5):
 
 	if irow == 4:
 		for icol in range(3):
-			grid[3 * irow + icol].set_yticks(np.arange(0, ymax +  (ymax - 1)/ float(nyticks), ymax / float(nyticks)))
+			grid[3 * irow + icol].set_yticks(np.arange(0, ymax +  (ymax - 1.0e-8)/ float(nyt), ymax / float(nyt)))
 	else:
 		for icol in range(3):
-			grid[3 * irow + icol].set_yticks(np.arange(ymax / float(nyticks), ymax +  (ymax - 1)/ float(nyticks), ymax / float(nyticks)))
+			grid[3 * irow + icol].set_yticks(np.arange(ymax / float(nyt), ymax +  (ymax - 1.0e-8)/ float(nyt), ymax / float(nyt)))
 
 	kx1 = dict(linewidth=1.5, label="CORNISH", color='b')
 	kx2 = dict(linewidth=1.5, label="Simulated", color='r', linestyle='--')
@@ -99,8 +109,6 @@ for irow in range(5):
 	bincentres1 = 0.5 * (bins1[:-1] + bins1[1:])
 	bincentres2 = 0.5 * (bins2[:-1] + bins2[1:])
 
-	normed = True
-
 	plotter.histstep(grid[3 * irow + 0], cornish_survey[:,1], bins0, errorcentres=bincentres0, normed=normed, **kx1)
 	plotter.histstep(grid[3 * irow + 0], simulated_survey[:,11], bins0, normed=normed, **kx2)
 	plotter.histstep(grid[3 * irow + 1], cornish_survey[:,2], bins1, errorcentres=bincentres1, normed=normed, **kx1)
@@ -110,7 +118,7 @@ for irow in range(5):
 
 ### Legend
 handles, labels = grid[2].get_legend_handles_labels()
-legend = grid[2].legend(handles, labels, loc=1)
+legend = grid[1].legend(handles, labels, loc=1)
 legend.get_frame().set_linewidth(plotter.linewidth)
 
 ###	Save figure.

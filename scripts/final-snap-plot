@@ -1,8 +1,0 @@
-#!/bin/bash
-
-if [ "$1" == "" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] ; then
-	echo "usage: "$0" <directory_name>"
-else
-	./scripts/gunzipkeep $1/data2D_100.txt.gz
-	python scripts/torch2x2.py -s $1/data2D_100.txt
-fi

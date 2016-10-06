@@ -22,6 +22,8 @@ data = np.genfromtxt(cornish_data.dirname + "/total-fluxes.txt", skip_header=1)
 
 remaining_set = np.zeros(nstars + 1, dtype=bool)
 
+sigma = 7
+
 for i in range(0, len(data[:,0])):
 	index = int(data[i,0])
 	tot_flux = data[i,1]
@@ -33,7 +35,7 @@ for i in range(0, len(data[:,0])):
 	table = lua.eval("{" + filestring + "}")
 	dec = table["Parameters"]["declination"]
 
-	if (dec >= 14.2 and tot_flux >= 5 * 0.25) or (dec < 14.2 and tot_flux >= 5 * 0.35):
+	if (dec >= 14.2 and tot_flux >= 0.25 * sigma) or (dec < 14.2 and tot_flux >= 0.35 * sigma):
 		remaining_set[index] = True
 
 ofile1 = open(cornish_data.dirname + "/excl-weak-fluxes.txt", 'w')

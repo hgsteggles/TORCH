@@ -17,8 +17,8 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
-fontsize = 32
+plot_size = 3
+fontsize = 10
 
 torch.set_font_sizes(fontsize)
 
@@ -30,7 +30,7 @@ parser.add_argument('inputfile', metavar='inputfile', type=str, help='Input file
 args = parser.parse_args()
 
 inputfile = args.inputfile
-outputfile = os.path.splitext(inputfile)[0] + '.' + figformat
+outputfile = 'four-panel-champagne.' + figformat
 
 ###	Data set up.
 datacubes = []
@@ -70,7 +70,7 @@ if args.minmax != None:
 	vsminmax[1] = dataminmax.get('log10_pre')
 	vsminmax[2] = dataminmax.get('log10_tem')
 
-plotparams = torch.PlotParams(datacubes, vs_types, vsminmax, True, "nearest", (2, 2), color_maps, tight=False, detail="all")
+plotparams = torch.PlotParams(datacubes, vs_types, vsminmax, True, "linear", (2, 2), color_maps, tight=False, detail="all")
 
 ### Plotting
 plotter = torch.Plotter(datacubes[0].nx * 0.5 / 0.6, datacubes[0].ny * 0.5 / 0.8, plot_size, figformat, DPI)

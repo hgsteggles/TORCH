@@ -14,8 +14,8 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
-fontsize = 32
+plot_size = 3
+fontsize = 10
 
 torch.set_font_sizes(fontsize)
 
@@ -26,7 +26,7 @@ inputfile.append(dir + "data2D_25.txt")
 inputfile.append(dir + "data2D_40.txt")
 inputfile.append(dir + "data2D_55.txt")
 
-outputfile = "multi-plot" + '.' + figformat
+outputfile = "multi-shadowing2" + '.' + figformat
 
 ###	Data set up.
 datacubes = []

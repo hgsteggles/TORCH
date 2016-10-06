@@ -16,14 +16,14 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
-fontsize = 32
+plot_size = 5
+fontsize = 16
 torch.set_font_sizes(fontsize)
 
-inputfile = "data/galsim/density.txt"
+inputfile = "data/galsim/density-xy-slice.txt"
 
 ### Read data.
-data = np.genfromtxt(inputfile, skip_header=1)
+data = np.genfromtxt(inputfile, skip_header=2)
 
 nx = int(math.sqrt(len(data[:,0])))
 ny = int(len(data[:,0]) / nx)
@@ -59,6 +59,11 @@ var = deni
 im = ax.imshow(var, vmin=var.min(), vmax=var.max(), origin='lower',
 			   extent=[x[0].min(), x[0].max(), x[1].min(), x[1].max()],
 			   interpolation="bicubic", cmap=hgspy.get_par_cmap())
+
+ax.scatter([0], [8.5], c='w', marker='*', s=50, linewidths=[0.5])
+
+ax.set_xlim([x[0].min(), x[0].max()])
+ax.set_ylim([x[1].min(), x[1].max()])
 
 ax.set_xlabel('$x\ \\left[\mathrm{kpc}\\right]$')
 ax.set_ylabel('$y\ \\left[\mathrm{kpc}\\right]$')
