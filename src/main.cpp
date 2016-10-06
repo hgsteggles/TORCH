@@ -76,7 +76,7 @@ int main (int argc, char** argv) {
 
 		std::unique_ptr<LogPolicyInterface> fileLogPolicy 
 			= std::unique_ptr<FileLogPolicy>(
-				  new FileLogPolicy(tpars.outputDirectory + "/log/galsim.log" + std::to_string(mpihandler.getRank()))
+				  new FileLogPolicy(tpars.outputDirectory + "/log/torch.log" + std::to_string(mpihandler.getRank()))
 			  );
 		fileLogPolicy->setLogLevel(SeverityType::NOTICE);
 		Logger::Instance().registerLogPolicy("file", std::move(fileLogPolicy));
