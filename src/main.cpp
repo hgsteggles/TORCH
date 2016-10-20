@@ -74,6 +74,8 @@ int main (int argc, char** argv) {
 			FileManagement::copyConfigFile(paramFile, tpars.outputDirectory);
 		}
 
+		mpihandler.barrier();
+
 		std::unique_ptr<LogPolicyInterface> fileLogPolicy 
 			= std::unique_ptr<FileLogPolicy>(
 				  new FileLogPolicy(tpars.outputDirectory + "/log/torch.log" + std::to_string(mpihandler.getRank()))

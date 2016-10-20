@@ -163,6 +163,11 @@ class CFD_Data(Data):
 			return self.data[:,self.nd+4]
 		elif var_typename == 'vel2' and self.nd > 2:
 			return self.data[:,self.nd+5]
+		elif var_typename == 'vtot':
+			vtot = 0
+			for i in range(self.nd):
+				vtot += (self.get_var_raw('vel'+str(i)))**2
+			return np.sqrt(vtot)
 		elif var_typename == 'mach':
 			vel = self.get_var_raw('vel0')
 			mach = vel * vel

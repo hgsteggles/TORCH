@@ -166,7 +166,7 @@ The function `initialise` takes in six arguments: x (or r-polar), y (or z-polar)
 #####Output
 TORCH outputs compressed data files in a specified directory (`output_directory`). The header contains 4 lines; the first line is the simulation time in seconds and the next three lines give the number of grid cells along the x, y and z directions of the mesh. After the header, grid cell data is displayed in columns. The first ND columns are the position coordinates of the grid cell, where ND is the number of dimensions. Next is density, pressure and HII fraction. Then the last ND columns are the fluid velocity components. All output is in cgs units.
 
-After 5,000 years the solution to the setup given above looks like this:
+After 50,000 years the solution to the setup given above looks like this:
 
 ![SolutionImage](four-panel-d24-t025.png)
 \[Image produced using matplotlib.\]

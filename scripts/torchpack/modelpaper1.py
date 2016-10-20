@@ -67,16 +67,21 @@ class ModelData:
 		index = self.getIndex(imass, iden)
 		return self.offgrid[index - 1] >= itime
 
-	def getDataDirname(self, imass, iden, itime):
-		index = self.getIndex(imass, iden)
+	def isSet2ByIndex(self, index, itime):
+		return self.offgrid[index - 1] >= itime
+
+	def getDataDirnameByIndex(self, index, itime):
 		pad_index = "%02d" % (index,)
-		isSet2 = self.isSet2(imass, iden, itime)
+		isSet2 = self.isSet2ByIndex(index, itime)
 		filesuffix = "data_" + pad_index
 
 		if isSet2:
 			return self.fileprefix2 + filesuffix
 		else:
 			return self.fileprefix3 + filesuffix
+
+	def getDataDirname(self, imass, iden, itime):
+		return self.getDataDirnameByIndex(self.getIndex(imass, iden), itime)
 
 	def getParamFilename(self, imass, iden, itime):
 		return self.getDataDirname(imass, iden, itime) + "/parameters_" + str(self.getIndex(imass, iden)) + ".lua"
@@ -91,3 +96,6 @@ class ModelData:
 		pad_itime = "%03d" % (itime,)
 		return self.getDataDirname(imass, iden, itime) + "/data2D_" + pad_itime + ".txt"
 
+	def getDataFilenameByIndex(self, index, itime):
+		pad_itime = "%03d" % (itime,)
+		return self.getDataDirnameByIndex(index, itime) + "/data2D_" + pad_itime + ".txt"

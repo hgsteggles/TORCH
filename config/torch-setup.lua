@@ -13,7 +13,7 @@ RS = 0.35 * PC2CM
 
 n0 = nHI * math.pow(1 + RS * RS / rc2, alpha)
 
-pre0 = specificGasConstant * nHI * hydrogenMass*T
+pre0 = specificGasConstant * nHI * hydrogenMass * T
 
 function initialise(x, y, z, xs, ys, zs)
 	local dy = RS + (ys - y)

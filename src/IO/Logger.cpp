@@ -6,7 +6,7 @@
 void FileLogPolicy::open_ostream() {
 	m_outStream->open( filename.c_str(), std::ios_base::binary | std::ios_base::out );
 	if ( !m_outStream->is_open())
-		throw(std::runtime_error("LOGGER: Unable to open an output stream " + filename));
+		throw(std::runtime_error("LOGGER: Unable to open an output stream " + filename + "\n"));
 }
 
 
