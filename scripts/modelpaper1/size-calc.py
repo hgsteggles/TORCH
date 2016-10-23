@@ -313,18 +313,17 @@ if print_sizes:
 
 
 def printCritVel(isMVD):
-	T = 8000.0
-	mu = 0.5
-
 	for row in range(9):
 		mdot = mdotList[row]
 		vinf = vinfList[row]
-		nh = mvd_iden if isMVD else  mvt_iden
 
 		tableline =  str(massList[row])
 		for col in range(5):
+			nh = mvd_iden[col][row] if isMVD else  mvt_iden[col][row]
+			nh = mvd_nhs[col] if isMVD else  mvt_nhs[col]
+
 			tableline = tableline + " & "
-			R = vinf / koo.calcCritVel(mdot, vinf, mh * nh[col][row])
+			R = vinf / koo.calcCritVel(mdot, vinf, mh * nh)
 			tableline = tableline + str(R)
 		print tableline + " \\\\"
 
@@ -364,8 +363,8 @@ def printAnalyticalTimes(isMVD):
 			print "& & & & & & \\\\"
 
 def printAnalyticalSizes(r, isMVD):
-	T = 8000.0
-	mu = 0.5
+	T = 300.0
+	mu = 1.0
 
 	for row in range(9):
 		mass = massList[row]
@@ -515,6 +514,13 @@ def printPaperTable(r, t, b, isWind, isMVD):
 		if row != 8:
 			print "& & & & & & \\\\"
 
+def printSlope():
+	for row in range(9):
+		print np.log(mvt_SW_r[:,row])
+		print np.log(mvt_times)
+		slope, intercept = np.polyfit(np.log(mvt_SW_r[:,row]), np.log(mvt_times), 1)
+		print slope
+
 #printPaperTable(mvd_IF_r, mvd_IF_t, mvd_IF_b, False, True)
 #printPaperTable(mvt_IF_r, mvt_IF_t, mvt_IF_b, False, False)
 #printPaperTable(mvd_SW_r, mvd_SW_t, mvd_SW_b, True, True)
@@ -529,8 +535,10 @@ def printPaperTable(r, t, b, isWind, isMVD):
 #printCritVel(True)
 #printCritVel(False)
 
-printAdiabaticTable(mvd_IF_r, True)
+#printAdiabaticTable(mvd_IF_r, True)
 #printAdiabaticTable(mvt_IF_r, False)
+
+printSlope()
 
 
 

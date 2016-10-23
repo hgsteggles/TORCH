@@ -261,6 +261,8 @@ void Torch::run() {
 
 	bool isFinalPrintOn = false;
 
+	thermodynamics.fillHeatingArrays(fluid);
+
 	while (fluid.getGrid().currentTime < tmax && !m_isQuitting) {
 		// Find the time until the next data snapshot. Print if it has passed.
 		double dt_nextCheckpoint = dt_max;
@@ -268,6 +270,11 @@ void Torch::run() {
 		bool print_now = checkpointer.update(fluid.getGrid().currentTime, dt_nextCheckpoint);
 
 		if (print_now) {
+			thermodynamics.fillHeatingArrays(fluid);
+			inputOutput.printHeating(formatSuffix(checkpointer.getCount()),
+									 fluid.getGrid().currentTime,
+									 fluid.getGrid());
+
 			inputOutput.print2D(formatSuffix(checkpointer.getCount()), 
 											   fluid.getGrid().currentTime,
 											   fluid.getGrid());

@@ -251,7 +251,6 @@ void Thermodynamics::preTimeStepCalculations(Fluid& fluid) const {
 		rate += cosmicRayHeating(nH);
 
 		cell.T[TID::HEAT] = rate;
-		//cell.T[TID::HEAT] = 0;
 
 		rate -= ionisedMetalLineCooling(ne, T);
 		rate -= neutralMetalLineCooling(ne, nn, T);
@@ -274,6 +273,8 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 		GridCell& cell = grid.getCell(cellID);
 
 		if (cell.Q[UID::ADV] < m_thermoHII_Switch) {
+			for (int i = 0; i < HID::N; ++i)
+				cell.H[i] = 0;
 			cell.T[TID::RATE] = 0;
 			continue;
 		}
@@ -330,7 +331,8 @@ void Thermodynamics::integrate(double dt, Fluid& fluid) const {
 			}
 		}
 
-		cell.T[TID::RATE] = (cell.Q[UID::PRE] - pressure) * dpre2rate;
+		cell.T[TID::RATE] = (pressure - cell.Q[UID::PRE]) * dpre2rate;
+		cell.H[HID::TOT] = cell.T[TID::RATE];
 	}
 }
 
@@ -423,6 +425,12 @@ void Thermodynamics::fillHeatingArrays(Fluid& fluid) {
 	for (int cellID : grid.getOrderedIndices("CausalNonWind")) {
 		GridCell& cell = grid.getCell(cellID);
 
+		if (cell.Q[UID::ADV] < m_thermoHII_Switch) {
+			for (int i = 0; i < HID::N; ++i)
+				cell.H[i] = 0;
+			continue;
+		}
+
 		double nH = m_massFractionH*cell.Q[UID::DEN] / m_consts->hydrogenMass;
 		double HIIFRAC = cell.Q[UID::HII];
 		double ne = HIIFRAC*nH;
@@ -447,6 +455,8 @@ void Thermodynamics::fillHeatingArrays(Fluid& fluid) {
 		cell.H[HID::CEHI] = -collisionalExcitationHI(nH, HIIFRAC, T);
 		cell.H[HID::CIEC] = -collisionalIonisationEquilibriumCooling(ne, T);
 		cell.H[HID::NMC] = -neutralMolecularLineCooling(nH, HIIFRAC, T);
+
+		cell.H[HID::TOT] += cell.H[HID::RHII] + cell.H[HID::EUVH];
 	}
 }
 

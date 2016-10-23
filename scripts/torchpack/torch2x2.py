@@ -7,9 +7,6 @@ def load_src(name, fpath):
     import os, imp
     return imp.load_source(name, os.path.join(os.path.dirname(__file__), fpath))
 
-load_src("torch", "./torchpack/torch.py")
-load_src("hgspy", "./torchpack/hgspy.py")
-
 import torch
 import hgspy
 

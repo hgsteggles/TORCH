@@ -78,7 +78,7 @@ plotter = torch.Plotter(datacubes[0].nx, datacubes[0].ny, plot_size, figformat, 
 ###	Image.
 grid = plotter.multi(plotparams)
 
-plotter.add_quiver(grid[2], datacubes[2], 10, vmin=3e6, vmiddle=3e7)
+plotter.add_quiver(grid[2], datacubes[2], 20, vmin=3e5, vmiddle=3e6)
 
 ###	Save figure.
 with warnings.catch_warnings():

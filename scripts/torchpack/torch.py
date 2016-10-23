@@ -39,16 +39,22 @@ class Data:
 	def __init__(self, inputfile, axial=False):
 		self.tsecs = float(linecache.getline(inputfile, 1))
 		self.t = int(self.tsecs/31536000.0/10)*10
-		self.nx = (2 if axial else 1)*int(linecache.getline(inputfile, 2))
+		self.nx = (2 if axial else 1) * int(linecache.getline(inputfile, 2))
 		self.ny = int(linecache.getline(inputfile, 3))
 		self.nz = int(linecache.getline(inputfile, 4))
 		self.data = np.genfromtxt(inputfile, skip_header=4)
+
+		res = 1
 
 		self.nd = 3
 		if self.nz == 1:
 			self.nd = 2
 		if self.ny == 1:
 			self.nd = 1
+
+		self.nx = 1 if self.nx == 1 else res * self.nx
+		self.ny = 1 if self.ny == 1 else res * self.ny
+		self.nz = 1 if self.nz == 1 else res * self.nz
 
 		if (self.nd == 3):
 			minZ = self.get_var_raw('z').min()
@@ -69,6 +75,12 @@ class Data:
 		if self.nd > 1:
 			self.xi.append(np.linspace(self.x[1].min(), self.x[1].max(), self.ny))
 			self.xi[0], self.xi[1] = np.meshgrid(self.xi[0], self.xi[1])
+
+		self.xiq = []
+		self.xiq.append(np.linspace(self.x[0].min(), self.x[0].max(), self.nx - 1))
+		if self.nd > 1:
+			self.xiq.append(np.linspace(self.x[1].min(), self.x[1].max(), self.ny))
+			self.xiq[0], self.xiq[1] = np.meshgrid(self.xiq[0], self.xiq[1])
 
 	def mirror_data(self):
 		data2 = self.data[self.get_var_raw('x') != 0]
@@ -96,6 +108,10 @@ class Data:
 		return scipy.interpolate.griddata((self.x[0], self.x[1]), var,
 										  (self.xi[0], self.xi[1]),
 										  method=interp)
+	def interpolateQuiver(self, var, interp):
+		return scipy.interpolate.griddata((self.x[0], self.x[1]), var,
+										  (self.xiq[0], self.xiq[1]),
+										  method=interp, fill_value=0)
 
 class CFD_Data(Data):
 	var_typenames = ['x', 'y', 'z', 'nh', 'den', 'pre', 'hii', 'nhii', 'nhi',
@@ -197,7 +213,8 @@ class CFD_Data(Data):
 
 class Cool_Data(Data):
 	var_typenames = ['x', 'y', 'z', 'imlc', 'nmlc', 'recc', 'colc', 'ciec',
-					 'nmc', 'fuvh', 'irh', 'crh', 'heat', 'cool', 'tot']
+					 'nmc', 'euvh', 'fuvh', 'irh', 'crh', 'simtot',
+					 'heat', 'cool', 'tot', 'ntot', 'rad']
 
 	def __init__(self, inputfile, axial=False):
 		Data.__init__(self, inputfile, axial)
@@ -222,40 +239,40 @@ class Cool_Data(Data):
 			elif var_typename == 'z' and self.nd > 2:
 				return self.data[:,2]/3.09e18
 			elif var_typename == 'imlc':
-				return self.data[:,self.nd]
+				return -self.data[:,self.nd]
 			elif var_typename == 'nmlc':
-				return self.data[:,self.nd+1]
+				return -self.data[:,self.nd+1]
 			elif var_typename == 'recc':
 				return -self.data[:,self.nd+2]
 			elif var_typename == 'colc':
-				return self.data[:,self.nd+3]
+				return -self.data[:,self.nd+3]
 			elif var_typename == 'ciec':
-				return self.data[:,self.nd+4]
+				return -self.data[:,self.nd+4]
 			elif var_typename == 'nmc':
-				return self.data[:,self.nd+5]
-			elif var_typename == 'fuvh':
+				return -self.data[:,self.nd+5]
+			elif var_typename == 'euvh':
 				return self.data[:,self.nd+6]
-			elif var_typename == 'irh':
+			elif var_typename == 'fuvh':
 				return self.data[:,self.nd+7]
-			elif var_typename == 'crh':
+			elif var_typename == 'irh':
 				return self.data[:,self.nd+8]
+			elif var_typename == 'crh':
+				return self.data[:,self.nd+9]
+			elif var_typename == 'simtot':
+				return self.data[:,self.nd+10]
 			elif var_typename == 'heat':
 				return self.get_var_raw('fuvh') + self.get_var_raw('irh') \
-					   + self.get_var_raw('crh')
+					   + self.get_var_raw('crh') + self.get_var_raw('euvh')
 			elif var_typename == 'cool':
-				return self.gat_var_raw('imlc') + self.gat_var_raw('nmlc') \
-					   + self.gat_var_raw('recc') + self.gat_var_raw('colc') \
-					   + self.gat_var_raw('ciec') + self.gat_var_raw('nmc')
-			elif var_typename == 'lcool':
-				return self.gat_var_raw('imlc') + self.gat_var_raw('recc') \
-					   + self.gat_var_raw('colc') + self.gat_var_raw('ciec') \
-					   + self.gat_var_raw('nmc')
+				return self.get_var_raw('imlc') + self.get_var_raw('nmlc') \
+					   + self.get_var_raw('recc') + self.get_var_raw('colc') \
+					   + self.get_var_raw('ciec') + self.get_var_raw('nmc')
 			elif var_typename == 'tot':
-				return self.data[:,self.nd+6] + self.data[:,self.nd+7] \
-					   + self.data[:,self.nd+8] + self.data[:,self.nd] \
-					   + self.data[:,self.nd+1] + self.data[:,self.nd+2] \
-					   + self.data[:,self.nd+3] + self.data[:,self.nd+4] \
-					   + self.data[:,self.nd+5]
+				return self.get_var_raw('heat') - self.get_var_raw('cool')
+			elif var_typename == 'ntot':
+				return abs(self.get_var_raw('tot'))
+			elif var_typename == 'rad':
+				return abs(self.get_var_raw('euvh') - self.get_var_raw('recc'))
 		else:
 			print "TorchCool::get_var: " + var_typename + \
 				  " does not exist in this data set."
@@ -337,7 +354,7 @@ class Plotter:
 		self.plot_size = plot_size
 		self.figformat = figformat
 		self.dpi = dpi
-		self.cells_per_inch = nx/plot_size
+		self.cells_per_inch = nx / plot_size
 		self.aspect_ratio = ny/float(nx)
 		self.fig = plt.figure()
 
@@ -413,8 +430,8 @@ class Plotter:
 
 	def add_quiver(self, ax, tdat, every, vmin=3.0e4, vmiddle=3.0e6):
 		e = every
-		ui = tdat.interpolate(tdat.get_var_raw('vel0'), 'nearest')
-		vi = tdat.interpolate(tdat.get_var_raw('vel1'), 'nearest')
+		ui = tdat.interpolateQuiver(tdat.get_var_raw('vel0'), 'linear')
+		vi = tdat.interpolateQuiver(tdat.get_var_raw('vel1'), 'linear')
 		#max_vel = ui.max()
 		#max_vel = max(max_vel, vi.max())
 
@@ -427,8 +444,10 @@ class Plotter:
 		ui_high = np.ma.masked_array(ui, mask=m_high)
 		vi_high = np.ma.masked_array(vi, mask=m_high)
 
-		ax.quiver(tdat.xi[0][::e,::e], tdat.xi[1][::e,::e], ui_high[::e,::e],
-				  vi_high[::e,::e], pivot='mid', units='inches', color='r',
+		istart = every - 1
+
+		ax.quiver(tdat.xiq[0][istart::e,istart::e], tdat.xiq[1][istart::e,istart::e], ui_high[istart::e,istart::e],
+				  vi_high[istart::e,istart::e], pivot='mid', units='inches', color='r',
 				  scale=1.1 * max_vel * self.cells_per_inch / e)
 
 		if vmiddle > vmin:
@@ -436,8 +455,8 @@ class Plotter:
 			ui_low = np.ma.masked_array(ui, mask=m_low)
 			vi_low = np.ma.masked_array(vi, mask=m_low)
 
-			ax.quiver(tdat.xi[0][::e,::e], tdat.xi[1][::e,::e], ui_low[::e,::e],
-					  vi_low[::e,::e], pivot='mid', units='inches', color='b',
+			ax.quiver(tdat.xiq[0][istart::e,istart::e], tdat.xiq[1][istart::e,istart::e], ui_low[istart::e,istart::e],
+					  vi_low[istart::e,istart::e], pivot='mid', units='inches', color='b',
 					  scale=1.1 * vmiddle * self.cells_per_inch / e)
 	
 	def save_plot(self, outputfile, ax=None, tight=False):

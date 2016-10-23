@@ -90,7 +90,7 @@ for i in range(45):
 	sizexs.append(table["Parameters"]["Grid"]["side_length"])
 
 ###	Data set up.
-data = np.genfromtxt("refdata/zams-stripped.txt", skip_header=1)
+data = np.genfromtxt("config/zams-stripped.txt", skip_header=1)
 
 mass = data[:,0] # [Msun]
 temp = data[:,1]
@@ -137,4 +137,4 @@ for i in range(len(den)):
 		R_inj = "{:4.3f}".format(r_inj * CM2PC)
 		ri = "{:8d}".format((int)(-tcoolval / texitval))
 
-		print m + " & " + d + " & " + nx + " & " + ny + " & " + sizex + " & " + ysc + " & " + R_inj + " & " + lcrit + " & " + tstart + " & " + tcool + " & " + ri + " \\\\"
+		print m + " & " + d + " & " + nx + " & " + ny + " & " + sizex + " & " + ysc + " & " + R_inj + " & " + tstart + " & " + tcool + " \\\\"

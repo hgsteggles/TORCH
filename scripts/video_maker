@@ -5,10 +5,10 @@ if [ "$1" == "" ] || [ "$2" == "" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] ;
 else
 	./scripts/pl_zpad $1 $2
 	./scripts/pl_unpack $1 $2
-	python scripts/minmax.py -cfd=$2/$1_*.txt
+	python scripts/torchpack/minmax.py -cfd=$2/$1_*.txt
 	parallel --gnu python -W ignore scripts/torchpack/torch2x2.py -s -minmax=$2/minmax.log ::: $2/$1_*.txt
 
-	mencoder mf://$2/$1_*.jpg -mf w=800:h=-3:fps=25:type=jpg \
+	mencoder mf://$2/$1_*.png -mf w=800:h=-3:fps=25:type=jpg \
 	    -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell -oac copy -o $2/video_all.avi
 
 	echo 'yes' | ./scripts/cleanup $2

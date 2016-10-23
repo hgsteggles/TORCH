@@ -34,7 +34,7 @@ mvt_iden.append([520.0, 550.0,  550.0,  700.0, 1100.0, 1300.0, 1500.0, 1700.0,  
 mvt_iden.append([520.0, 540.0,  520.0,  620.0,  850.0, 1200.0, 1300.0, 1400.0,  1500.0])
 
 ###	Data set up.
-data = np.genfromtxt("refdata/zams-stripped.txt", skip_header=1)
+data = np.genfromtxt("config/zams-stripped.txt", skip_header=1)
 
 mass = data[:,0] # [Msun]
 temp = data[:,1]

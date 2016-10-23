@@ -30,7 +30,7 @@ struct TID {
 	enum ID {COL_DEN, DCOL_DEN, HEAT, RATE, N};
 };
 struct HID {
-	enum ID {IMLC, NMLC, RHII, CEHI, CIEC, NMC, FUVH, IRH, CRH, N};
+	enum ID {IMLC, NMLC, RHII, CEHI, CIEC, NMC, EUVH, FUVH, IRH, CRH, TOT, N};
 };
 
 enum class Geometry : unsigned int {CARTESIAN, CYLINDRICAL, SPHERICAL};

@@ -322,13 +322,13 @@ void InputOutput::printIF(const double t, const Radiation& rad, const Grid& grid
 }
  */
 
-void DataPrinter::printHeating(const int step, const double t, const Grid& grid) const {
+void DataPrinter::printHeating(const std::string& append_name, const double t, const Grid& grid) const {
 	MPIW& mpihandler = MPIW::Instance();
 	mpihandler.serial([&] () {
 		/* creating filename */
 		std::ostringstream os;
 		os << dir2D << "/heating_";
-		os << step << ".txt.gz";
+		os << append_name << ".txt.gz";
 		/* opening new file for appending data */
 		OutputStreamGZ file(os.str().c_str(), std::ios_base::app | std::ios_base::binary);
 		if (!file)

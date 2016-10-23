@@ -267,12 +267,16 @@ void Radiation::preTimeStepCalculations(Fluid& fluid) const {
 		double photoion = n_H*(1.0-cell.Q[UID::HII])*A_pi*excessEnergy;
 		double recombination = recombinationCoolingRate(n_H, cell.Q[UID::HII], T);
 		double collisions = cell.Q[UID::HII]*(1.0-cell.Q[UID::HII])*n_H*n_H*collisionalIonisationRate(T);
-		cell.H[HID::RHII] = -recombination;
 		double rate = photoion - recombination - collisions;
+		double softrate = rate;
 		if (T < cell.T_min + 200 && rate < 0.0)
-			rate = std::min(0.0, rate*(T-cell.T_min)/200); //"Soft landing" to equilibrium neutral gas temperature
-		rate *= heatingAmplification;
-		cell.R[RID::HEAT] = rate;
+			softrate = std::min(0.0, softrate*(T - cell.T_min) / 200.0); //"Soft landing" to equilibrium neutral gas temperature
+		softrate *= heatingAmplification;
+
+		cell.R[RID::HEAT] = softrate;
+
+		cell.H[HID::EUVH] = photoion * (softrate / rate);
+		cell.H[HID::RHII] = -recombination * (softrate / rate);
 
 		if (rate != rate) {
 			std::stringstream out;
@@ -465,15 +469,6 @@ void Radiation::update_HIIfrac(double dt, GridCell& cell, Fluid& fluid) const {
 		cell.Q[UID::HII] = HII;
 		if (HII > 0.001)
 			cell.Q[UID::ADV] = 1;
-
-		/*
-		cell.H[0] = A_pi;
-		cell.H[1] = alphaB;
-		cell.H[2] = cell.R[RID::DTAU];
-		cell.H[3] = cell.R[RID::TAU];
-		cell.H[4] = cell.R[RID::DTAU_A];
-		cell.H[5] = cell.R[RID::TAU_A];
-		*/
 	}
 	else {
 		cell.R[RID::HEAT] = 0;

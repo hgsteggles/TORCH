@@ -7,7 +7,7 @@ import math
 import linecache
 from joblib import Parallel, delayed
 
-from torch_plot import TorchCFD, TorchCool
+import torch
 
 def safe_log10(v):
 	if v <= 0:
@@ -29,7 +29,7 @@ filenames = glob.glob(args.cfd)
 
 def minmax(cfdfile):
 	###	Get data
-	cfd = TorchCFD(cfdfile)
+	cfd = torch.CFD_Data(cfdfile)
 
 	nh = cfd.get_var_raw('nh')
 	pre = cfd.get_var_raw('pre')

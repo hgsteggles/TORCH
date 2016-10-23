@@ -37,7 +37,7 @@ public:
 	void printBinary2D(const int step, const double t, const Grid& grid) const;
 	void print2D(const std::string& append_name, const double t, const Grid& grid) const;
 	void printMinMax(const std::string& filename, const Grid& grid) const;
-	void printHeating(const int step, const double t, const Grid& grid) const;
+	void printHeating(const std::string& append_name, const double t, const Grid& grid) const;
 	void printVariables(const int step, const double t, const Grid& grid) const;
 	void printVariable(const int step, const double t, const Grid& grid) const;
 	void printWeights(const Grid& grid) const;
