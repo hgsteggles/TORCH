@@ -44,7 +44,7 @@ Parameters = {
 		time_scale =                 1.0e11,
 		spatial_order =              1,
 		temporal_order =             2,
-		simulation_time =            2e5 * YR2S,
+		simulation_time =            5.0e4 * YR2S,
 		radiation_on =               true,
 		cooling_on =                 true,
 		debug =                      false,
@@ -116,7 +116,7 @@ Parameters = {
 	},
 }
 ```
-The simulated span of time in this example is 200 kyr. Snapshots of the star would be taken at equally spaced intervals during this time and stored in the directory assigned to `output_directory`.
+The simulated span of time in this example is 50 kyr. Snapshots of the star would be taken at equally spaced intervals during this time and stored in the directory assigned to `output_directory`.
  
 An example of how to set up a problem is given in `config/torch-setup.lua`. For a star  offset in a spherically symmetric density gradient:
 
