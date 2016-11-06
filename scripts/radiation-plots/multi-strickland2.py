@@ -14,9 +14,9 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 5
+plot_size = 2.5
 dir = "data/strickland2/"
-fontsize = 16
+fontsize = 8
 var_type = "nh"
 
 torch.set_font_sizes(fontsize)
@@ -52,7 +52,7 @@ grid = plotter.multi(plotparams)
 
 ts = 0.04
 for i in range(len(datacubes)):
-	timestring = str(datacubes[i].t) + " yrs"
+	timestring = str(datacubes[i].t) + " yr"
 	grid[i].text(1-ts, 1-ts, timestring, fontsize=int(1.5*fontsize), color='white', horizontalalignment='right', verticalalignment='top', transform = grid[i].transAxes)
 
 for i in range(len(datacubes)):

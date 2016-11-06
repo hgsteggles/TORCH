@@ -2,6 +2,7 @@ import numpy as np
 import math
 import sys
 import lupa
+from scipy import stats
 
 lua = lupa.LuaRuntime(unpack_returned_tuples=True)
 
@@ -17,9 +18,9 @@ load_src("mp1", "../torchpack/modelpaper1.py")
 import mp1
 mp1_data = mp1.ModelData()
 
-print_sizes = True
+print_sizes = False
 print_mvd_table = False
-print_mvt_table = True
+print_mvt_table = False
 
 data = np.genfromtxt("data/model_paper1/refdata/zams.txt", skip_header=1)
 
@@ -311,6 +312,23 @@ if print_sizes:
 				  SW_r + "," + SW_b + "," + SW_t + "," + \
 				  IF_r + "," + IF_b + "," + IF_t
 
+def windHiiVelRatio(isMVD):
+	for row in range(9):
+		mdot = mdotList[row]
+		vinf = vinfList[row]
+		times = mvd_times if isMVD else mvt_times
+
+		tableline =  str(massList[row])
+		for col in range(5):
+			nh = mvd_iden[col][row] if isMVD else  mvt_iden[col][row]
+			#nh = mvd_nhs[col] if isMVD else  mvt_nhs[col]
+
+			R = koo.calcBubbleRadiusRB(mdot, vinf, mh * nh, times[col] * YR2S)
+			v = R / (times[col] * YR2S)
+			ci = koo.soundSpeed(8000.0, 0.5)
+			tableline = tableline + " & " + str(v / ci)
+
+		print tableline + "\\\\"
 
 def printCritVel(isMVD):
 	for row in range(9):
@@ -455,7 +473,7 @@ def printPaperTable(r, t, b, isWind, isMVD):
 	mu = 0.5
 
 	diststr = "D_\\mathrm{s}" if isWind else "D_\\mathrm{i}"
-	numstr = "4" if isWind else "5"
+	numstr = "4" if isWind else "4"
 
 	for row in range(9):
 		mass = massList[row]
@@ -493,36 +511,56 @@ def printPaperTable(r, t, b, isWind, isMVD):
 				tableline = tableline + str(R)
 			print tableline + " \\\\"
 		else:
-			tableline = "& {$R_\\mathrm{raga}$}"
+			tableline = "& {$R_\\mathrm{raga-1}$}"
 			for col in range(5):
 				tableline = tableline + " & "
 				R = koo.calcStromgrenRadius(logQ, nhs_init[col])
 				#R = max(R, inj[col][row] / CM2PC)
 				R = koo.calcSpitzerRadius2(R, times[col]*YR2S)*CM2PC
+				R = koo.calcExactIF(300.0, T, 1.0, mu, nhs_init[col], 10.0**logQ,
+									times[col] * YR2S, is_spitzer=True) * CM2PC
 				tableline = tableline + str(R)
 			print tableline + " \\\\"
 
-			tableline = "& {$R_\\mathrm{stag}$}"
-			for col in range(5):
-				tableline = tableline + " & "
-				R = koo.calcStromgrenRadius(logQ, nhs_init[col])
-				#R = max(R, inj[col][row] / CM2PC)
-				R = koo.calcStagnationRadius2(R) * CM2PC
-				tableline = tableline + str(R)
-			print tableline + " \\\\"
+			#tableline = "& {$R_\\mathrm{stag}$}"
+			#for col in range(5):
+			#	tableline = tableline + " & "
+			#	R = koo.calcStromgrenRadius(logQ, nhs_init[col])
+			#	#R = max(R, inj[col][row] / CM2PC)
+			#	R = koo.calcStagnationRadius2(R) * CM2PC
+			#	tableline = tableline + str(R)
+			#print tableline + " \\\\"
 
 		if row != 8:
 			print "& & & & & & \\\\"
 
+def ratioIF_SW(isMVD):
+	for row in range(9):
+		mdot = mdotList[row]
+		vinf = vinfList[row]
+
+		sw_r = mvd_SW_r if isMVD else mvt_SW_r
+		if_r = mvd_IF_r if isMVD else mvt_IF_r
+
+		tableline =  str(massList[row])
+		for col in range(5):
+			rat = sw_r[col][row] / if_r[col][row]
+
+			tableline = tableline + " & "
+			tableline = tableline + str(rat)
+		print tableline + " \\\\"
+
 def printSlope():
 	for row in range(9):
-		print np.log(mvt_SW_r[:,row])
-		print np.log(mvt_times)
-		slope, intercept = np.polyfit(np.log(mvt_SW_r[:,row]), np.log(mvt_times), 1)
+		print mvt_SW_r[:,row]
+		print mvt_times
+		slope, intercept, r_val, p_val, std_err = stats.linregress(np.log(mvt_SW_r[:,row]), np.log(mvt_times))
 		print slope
+		print std_err
 
 #printPaperTable(mvd_IF_r, mvd_IF_t, mvd_IF_b, False, True)
 #printPaperTable(mvt_IF_r, mvt_IF_t, mvt_IF_b, False, False)
+
 #printPaperTable(mvd_SW_r, mvd_SW_t, mvd_SW_b, True, True)
 #printPaperTable(mvt_SW_r, mvt_SW_t, mvt_SW_b, True, False)
 
@@ -538,10 +576,12 @@ def printSlope():
 #printAdiabaticTable(mvd_IF_r, True)
 #printAdiabaticTable(mvt_IF_r, False)
 
-printSlope()
+#printSlope()
 
+#ratioIF_SW(True)
 
-
+windHiiVelRatio(True)
+windHiiVelRatio(False)
 
 
 

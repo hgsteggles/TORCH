@@ -19,7 +19,7 @@ import mp1
 
 DPI = 300
 figformat = 'png'
-plot_size = 10
+plot_size = 8
 torch.set_font_sizes(fontsize=8)
 
 angles = [0, 30, 45, 60, 90]
@@ -30,7 +30,9 @@ def addImage(index, grid, xrange):
 	col = index
 	row = 0
 
-	filename = mp1_data.getRadioDirname(5, 2, 25, angles[index]) + "/emeasure_ff.fits"
+	filename = mp1_data.getRadioDirname(5, 2, 25, angles[index], 5) + "/emeasure_ff.fits"
+
+	print filename
 
 	ax = grid.grid[col][row]
 	cbar_ax = grid.cgrid[col][row]
@@ -69,7 +71,7 @@ def addImage(index, grid, xrange):
 	formatter = ticker.ScalarFormatter(useOffset=True, useMathText=True)
 	formatter.set_powerlimits((0, 1))
 
-	cb = grid.fig.colorbar(im, cax=cbar_ax, format=ticker.FuncFormatter(fmt), orientation='horizontal')
+	cb = grid.fig.colorbar(im, cax=cbar_ax, format=ticker.FuncFormatter(fmt.fmt), orientation='horizontal')
 	#cb.ax.xaxis.set_ticks_position('top')
 	xmax = cb.ax.get_xlim()[1]
 	cb.ax.xaxis.set_ticks(np.arange(0, xmax, xmax/4.0))

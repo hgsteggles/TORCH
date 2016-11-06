@@ -51,7 +51,7 @@ grid = plotter.multi(plotparams)
 
 ts = 0.04
 for i in range(len(datacubes)):
-	timestring = str(datacubes[i].t) + " yrs"
+	timestring = str(datacubes[i].t) + " yr"
 	grid[i].text(1-ts, 1-ts, timestring, fontsize=int(1.5*fontsize), color='white', horizontalalignment='right', verticalalignment='top', transform = grid[i].transAxes)
 
 xminmax = [0, 0.5]

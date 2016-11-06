@@ -16,7 +16,7 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 10.0
+plot_size = 5.0
 fontsize = 16
 torch.set_font_sizes(fontsize)
 
@@ -49,7 +49,7 @@ grid[0].set_ylabel(plotter.format_label(torch.VarType('\\mathrm{Relative\ Error}
 grid[1].set_ylabel(plotter.format_label(torch.VarType('R_\mathrm{IF}\ /\ R_\mathrm{s}', False)))
 
 ### Plot.
-kx = dict(linewidth=1.5)
+kx = dict(linewidth=1.0)
 
 grid[1].plot(t, RS, color='red', label='Implicit', **kx)
 grid[1].plot(t, RS_a, color='black', label='Analytical', **kx)

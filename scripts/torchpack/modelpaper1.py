@@ -85,11 +85,13 @@ class ModelData:
 
 	def getParamFilename(self, imass, iden, itime):
 		return self.getDataDirname(imass, iden, itime) + "/parameters_" + str(self.getIndex(imass, iden)) + ".lua"
+	def getParamFilenameByIndex(self, index, itime):
+		return self.getDataDirnameByIndex(index, itime) + "/parameters_" + str(index) + ".lua"
 
 	def getRadioDirname(self, imass, iden, itime, angle, freq):
 		pad_itime = "%03d" % (itime,)
 		datadirname = self.getDataDirname(imass, iden, itime)
-		angstr = "" if freq == 5 else self.getAngStr(angle)
+		angstr = "" if angle == 45 else self.getAngStr(angle)
 		return datadirname + "/radio_" + pad_itime + angstr + self.getFreqStr(freq)
 
 	def getDataFilename(self, imass, iden, itime):

@@ -233,11 +233,25 @@ class Cool_Data(Data):
 	def get_var_raw(self, var_typename):
 		if self.nd != 0:
 			if var_typename == 'x':
-				return self.data[:,0]/3.09e18
+				return self.data[:,0] / 3.09e18
 			elif var_typename == 'y' and self.nd > 1:
-				return self.data[:,1]/3.09e18
+				return self.data[:,1] / 3.09e18
 			elif var_typename == 'z' and self.nd > 2:
-				return self.data[:,2]/3.09e18
+				return self.data[:,2] / 3.09e18
+			elif var_typename == 'vol-cartesian':
+				vol = 1
+				axes = ['x', 'y', 'z']
+				for i in range(self.nd):
+					vol *= self.get_var_raw(axes[i])
+				return vol
+			elif var_typename == 'vol-cylindrical':
+				rc = self.get_var_raw('x')
+				return 2.0 * math.pi * rc * self.dx * self.dx
+			elif var_typename == 'vol-spherical':
+				rc = self.get_var_raw('x') / self.dx
+				r2 = (rc + 0.5) * self.dx
+				r1 = (rc - 0.5) * self.dx
+				return 4.0 * math.pi * (r2 - r1) * (r2 * r2 + r1 * r2 + r1 * r1) / 3.0
 			elif var_typename == 'imlc':
 				return -self.data[:,self.nd]
 			elif var_typename == 'nmlc':
@@ -438,7 +452,7 @@ class Plotter:
 		vtot = np.sqrt(ui * ui + vi * vi)
 		max_vel = vtot.max()
 
-		print max_vel
+		print "max_vel = " + str(max_vel)
 
 		m_high = np.logical_or(vtot < vmiddle, vtot < vmin)
 		ui_high = np.ma.masked_array(ui, mask=m_high)
@@ -554,7 +568,7 @@ class Plotter:
 			cbar_size=cbsize,
 			cbar_pad=cbpad)
 
-	def multi(self, params):
+	def multi(self, params, vs=None):
 		shared_vars = self.areVarsShared(params.var_types, params.var_minmaxes)
 		less_detail = shared_vars or params.detail == "some" or params.detail == "none"
 
@@ -574,15 +588,18 @@ class Plotter:
 				grid[i].get_xaxis().set_visible(False)
 				grid[i].get_yaxis().set_visible(False)
 
-			vs = params.datacubes[i].get_var(params.var_types[i])
-			vsi = params.datacubes[i].interpolate(vs, params.interp)
+			if vs is None:
+				vs_2 = params.datacubes[i].get_var(params.var_types[i])
+			else:
+				vs_2 = vs
+			vsi = params.datacubes[i].interpolate(vs_2, params.interp)
 			vsmin = params.var_minmaxes[i][0]
 			vsmax = params.var_minmaxes[i][1]
 
 			if vsmin == None:
-				vsmin = vs.min()
+				vsmin = vs_2.min()
 			if vsmax == None:
-				vsmax = vs.max()
+				vsmax = vs_2.max()
 
 			im.append(imageCrop(params.datacubes[i].x[0], params.datacubes[i].x[1],
 							params.xminmax, params.yminmax,
@@ -706,7 +723,7 @@ class Plotter:
 
 class FancyAxesGrid:
 	def __init__(self, width_ratios, height_ratios, hspace = 0.01, vspace = 0.01,
-				 cspace = 0.01, csize = 0.01, cpad=0.03, fig_width=5,
+				 cspace = 0.01, csize = 0.01, cpad=0.03, cvertical=False, fig_width=5,
 				 border=(0.01, 0.01, 0.01, 0.01), fig_format='png', dpi=300):
 		self.ncols_nrows = (len(width_ratios), len(height_ratios))
 		self.hspace = hspace
@@ -721,6 +738,7 @@ class FancyAxesGrid:
 		self.ticklength = 2
 		self.visible = []
 		self.ngrids = len(width_ratios) * len(height_ratios)
+		self.cvertical = cvertical
 
 		# Initialise all visibles
 		for i in range(self.ncols_nrows[0]):
@@ -733,9 +751,9 @@ class FancyAxesGrid:
 		self.ax_wfractions = []
 		self.ax_hfractions = []
 
-		plot_w = fig_width*(1.0 - border[0] - border[1])
-		plot_frac_x = (plot_w)/float(fig_width)
-		denom_w = sum(width_ratios)/(1.0 - (self.ncols_nrows[0] - 1) * hspace)
+		plot_w = fig_width * (1.0 - border[0] - border[1])
+		plot_frac_x = (plot_w) / float(fig_width)
+		denom_w = sum(width_ratios) / (1.0 - (self.ncols_nrows[0] - 1) * hspace)
 
 		for i in range(len(width_ratios)):
 			self.ax_wfractions.append(width_ratios[i] * plot_frac_x / denom_w)
@@ -743,7 +761,7 @@ class FancyAxesGrid:
 		sum_ifig_w = 0
 
 		for j in range(len(height_ratios)):
-			ifig_rat = height_ratios[j]/float(width_ratios[0])
+			ifig_rat = height_ratios[j] / float(width_ratios[0])
 			sum_ifig_w = sum_ifig_w + ifig_rat * self.ax_wfractions[0] * plot_w
 
 		plot_h = sum_ifig_w / (1.0 - self.ncols_nrows[1] * (cspace + csize + vspace))

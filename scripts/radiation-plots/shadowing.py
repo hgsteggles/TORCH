@@ -17,8 +17,8 @@ import hgspy
 
 DPI = 300
 figformat = 'png'
-plot_size = 5
-fontsize = 16
+plot_size = 2.5
+fontsize = 8
 
 torch.set_font_sizes(fontsize)
 
@@ -79,7 +79,7 @@ for i in range(3):
 circx_inf =  RS_inf*np.cos(theta)
 circy_inf = 1.5 + RS_inf*np.sin(theta)
 
-kwargs = {'linewidth':2};
+kwargs = {'linewidth':1};
 
 grid[0].plot(clumpx, clumpy, c='r', **kwargs)
 grid[1].plot(clumpx, clumpy, c='r', **kwargs)

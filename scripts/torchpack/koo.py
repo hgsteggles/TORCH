@@ -166,3 +166,31 @@ def calcStagnationRadius2(RS):
 	co = soundSpeed(300.0, 1.0)
 	cico = ci / co
 	return math.pow(math.sqrt(4.0 / 3.0) * cico, 4.0 / 3.0) * RS
+
+def calcExactIF(T_o, T_i, mu_o, mu_i, nh, Q, tf, is_spitzer=True):
+	alphaB = 2.59e-13
+	ci = soundSpeed(T_i, mu_i)
+	RS = np.power(3.0 * Q / (4.0 * math.pi * nh * nh * alphaB), 1.0 / 3.0)
+
+	def spitzer_exact(t, y):
+		return ci * (RS / y)**(3.0 / 4.0) - ci * (mu_i * T_o / (mu_o * T_i)) * (RS / y)**(- 3.0 / 4.0)
+
+	def raga_exact(t, y):
+		inner = (4.0 / 3.0) * (RS / y)**(3.0 / 2.0) - (mu_i * T_o / (mu_o * T_i))
+		inner = max(inner, 0)
+
+		return ci * math.sqrt(inner)
+
+	n = 1000
+
+	R = RS
+	t = 0
+	h = tf / float(n)
+	for i in range(n):
+		if is_spitzer:
+			R += h * spitzer_exact(t, R)
+		else:
+			R += h * raga_exact(t, R)
+		t += h
+
+	return R
