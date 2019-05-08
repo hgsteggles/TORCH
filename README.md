@@ -3,10 +3,10 @@
 
 ******************************
 
-####Overview
+#### Overview
 TORCH is a 3D Eulerian fixed grid fluid dynamics code. The grid is a collection of finite  elements, called grid cells, that each hold fluid state information. The hydrodynamics are solved using a rotated hybrid HLLC-HLL Riemann solver ([Nishikawa & Kitamura 2008](#N8)) to calculate fluxes on each grid cell face. Ionisation from point source radiation is implicitly solved and the column densities required for  this are calculated via an interpolative ray tracing scheme ([Mellema et al. 2006](#M6)). Heating/cooling from atomic processes is calculated using the approximate functions in [Henney et al. (2009)](#H9).
 
-####Example Usage
+#### Example Usage
 After building, the directory tree (with `bin` as root directory) of the application should look like this:
 ```
 .
@@ -27,7 +27,7 @@ mpirun -np 8 ./torch --paramfile=/path/to/torch-config.lua --setupfile=/path/to/
 ```
 The `-s` flag can also be passed to run the program silently (only error messages will appear on the console).  
 
-#####Setup
+##### Setup
 
 For example, to set up a 2D cylindrically symmetric 150x200 mesh with a star located at grid coordinates (0, 110) parameters (in cgs units) could be:
 
@@ -163,7 +163,7 @@ end
 
 The function `initialise` takes in six arguments: x (or r-polar), y (or z-polar) and z coordinates of the cell and the coordinates of the star (all in cm). Density, pressure, ionised hydrogen fraction, velocity components, and gravitational acceleration components are returned (in cgs units). This script is executed by TORCH in order to set up the fluid variables in a grid.
 
-#####Output
+##### Output
 TORCH outputs compressed data files in a specified directory (`output_directory`). The header contains 4 lines; the first line is the simulation time in seconds and the next three lines give the number of grid cells along the x, y and z directions of the mesh. After the header, grid cell data is displayed in columns. The first ND columns are the position coordinates of the grid cell, where ND is the number of dimensions. Next is density, pressure and HII fraction. Then the last ND columns are the fluid velocity components. All output is in cgs units.
 
 After 50,000 years the solution to the setup given above looks like this:
@@ -171,7 +171,7 @@ After 50,000 years the solution to the setup given above looks like this:
 ![SolutionImage](four-panel-d24-t025.png)
 \[Image produced using matplotlib.\]
 
-####Compiling
+#### Compiling
 
 TORCH uses the cmake build process. To build simply make a `build` directory and call `ccmake` from there:
 ```bash
@@ -188,10 +188,10 @@ export CXX=/path/to/g++
 export MPI_HOME=/path/to/mpi/installation
 ```
 
-####Advanced Usage
+#### Advanced Usage
 The parameters not included in this table should not be modified unless you know what you're doing. Asterisks are wildcard characters.
 
-#####Basic
+##### Basic
 | Parameter                     | Notes                                     |
 | :---------------------------- | :---------------------------------------- |
 | `*_scale`                 | Chosen such that code units of order of unity. |
@@ -235,20 +235,20 @@ The parameters not included in this table should not be modified unless you know
 | `integration_scheme`      | Radiation integration scheme: implicit or explicit. |
 | `coupling`                | Coupling between radiation and hydrodynamics: neq (Non-equilibrium) or tti (two-temperature isothermal). |
 
-####Goals
+#### Goals
 * AMR grids.
 * HEALPix ray-tracing.
 * Output in HDF5 data format.
 
-####Developer info
+#### Developer info
 Harrison Steggles, University of Leeds (PhD student).
 
-####References
+#### References
 <a name="H9"></a>Henney, W. J., Arthur, S. J., de Colle, F., & Mellema, G. 2009, MNRAS, 398, 157 ([link](http://mnras.oxfordjournals.org/content/398/1/157.full.pdf+html))  
 <a name="M6"></a>Mellema, G., Iliev, I. T., Alvarez, M. A., & Shapiro, P. R. 2006, New A, 11, 374 ([link](http://arxiv.org/pdf/astro-ph/0508416v2.pdf))  
 <a name="N8"></a>Nishikawa, H. & Kitamura, K. 2008, Journal of Computational Physics, 227, 2560 ([link](http://research.nianet.org/~hiro/My_papers/Nishikawa_Kitamura_JCP2008v227pp2560-2581Preprint.pdf))  
 
-####Requirements
+#### Requirements
 * gcc 4.7.2+.
 * [zlib](http://www.zlib.net): "A massively spiffy yet delicately unobtrusive compression library".  
 * [Eigen](http://eigen.tuxfamily.org): "A template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms".  
