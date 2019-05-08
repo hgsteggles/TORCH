@@ -176,7 +176,7 @@ After 50,000 years the solution to the setup given above looks like this:
 TORCH uses the cmake build process. To build simply make a `build` directory and call `ccmake` from there:
 ```bash
 mkdir build
-cd mkdir
+cd build
 ccmake path/to/TORCH
 make
 ```
@@ -229,11 +229,11 @@ The parameters not included in this table should not be modified unless you know
 | Parameter                     | Notes                                     |
 | :---------------------------- | :---------------------------------------- |
 | `spatial_order`           | The order of spatial reconstruction. No reconstruction with 0 and linear reconstruction with 1. |
-| `debug_on`                | Output debugging info to console? |
+| `debug_on`                | Output debugging info to console |
 | `riemann_solver`          | HLL, HLLC or RotatedHLLC. |
 | `slope_limiter`           | albada, superbee, monotonised_central, minmod or maxmod. |
-| `integration_scheme`      | Radiation integration scheme. implicit or explicit. |
-| `coupling`                | Coupling between radiation and hydrodynamics. neq (Non-equilibrium) or tti (two-temperature isothermal). |
+| `integration_scheme`      | Radiation integration scheme: implicit or explicit. |
+| `coupling`                | Coupling between radiation and hydrodynamics: neq (Non-equilibrium) or tti (two-temperature isothermal). |
 
 ####Goals
 * AMR grids.
